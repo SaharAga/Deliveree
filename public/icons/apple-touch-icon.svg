@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="180" height="180">
+  <defs>
+    <linearGradient id="bgGradApple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+    <linearGradient id="boxTopApple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60a5fa" />
+      <stop offset="100%" stop-color="#3b82f6" />
+    </linearGradient>
+    <linearGradient id="boxLeftApple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#1d4ed8" />
+    </linearGradient>
+    <linearGradient id="boxRightApple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563eb" />
+      <stop offset="100%" stop-color="#1e40af" />
+    </linearGradient>
+    <linearGradient id="accentTapeApple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a855f7" />
+      <stop offset="100%" stop-color="#6366f1" />
+    </linearGradient>
+  </defs>
+
+  <!-- iOS Apple Touch Icon Background -->
+  <rect width="180" height="180" rx="40" fill="url(#bgGradApple)" />
+
+  <!-- 3D Isometric Parcel Box -->
+  <g transform="translate(90, 90)">
+    <!-- Top Face -->
+    <polygon points="0,-45 45,-22.5 0,0 -45,-22.5" fill="url(#boxTopApple)" />
+    
+    <!-- Left Face -->
+    <polygon points="-45,-22.5 0,0 0,48 -45,25.5" fill="url(#boxLeftApple)" />
+    
+    <!-- Right Face -->
+    <polygon points="0,0 45,-22.5 45,25.5 0,48" fill="url(#boxRightApple)" />
+    
+    <!-- Decorative Center Tape / Accent Band -->
+    <polygon points="0,-45 13,-38.5 0,-32 -13,-38.5" fill="url(#accentTapeApple)" opacity="0.9" />
+    <polygon points="0,-32 13,-38.5 13,32.5 0,39" fill="url(#accentTapeApple)" opacity="0.85" />
+    
+    <!-- Internal Box Fold Lines -->
+    <line x1="0" y1="0" x2="0" y2="48" stroke="#60a5fa" stroke-width="1.5" stroke-opacity="0.4" />
+    <line x1="0" y1="0" x2="-45" y2="-22.5" stroke="#93c5fd" stroke-width="1.5" stroke-opacity="0.5" />
+    <line x1="0" y1="0" x2="45" y2="-22.5" stroke="#93c5fd" stroke-width="1.5" stroke-opacity="0.3" />
+
+    <!-- Tracking Checkpoint Pin Badge -->
+    <circle cx="26" cy="-28" r="9" fill="#10b981" stroke="#0f172a" stroke-width="2" />
+    <path d="M23 -28 L25 -26 L30 -31" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+</svg>

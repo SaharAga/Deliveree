@@ -1,0 +1,255 @@
+import { describe, it, expect, beforeEach, beforeAll } from 'vitest';
+import { deliveryService } from './deliveryService';
+
+describe('Delivery Service and Storage Persistence', () => {
+  let mockStore = {};
+
+  beforeAll(() => {
+    globalThis.localStorage = {
+      getItem: (key) => mockStore[key] || null,
+      setItem: (key, value) => { mockStore[key] = String(value); },
+      removeItem: (key) => { delete mockStore[key]; },
+      clear: () => { mockStore = {}; }
+    };
+  });
+
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('returns an empty array when storage is empty', () => {
+    const pkgs = deliveryService.getPackages();
+    expect(pkgs).toBeInstanceOf(Array);
+    expect(pkgs.length).toBe(0);
+  });
+
+  it('saves and retrieves packages from storage', () => {
+    const testPackage = [{
+      id: 'test-1',
+      title: 'Test Gadget',
+      trackingNumber: 'RS123456789IL',
+      carrier: 'israel-post',
+      status: 'in_transit',
+      category: 'electronics',
+      isPinned: false,
+      isArchived: false,
+      checkpoints: []
+    }];
+
+    deliveryService.savePackages(testPackage);
+    const loaded = deliveryService.getPackages();
+    expect(loaded.length).toBe(1);
+    expect(loaded[0].id).toBe('test-1');
+  });
+
+  it('exports and imports JSON data cleanly', () => {
+    const testData = [{
+      id: 'import-1',
+      title: 'Imported Item',
+      trackingNumber: 'LP99999999999CN',
+      carrier: 'cainiao',
+      status: 'delivered',
+      isPinned: true,
+      isArchived: false,
+      checkpoints: []
+    }];
+
+    const jsonString = JSON.stringify(testData);
+    const result = deliveryService.importData(jsonString);
+
+    expect(result.success).toBe(true);
+    expect(result.packages.length).toBe(1);
+    expect(result.packages[0].title).toBe('Imported Item');
+  });
+
+  it('handles corrupted JSON import gracefully without crashing', () => {
+    const invalidJson = '{ "bad_json": true, missing_bracket';
+    const result = deliveryService.importData(invalidJson);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
+  });
+
+  it('sanitizes XSS payloads from imported packages', () => {
+    const maliciousData = [{
+      id: 'pkg-xss-1',
+      title: 'Malicious <script>alert("hacked")</script> Package',
+      notes: '<img src=x onerror=stealCookies()> Some note',
+      trackingNumber: 'EVIL99999',
+      carrier: 'israel-post',
+      status: 'in_transit'
+    }];
+
+    const result = deliveryService.importData(JSON.stringify(maliciousData));
+    expect(result.success).toBe(true);
+    expect(result.packages[0].title).toBe('Malicious  Package');
+    expect(result.packages[0].notes).toBe('Some note');
+  });
+
+  it('validates and normalizes missing fields and unknown carrier/status on import', () => {
+    const unnormalizedData = [{
+      trackingNumber: '1Z9999999999999999',
+      carrier: 'unknown-fake-carrier',
+      status: 'fake-status'
+    }];
+
+    const result = deliveryService.importData(JSON.stringify(unnormalizedData));
+    expect(result.success).toBe(true);
+    expect(result.packages[0].title).toBe('Untitled Package');
+    expect(result.packages[0].carrier).toBe('other');
+    expect(result.packages[0].status).toBe('in_transit');
+  });
+
+  it('rejects non-array and empty invalid import payloads', () => {
+    const nonArrayJson = JSON.stringify({ title: 'Single Object' });
+    const result = deliveryService.importData(nonArrayJson);
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('must be an array');
+
+    const nonStringResult = deliveryService.importData(null);
+    expect(nonStringResult.success).toBe(false);
+  });
+
+  it('rejects import payloads exceeding the 2MB size limit', () => {
+    const bigPad = 'x'.repeat(2 * 1024 * 1024 + 100);
+    const oversizedJson = JSON.stringify([{ id: 'oversized', title: bigPad, trackingNumber: 'TRK1' }]);
+
+    const result = deliveryService.importData(oversizedJson);
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('2MB');
+  });
+
+  it('limits imported packages to MAX_IMPORT_PACKAGES (1000 items)', () => {
+    const manyPackages = Array.from({ length: 1200 }, (_, i) => ({
+      id: `pkg-${i}`,
+      title: `Package ${i}`,
+      trackingNumber: `TRK${i}`,
+      carrier: 'other',
+      status: 'in_transit'
+    }));
+
+    const result = deliveryService.importData(JSON.stringify(manyPackages));
+    expect(result.success).toBe(true);
+    expect(result.packages.length).toBe(1000);
+  });
+
+  it('exports packages using URL.createObjectURL and cleans up with revokeObjectURL', () => {
+    let createdUrl = null;
+    let revokedUrl = null;
+
+    globalThis.URL.createObjectURL = (blob) => {
+      expect(blob).toBeInstanceOf(Blob);
+      createdUrl = 'blob:http://localhost/test-uuid';
+      return createdUrl;
+    };
+    globalThis.URL.revokeObjectURL = (url) => {
+      revokedUrl = url;
+    };
+
+    const mockAnchor = {
+      setAttribute: (k, v) => { mockAnchor[k] = v; },
+      click: () => {},
+      remove: () => {}
+    };
+
+    globalThis.document = {
+      createElement: (tag) => tag === 'a' ? mockAnchor : {},
+      body: {
+        appendChild: () => {},
+        removeChild: () => {}
+      }
+    };
+
+    const packages = [{
+      id: 'pkg-1',
+      title: 'Export Test',
+      trackingNumber: 'LP123456789CN',
+      carrier: 'cainiao',
+      status: 'in_transit'
+    }];
+
+    deliveryService.exportData(packages);
+
+    expect(createdUrl).toBe('blob:http://localhost/test-uuid');
+    expect(revokedUrl).toBe('blob:http://localhost/test-uuid');
+    expect(mockAnchor.download).toMatch(/^deliveree_backup_/);
+    expect(mockAnchor.href).toBe('blob:http://localhost/test-uuid');
+  });
+
+  describe('Multi-tenant isolation and user scoping', () => {
+    it('isolates packages between user A, user B, and guest', () => {
+      const userAPackages = [{
+        id: 'pkg-userA-1',
+        title: 'User A Package',
+        trackingNumber: 'IL111111111IL',
+        carrier: 'israel-post',
+        status: 'in_transit'
+      }];
+
+      const userBPackages = [{
+        id: 'pkg-userB-1',
+        title: 'User B Package',
+        trackingNumber: 'IL222222222IL',
+        carrier: 'dhl',
+        status: 'delivered'
+      }];
+
+      const guestPackages = [{
+        id: 'pkg-guest-1',
+        title: 'Guest Package',
+        trackingNumber: 'IL333333333IL',
+        carrier: 'fedex',
+        status: 'out_for_delivery'
+      }];
+
+      deliveryService.savePackages(userAPackages, 'userA');
+      deliveryService.savePackages(userBPackages, 'userB');
+      deliveryService.savePackages(guestPackages, null);
+
+      const loadedA = deliveryService.getPackages('userA');
+      const loadedB = deliveryService.getPackages('userB');
+      const loadedGuest = deliveryService.getPackages(null);
+
+      expect(loadedA.length).toBe(1);
+      expect(loadedA[0].id).toBe('pkg-userA-1');
+      expect(loadedA.some(p => p.id === 'pkg-userB-1' || p.id === 'pkg-guest-1')).toBe(false);
+
+      expect(loadedB.length).toBe(1);
+      expect(loadedB[0].id).toBe('pkg-userB-1');
+      expect(loadedB.some(p => p.id === 'pkg-userA-1' || p.id === 'pkg-guest-1')).toBe(false);
+
+      expect(loadedGuest.length).toBe(1);
+      expect(loadedGuest[0].id).toBe('pkg-guest-1');
+      expect(loadedGuest.some(p => p.id === 'pkg-userA-1' || p.id === 'pkg-userB-1')).toBe(false);
+    });
+
+    it('clears specific user packages without affecting other users', () => {
+      const userAPackages = [{ id: 'pkg-A', title: 'A', trackingNumber: 'TRA', carrier: 'other', status: 'in_transit' }];
+      const userBPackages = [{ id: 'pkg-B', title: 'B', trackingNumber: 'TRB', carrier: 'other', status: 'in_transit' }];
+
+      deliveryService.savePackages(userAPackages, 'userA');
+      deliveryService.savePackages(userBPackages, 'userB');
+
+      const clearResult = deliveryService.clearUserPackages('userA');
+      expect(clearResult).toEqual([]);
+
+      expect(deliveryService.getPackages('userA')).toEqual([]);
+      expect(deliveryService.getPackages('userB').length).toBe(1);
+      expect(deliveryService.getPackages('userB')[0].id).toBe('pkg-B');
+    });
+
+    it('resets demo for specific user without affecting others', () => {
+      const userAPackages = [{ id: 'pkg-A', title: 'A', trackingNumber: 'TRA', carrier: 'other', status: 'in_transit' }];
+      const userBPackages = [{ id: 'pkg-B', title: 'B', trackingNumber: 'TRB', carrier: 'other', status: 'in_transit' }];
+
+      deliveryService.savePackages(userAPackages, 'userA');
+      deliveryService.savePackages(userBPackages, 'userB');
+
+      const resetResult = deliveryService.resetToDemo('userA');
+      expect(resetResult).toEqual([]);
+
+      expect(deliveryService.getPackages('userA')).toEqual([]);
+      expect(deliveryService.getPackages('userB').length).toBe(1);
+    });
+  });
+});

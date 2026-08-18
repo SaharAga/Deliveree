@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="boxGrad1_512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="boxGrad2_512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60a5fa"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="boxGrad3_512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#93c5fd"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+    <filter id="glow512" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="20" stdDeviation="30" flood-color="#3b82f6" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+  
+  <!-- Rounded App Background -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad512)" stroke="#1e293b" stroke-width="4"/>
+  
+  <!-- Glowing Isometric Box -->
+  <g filter="url(#glow512)" transform="translate(0, 10)">
+    <!-- Top Face -->
+    <polygon points="256,100 395,180 256,260 117,180" fill="url(#boxGrad3_512)"/>
+    <!-- Left Face -->
+    <polygon points="117,180 256,260 256,410 117,330" fill="url(#boxGrad1_512)"/>
+    <!-- Right Face -->
+    <polygon points="256,260 395,180 395,330 256,410" fill="url(#boxGrad2_512)"/>
+    
+    <!-- Top Tape -->
+    <polygon points="256,126 310,158 256,190 202,158" fill="#ffffff" opacity="0.3"/>
+    
+    <!-- Checkmark Badge -->
+    <circle cx="360" cy="345" r="58" fill="#10b981" stroke="#0f172a" stroke-width="8"/>
+    <path d="M333 345 l19 19 l38 -38" fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

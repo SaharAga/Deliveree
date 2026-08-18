@@ -1,0 +1,232 @@
+export const INITIAL_PACKAGES = [
+  {
+    id: 'pkg-1',
+    title: 'Keychron K2 Wireless Keyboard',
+    titleHe: 'מקלדת מכנית אלחוטית Keychron K2',
+    trackingNumber: 'RS948219481IL',
+    carrier: 'israel-post',
+    carrierName: 'Israel Post',
+    status: 'in_transit',
+    category: 'electronics',
+    orderDate: '2026-08-05',
+    expectedDeliveryDate: '2026-08-20',
+    origin: 'Shenzhen, China',
+    destination: 'Tel Aviv, Israel',
+    notes: 'Arrived in Israel; transfer to regional sorting facility',
+    notesHe: 'נחת בנתב״ג; הועבר למיון במרכז הלוגיסטי מודיעין',
+    isPinned: true,
+    isArchived: false,
+    checkpoints: [
+      {
+        id: 'cp-1-1',
+        title: 'Order Dispatched',
+        titleHe: 'ההזמנה נשלחה',
+        description: 'Electronic shipping info received by carrier',
+        descriptionHe: 'התקבל מידע אלקטרוני על המשלוח מהמוכר',
+        location: 'Shenzhen, China',
+        timestamp: '2026-08-06T10:30:00Z',
+        isCompleted: true
+      },
+      {
+        id: 'cp-1-2',
+        title: 'Departed Origin Sorting Center',
+        titleHe: 'יצא ממרכז המיון בחו״ל',
+        description: 'Package processed through international dispatch center',
+        descriptionHe: 'החבילה עברה מיון ויצאה בטיסה בינלאומית',
+        location: 'Hong Kong Int. Airport',
+        timestamp: '2026-08-09T14:15:00Z',
+        isCompleted: true
+      },
+      {
+        id: 'cp-1-3',
+        title: 'Arrived in Destination Country',
+        titleHe: 'החבילה נחתה בישראל',
+        description: 'Received at Ben Gurion Air Cargo Terminal, undergoing sorting',
+        descriptionHe: 'התקבל במסוף המטענים בנתב״ג, הועבר למיון דואר ישראל',
+        location: 'Ben Gurion Airport, Israel',
+        timestamp: '2026-08-16T08:45:00Z',
+        isCompleted: true
+      }
+    ],
+    createdAt: '2026-08-05T09:00:00Z',
+    updatedAt: '2026-08-16T08:45:00Z'
+  },
+  {
+    id: 'pkg-2',
+    title: 'Timemore Chestnut C3 Coffee Grinder',
+    titleHe: 'מטחנת קפה ידנית Timemore C3',
+    trackingNumber: 'LP00582910482CN',
+    carrier: 'cainiao',
+    carrierName: 'AliExpress / Cainiao',
+    status: 'customs',
+    category: 'home',
+    orderDate: '2026-08-02',
+    expectedDeliveryDate: '2026-08-22',
+    origin: 'Hangzhou, China',
+    destination: 'Jerusalem, Israel',
+    notes: 'Awaiting fast customs automated clearance scan',
+    notesHe: 'ממתין לשחרור מהיר בבדיקת מכס נתב״ג',
+    isPinned: false,
+    isArchived: false,
+    checkpoints: [
+      {
+        id: 'cp-2-1',
+        title: 'Package Shipped',
+        titleHe: 'החבילה נשלחה',
+        description: 'Picked up by Cainiao logistics courier',
+        descriptionHe: 'נאסף על ידי שליח קאיניאו ממחסן המוכר',
+        location: 'Hangzhou, China',
+        timestamp: '2026-08-03T11:00:00Z',
+        isCompleted: true
+      },
+      {
+        id: 'cp-2-2',
+        title: 'Linehaul Arrival',
+        titleHe: 'נחיתה ביעד',
+        description: 'Arrived at destination country hub',
+        descriptionHe: 'נחת בישראל',
+        location: 'Tel Aviv, Israel',
+        timestamp: '2026-08-14T09:20:00Z',
+        isCompleted: true
+      },
+      {
+        id: 'cp-2-3',
+        title: 'Import Customs Inspection',
+        titleHe: 'בבדיקת מכס / שחרור מהיר',
+        description: 'Under import inspection by Israel Tax Authority / Customs',
+        descriptionHe: 'נמצא בהליך שחרור מכס מהיר',
+        location: 'Customs Terminal, Lod',
+        timestamp: '2026-08-17T16:00:00Z',
+        isCompleted: true
+      }
+    ],
+    createdAt: '2026-08-02T12:00:00Z',
+    updatedAt: '2026-08-17T16:00:00Z'
+  },
+  {
+    id: 'pkg-3',
+    title: 'Anker USB-C Hub & Dual Monitor Dock',
+    titleHe: 'תחנת עגינה ומפצל Anker USB-C',
+    trackingNumber: '4829104821',
+    carrier: 'dhl',
+    carrierName: 'DHL Express',
+    status: 'out_for_delivery',
+    category: 'work',
+    orderDate: '2026-08-12',
+    expectedDeliveryDate: '2026-08-18',
+    origin: 'Leipzig, Germany',
+    destination: 'Haifa, Israel',
+    notes: 'Courier Aviad (050-1234567) is on the way. Code: 4821',
+    notesHe: 'שליח אביעד (050-1234567) בדרך לכתובת. קוד מסירה: 4821',
+    isPinned: true,
+    isArchived: false,
+    checkpoints: [
+      {
+        id: 'cp-3-1',
+        title: 'Shipment Picked Up',
+        titleHe: 'המשלוח נאסף',
+        description: 'Picked up from Amazon EU Fulfillment center',
+        descriptionHe: 'נאסף ממרכז ההפצה של אמזון',
+        location: 'Leipzig Hub, Germany',
+        timestamp: '2026-08-13T08:00:00Z',
+        isCompleted: true
+      },
+      {
+        id: 'cp-3-2',
+        title: 'Processed at DHL Gateway',
+        titleHe: 'עבר עיבוד במסוף DHL',
+        description: 'Customs cleared immediately upon arrival',
+        descriptionHe: 'עבר שחרור מכס מהיר עם הנחיתה',
+        location: 'DHL Hub Ben Gurion',
+        timestamp: '2026-08-17T22:30:00Z',
+        isCompleted: true
+      },
+      {
+        id: 'cp-3-3',
+        title: 'With Delivery Courier',
+        titleHe: 'נמסר לשליח לחלוקה היום',
+        description: 'Loaded onto courier delivery van for scheduled delivery',
+        descriptionHe: 'החבילה הועמסה על רכב השליח לחלוקה בכתובת היעד',
+        location: 'Haifa Regional Depot',
+        timestamp: '2026-08-18T07:15:00Z',
+        isCompleted: true
+      }
+    ],
+    createdAt: '2026-08-12T14:00:00Z',
+    updatedAt: '2026-08-18T07:15:00Z'
+  },
+  {
+    id: 'pkg-4',
+    title: 'Ray-Ban Polarized Aviator Sunglasses',
+    titleHe: 'משקפי שמש Ray-Ban Polarized',
+    trackingNumber: '794820194821',
+    carrier: 'fedex',
+    carrierName: 'FedEx',
+    status: 'delivered',
+    category: 'clothing',
+    orderDate: '2026-07-28',
+    expectedDeliveryDate: '2026-08-08',
+    origin: 'Milan, Italy',
+    destination: 'Tel Aviv, Israel',
+    notes: 'Delivered and signed by front desk concierge',
+    notesHe: 'נמסר ונחתם בקבלה בבניין',
+    isPinned: false,
+    isArchived: false,
+    checkpoints: [
+      {
+        id: 'cp-4-1',
+        title: 'Order Placed & Shipped',
+        titleHe: 'נשלח ממילאנו',
+        description: 'FedEx International Priority',
+        descriptionHe: 'נשלח בשירות FedEx International Priority',
+        location: 'Milan, Italy',
+        timestamp: '2026-07-29T10:00:00Z',
+        isCompleted: true
+      },
+      {
+        id: 'cp-4-2',
+        title: 'Delivered',
+        titleHe: 'נמסר בהצלחה',
+        description: 'Signed for by Front Desk / Concierge',
+        descriptionHe: 'נמסר בהצלחה לשוער / קבלה',
+        location: 'Tel Aviv, Israel',
+        timestamp: '2026-08-08T13:40:00Z',
+        isCompleted: true
+      }
+    ],
+    createdAt: '2026-07-28T10:00:00Z',
+    updatedAt: '2026-08-08T13:40:00Z'
+  },
+  {
+    id: 'pkg-5',
+    title: 'Vintage Leather Watch Strap 20mm',
+    titleHe: 'רצועת עור לשעון 20 מ״מ',
+    trackingNumber: 'UY894729184YP',
+    carrier: 'yanwen',
+    carrierName: 'Yanwen Express',
+    status: 'shipped',
+    category: 'gifts',
+    orderDate: '2026-08-14',
+    expectedDeliveryDate: '2026-09-02',
+    origin: 'Yiwu, China',
+    destination: 'Ramat Gan, Israel',
+    notes: 'Departed Yanwen consolidation sorting facility',
+    notesHe: 'יצא ממרכז האיחוד והמיון של ינוואן',
+    isPinned: false,
+    isArchived: false,
+    checkpoints: [
+      {
+        id: 'cp-5-1',
+        title: 'Order Processed',
+        titleHe: 'ההזמנה נארזה ונרשמה',
+        description: 'Dispatched to Yanwen Logistics Hub',
+        descriptionHe: 'נמסר למרכז הלוגיסטי של ינוואן',
+        location: 'Yiwu Sorting Hub',
+        timestamp: '2026-08-15T06:30:00Z',
+        isCompleted: true
+      }
+    ],
+    createdAt: '2026-08-14T08:00:00Z',
+    updatedAt: '2026-08-15T06:30:00Z'
+  }
+];

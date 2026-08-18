@@ -1,0 +1,222 @@
+import { CARRIERS } from '../types/carriers';
+import { STAGES, CATEGORIES } from '../types/stages';
+
+const VALID_CARRIER_IDS = new Set(Object.keys(CARRIERS));
+const VALID_STAGE_IDS = new Set(STAGES.map(s => s.id));
+const VALID_CATEGORY_IDS = new Set(CATEGORIES.map(c => c.id));
+
+const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+/**
+ * Sanitizes an untrusted string by stripping HTML/script tags, XSS attack vectors,
+ * dangerous URI schemes, HTML entities, and non-printable control characters.
+ *
+ * @param {unknown} input - The input to sanitize
+ * @param {number} [maxLength=500] - Maximum allowed length
+ * @returns {string} Sanitized string
+ */
+export function sanitizeString(input, maxLength = 500) {
+  if (input === null || input === undefined) {
+    return '';
+  }
+
+  let str = typeof input === 'string' ? input : String(input);
+
+  // Early length guard to prevent CPU exhaustion on huge strings
+  const earlyBound = Math.max(maxLength * 4, 2000);
+  if (str.length > earlyBound) {
+    str = str.slice(0, earlyBound);
+  }
+
+  // 1. Remove non-printable control characters (ASCII 0-8, 11-12, 14-31, 127-159)
+  // eslint-disable-next-line no-control-regex
+  str = str.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, '');
+
+  // 2. Strip dangerous script/style/iframe/embed/object tags and their inner content
+  str = str.replace(/<\s*(?:script|style|iframe|object|embed|applet|svg|meta|link)[^>]*>[\s\S]*?<\s*\/\s*(?:script|style|iframe|object|embed|applet|svg|meta|link)\s*>/gi, '');
+
+  // 3. Strip self-closing or unclosed dangerous tags (e.g. <script ... />, <img ... />)
+  str = str.replace(/<\s*(?:script|style|iframe|object|embed|applet|svg|meta|link|base)[^>]*\/?>/gi, '');
+
+  // 4. Strip inline event handlers (e.g. onerror=..., onclick=..., onload=...)
+  str = str.replace(/\bon\w+\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, '');
+
+  // 5. Strip dangerous URL schemes (javascript:, vbscript:, data:text/html)
+  str = str.replace(/(?:javascript|vbscript|data\s*:\s*text\/html)\s*:/gi, '');
+
+  // 6. Strip all remaining HTML tags
+  str = str.replace(/<\/?[a-zA-Z][^>]*>/g, '');
+
+  // 7. Strip unescaped angle brackets and quotes that could be injected into attributes
+  str = str.replace(/[<>]/g, '');
+
+  // 8. Trim whitespace
+  str = str.trim();
+
+  // 9. Enforce max length constraint
+  if (typeof maxLength === 'number' && maxLength > 0 && str.length > maxLength) {
+    str = str.slice(0, maxLength);
+  }
+
+  return str;
+}
+
+/**
+ * Validates and sanitizes a single checkpoint object.
+ *
+ * @param {unknown} cp - Checkpoint object
+ * @param {number} index - Fallback index for ID generation
+ * @returns {object|null} Sanitized checkpoint or null if completely invalid
+ */
+function validateCheckpoint(cp, index = 0) {
+  if (!cp || typeof cp !== 'object' || Array.isArray(cp)) {
+    return null;
+  }
+
+  // Guard against prototype pollution by building an isolated object
+  const safeObj = Object.create(null);
+  for (const key of Object.keys(cp)) {
+    if (!DANGEROUS_KEYS.has(key)) {
+      safeObj[key] = cp[key];
+    }
+  }
+
+  const id = sanitizeString(safeObj.id, 100) || `cp-${Date.now()}-${index}`;
+  const title = sanitizeString(safeObj.title, 200) || 'Status Update';
+  const titleHe = sanitizeString(safeObj.titleHe, 200) || title;
+  const description = sanitizeString(safeObj.description, 500) || '';
+  const descriptionHe = sanitizeString(safeObj.descriptionHe, 500) || description;
+  const location = sanitizeString(safeObj.location, 150) || '';
+  const timestamp = sanitizeString(safeObj.timestamp, 50) || new Date().toISOString();
+  const isCompleted = typeof safeObj.isCompleted === 'boolean' ? safeObj.isCompleted : true;
+
+  return {
+    id,
+    title,
+    titleHe,
+    description,
+    descriptionHe,
+    location,
+    timestamp,
+    isCompleted
+  };
+}
+
+/**
+ * Strictly validates and normalizes a package object against system schemas.
+ * Provides sane fallbacks for missing fields and guards against prototype pollution.
+ *
+ * @param {unknown} pkg - The package object to validate
+ * @returns {object|null} Validated and sanitized package object, or null if input is not an object
+ */
+export function validatePackage(pkg) {
+  if (!pkg || typeof pkg !== 'object' || Array.isArray(pkg)) {
+    return null;
+  }
+
+  // Guard against prototype pollution
+  const safeObj = Object.create(null);
+  for (const key of Object.keys(pkg)) {
+    if (!DANGEROUS_KEYS.has(key)) {
+      safeObj[key] = pkg[key];
+    }
+  }
+
+  // 1. Identification
+  const id = sanitizeString(safeObj.id, 100) || `pkg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const title = sanitizeString(safeObj.title, 200) || 'Untitled Package';
+  const titleHe = sanitizeString(safeObj.titleHe, 200) || title;
+  
+  // Tracking number: uppercase alphanumeric + dash/underscore
+  const rawTracking = sanitizeString(safeObj.trackingNumber, 100).toUpperCase();
+  const trackingNumber = rawTracking.replace(/[^A-Z0-9_-]/g, '') || 'UNTRACKED';
+
+  // 2. Carrier resolution & fallback
+  const rawCarrier = typeof safeObj.carrier === 'string' ? safeObj.carrier.toLowerCase().trim() : '';
+  const carrier = VALID_CARRIER_IDS.has(rawCarrier) ? rawCarrier : 'other';
+  const defaultCarrierObj = CARRIERS[carrier] || CARRIERS['other'];
+  const carrierName = sanitizeString(safeObj.carrierName, 100) || defaultCarrierObj.name;
+
+  // 3. Status stage resolution & fallback
+  const rawStatus = typeof safeObj.status === 'string' ? safeObj.status.toLowerCase().trim() : '';
+  const status = VALID_STAGE_IDS.has(rawStatus) ? rawStatus : 'in_transit';
+
+  // 4. Category resolution & fallback
+  const rawCategory = typeof safeObj.category === 'string' ? safeObj.category.toLowerCase().trim() : '';
+  const category = VALID_CATEGORY_IDS.has(rawCategory) ? rawCategory : 'other';
+
+  // 5. Dates & Routes
+  const orderDate = sanitizeString(safeObj.orderDate, 50) || new Date().toISOString().slice(0, 10);
+  const expectedDeliveryDate = sanitizeString(safeObj.expectedDeliveryDate, 50) || '';
+  const origin = sanitizeString(safeObj.origin, 150) || '';
+  const destination = sanitizeString(safeObj.destination, 150) || 'Israel';
+
+  // 6. Notes
+  const notes = sanitizeString(safeObj.notes, 1000) || '';
+  const notesHe = sanitizeString(safeObj.notesHe, 1000) || notes;
+
+  // 7. Flags
+  const isPinned = Boolean(safeObj.isPinned);
+  const isArchived = Boolean(safeObj.isArchived);
+
+  // 8. Checkpoints list validation
+  let checkpoints = [];
+  if (Array.isArray(safeObj.checkpoints)) {
+    checkpoints = safeObj.checkpoints
+      .map((cp, idx) => validateCheckpoint(cp, idx))
+      .filter(Boolean);
+  }
+
+  // 9. Timestamps
+  const createdAt = sanitizeString(safeObj.createdAt, 50) || new Date().toISOString();
+  const updatedAt = sanitizeString(safeObj.updatedAt, 50) || new Date().toISOString();
+
+  // Construct a clean, isolated output object
+  return {
+    id,
+    title,
+    titleHe,
+    trackingNumber,
+    carrier,
+    carrierName,
+    status,
+    category,
+    orderDate,
+    expectedDeliveryDate,
+    origin,
+    destination,
+    notes,
+    notesHe,
+    isPinned,
+    isArchived,
+    checkpoints,
+    createdAt,
+    updatedAt
+  };
+}
+
+/**
+ * Validates, filters, and sanitizes an entire package list.
+ * Guards against prototype pollution and discards invalid entries.
+ *
+ * @param {unknown} packages - The list of packages
+ * @returns {Array<object>} Sanitized list of valid packages
+ */
+export function validatePackageList(packages) {
+  if (!Array.isArray(packages)) {
+    return [];
+  }
+
+  const result = [];
+  for (let i = 0; i < packages.length; i++) {
+    const item = packages[i];
+    if (item && typeof item === 'object' && !Array.isArray(item)) {
+      const validated = validatePackage(item);
+      if (validated) {
+        result.push(validated);
+      }
+    }
+  }
+
+  return result;
+}
