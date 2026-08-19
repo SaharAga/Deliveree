@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, beforeAll } from 'vitest';
-import { deliveryService } from './deliveryService';
+import { deliveryService, canTransition, TRANSITION_MATRIX } from './deliveryService';
 
 describe('Delivery Service and Storage Persistence', () => {
   let mockStore = {};
@@ -250,6 +250,55 @@ describe('Delivery Service and Storage Persistence', () => {
 
       expect(deliveryService.getPackages('userA')).toEqual([]);
       expect(deliveryService.getPackages('userB').length).toBe(1);
+    });
+  });
+
+  describe('State Machine Transition Matrix & canTransition Guard', () => {
+    it('exposes the defined transition matrix for all delivery stages', () => {
+      expect(TRANSITION_MATRIX).toBeDefined();
+      expect(Object.keys(TRANSITION_MATRIX)).toContain('ordered');
+      expect(Object.keys(TRANSITION_MATRIX)).toContain('delivered');
+    });
+
+    it('allows valid progressive lifecycle transitions', () => {
+      expect(canTransition('ordered', 'shipped')).toBe(true);
+      expect(canTransition('shipped', 'in_transit')).toBe(true);
+      expect(canTransition('in_transit', 'customs')).toBe(true);
+      expect(canTransition('in_transit', 'out_for_delivery')).toBe(true);
+      expect(canTransition('customs', 'out_for_delivery')).toBe(true);
+      expect(canTransition('out_for_delivery', 'delivered')).toBe(true);
+    });
+
+    it('allows self-transitions (idempotence)', () => {
+      expect(canTransition('ordered', 'ordered')).toBe(true);
+      expect(canTransition('delivered', 'delivered')).toBe(true);
+      expect(canTransition('archived', 'archived')).toBe(true);
+    });
+
+    it('allows transitioning to exception and archive from any active stage', () => {
+      const stages = ['ordered', 'shipped', 'in_transit', 'customs', 'out_for_delivery'];
+      for (const st of stages) {
+        expect(canTransition(st, 'exception')).toBe(true);
+        expect(canTransition(st, 'archived')).toBe(true);
+      }
+    });
+
+    it('blocks illegal backwards transitions from terminal delivered state', () => {
+      expect(canTransition('delivered', 'ordered')).toBe(false);
+      expect(canTransition('delivered', 'shipped')).toBe(false);
+      expect(canTransition('delivered', 'in_transit')).toBe(false);
+      expect(canTransition('delivered', 'customs')).toBe(false);
+      expect(canTransition('delivered', 'out_for_delivery')).toBe(false);
+      expect(canTransition('delivered', 'exception')).toBe(false);
+      expect(canTransition('delivered', 'archived')).toBe(true);
+    });
+
+    it('handles null, undefined, or unknown state inputs safely', () => {
+      expect(canTransition(null, 'delivered')).toBe(false);
+      expect(canTransition('ordered', null)).toBe(false);
+      expect(canTransition(undefined, undefined)).toBe(false);
+      expect(canTransition('unknown_stage', 'delivered')).toBe(false);
+      expect(canTransition('ordered', 'unknown_stage')).toBe(false);
     });
   });
 });

@@ -54,12 +54,13 @@ export function sanitizeString(input, maxLength = 500) {
   // 8. Trim whitespace
   str = str.trim();
 
-  // 9. Enforce max length constraint
-  if (typeof maxLength === 'number' && maxLength > 0 && str.length > maxLength) {
+  // 9. Enforce max length constraint (including 0)
+  if (typeof maxLength === 'number' && maxLength >= 0 && str.length > maxLength) {
     str = str.slice(0, maxLength);
   }
 
   return str;
+
 }
 
 /**
@@ -242,9 +243,11 @@ export function validatePackageList(packages) {
     return [];
   }
 
+  // Strict slice cap of 1,000 items to guard LocalStorage quota
+  const cappedPackages = packages.slice(0, 1000);
   const result = [];
-  for (let i = 0; i < packages.length; i++) {
-    const item = packages[i];
+  for (let i = 0; i < cappedPackages.length; i++) {
+    const item = cappedPackages[i];
     if (item && typeof item === 'object' && !Array.isArray(item)) {
       const validated = validatePackage(item);
       if (validated) {

@@ -7,10 +7,44 @@ function getStorageKey(userId) {
   return 'deliveree_packages_guest';
 }
 
+/**
+ * State machine transition matrix governing allowed package status transitions.
+ */
+export const TRANSITION_MATRIX = Object.freeze({
+  ordered: ['ordered', 'shipped', 'in_transit', 'exception', 'archived'],
+  shipped: ['shipped', 'in_transit', 'customs', 'out_for_delivery', 'exception', 'archived'],
+  in_transit: ['in_transit', 'customs', 'out_for_delivery', 'delivered', 'exception', 'archived'],
+  customs: ['customs', 'in_transit', 'out_for_delivery', 'exception', 'archived'],
+  out_for_delivery: ['out_for_delivery', 'delivered', 'exception', 'archived'],
+  delivered: ['delivered', 'archived'],
+  exception: ['exception', 'in_transit', 'out_for_delivery', 'delivered', 'archived'],
+  archived: ['archived', 'ordered', 'shipped', 'in_transit', 'customs', 'out_for_delivery', 'delivered', 'exception']
+});
+
+/**
+ * Checks whether transitioning from `fromStatus` to `toStatus` is permitted by the state machine.
+ *
+ * @param {string} fromStatus - Current status
+ * @param {string} toStatus - Desired new status
+ * @returns {boolean} True if transition is valid
+ */
+export function canTransition(fromStatus, toStatus) {
+  if (!fromStatus || !toStatus) return false;
+  if (fromStatus === toStatus) return true;
+  const allowed = TRANSITION_MATRIX[fromStatus];
+  if (!allowed) return false;
+  return allowed.includes(toStatus);
+}
+
 export const MAX_IMPORT_SIZE_BYTES = 2 * 1024 * 1024; // 2MB
 export const MAX_IMPORT_PACKAGES = 1000;
 
 export const deliveryService = {
+  /**
+   * State machine transition helper
+   */
+  canTransition,
+  TRANSITION_MATRIX,
   /**
    * Helper to derive the storage key for a user or guest
    */

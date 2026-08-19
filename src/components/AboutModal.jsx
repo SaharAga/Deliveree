@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X, Package, Sparkles, RefreshCw, ShieldCheck, Heart,
-  CheckCircle2, Lock, Cpu, Award, Globe
+  CheckCircle2, Lock, Cpu, Award, Globe, Activity, AlertTriangle, XCircle
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { CARRIER_LIST } from '../types/carriers';
 import { APP_VERSION, RELEASE_DATE, BUILD_CHANNEL } from '../constants/version';
+import { runAllBistDiagnostics } from '../utils/bistDiagnostics';
 
 export function AboutModal({
   isOpen,
@@ -15,8 +16,48 @@ export function AboutModal({
 }) {
   const { language, t } = useLanguage();
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [bistResult, setBistResult] = useState(null);
+  const [isRunningBist, setIsRunningBist] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      try {
+        const initialReport = runAllBistDiagnostics();
+        setBistResult(initialReport);
+      } catch (err) {
+        console.warn('[AboutModal] Initial BIST diagnostics failed:', err);
+      }
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
+
+  const handleRunSelfTest = () => {
+    setIsRunningBist(true);
+    setTimeout(() => {
+      try {
+        const report = runAllBistDiagnostics();
+        setBistResult(report);
+        if (onShowToast) {
+          onShowToast(
+            language === 'he'
+              ? `בדיקת מערכת עצמית (BIST) הושלמה: ${report.status}`
+              : `System BIST Diagnostics Complete: ${report.status}`,
+            report.status === 'PASS' ? 'success' : 'error'
+          );
+        }
+      } catch {
+        if (onShowToast) {
+          onShowToast(
+            language === 'he' ? 'שגיאה בהרצת בדיקות מערכת' : 'Failed running system diagnostics',
+            'error'
+          );
+        }
+      } finally {
+        setIsRunningBist(false);
+      }
+    }, 250);
+  };
 
   const handleCheckForUpdates = async () => {
     setIsCheckingUpdate(true);
@@ -37,8 +78,8 @@ export function AboutModal({
           if (onShowToast) {
             onShowToast(
               language === 'he'
-                ? 'המערכת מעודכנת לגרסה האחרונה (0.2.0-alpha)'
-                : 'System is up to date (0.2.0-alpha)',
+                ? `המערכת מעודכנת לגרסה האחרונה (${APP_VERSION})`
+                : `System is up to date (${APP_VERSION})`,
               'info'
             );
           }
@@ -99,7 +140,7 @@ export function AboutModal({
 
           <button
             onClick={onClose}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer min-h-[48px] min-w-[48px] flex items-center justify-center"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
@@ -135,7 +176,7 @@ export function AboutModal({
             <button
               onClick={handleCheckForUpdates}
               disabled={isCheckingUpdate}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-xs transition-all shadow-md shadow-blue-600/20 cursor-pointer min-h-[44px] shrink-0 w-full sm:w-auto"
+              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-xs transition-all shadow-md shadow-blue-600/20 cursor-pointer min-h-[48px] shrink-0 w-full sm:w-auto"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isCheckingUpdate ? 'animate-spin' : ''}`} />
               <span>
@@ -146,7 +187,89 @@ export function AboutModal({
             </button>
           </div>
 
-          {/* Section 2: Privacy & Security Architecture Badges */}
+          {/* Section 2: Interactive System Health & BIST Diagnostics */}
+          <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800/90 space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <Activity className="w-4 h-4 text-emerald-400" />
+                <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+                  {language === 'he' ? 'בדיקת תקינות מערכת (BIST Self-Test)' : 'System Health & Self-Test (BIST)'}
+                </h3>
+                {bistResult && (
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1 ${
+                      bistResult.status === 'PASS'
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                        : bistResult.status === 'WARN'
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                    }`}
+                  >
+                    {bistResult.status === 'PASS' && <CheckCircle2 className="w-3 h-3" />}
+                    {bistResult.status === 'WARN' && <AlertTriangle className="w-3 h-3" />}
+                    {bistResult.status === 'FAIL' && <XCircle className="w-3 h-3" />}
+                    {bistResult.status} ({bistResult.summary.passed}/{bistResult.summary.total})
+                  </span>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleRunSelfTest}
+                disabled={isRunningBist}
+                className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 font-bold text-xs border border-slate-700 transition-all cursor-pointer min-h-[48px]"
+              >
+                <Activity className={`w-3.5 h-3.5 ${isRunningBist ? 'animate-pulse text-emerald-400' : 'text-blue-400'}`} />
+                <span>
+                  {isRunningBist
+                    ? (language === 'he' ? 'מבצע בדיקה...' : 'Testing...')
+                    : (language === 'he' ? 'הרץ בדיקה עצמית 🩺' : 'Run Diagnostics 🩺')}
+                </span>
+              </button>
+            </div>
+
+            {bistResult && (
+              <div className="grid grid-cols-1 gap-2 pt-1">
+                {bistResult.checks.map((check) => (
+                  <div
+                    key={check.id}
+                    className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800/80 flex items-start justify-between gap-2"
+                  >
+                    <div className="space-y-0.5 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        {check.status === 'PASS' ? (
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        ) : check.status === 'WARN' ? (
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        ) : (
+                          <XCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                        )}
+                        <span className="font-semibold text-slate-200 text-[11px] truncate">
+                          {check.name}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 leading-tight">
+                        {check.message}
+                      </p>
+                    </div>
+                    <span
+                      className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-bold shrink-0 ${
+                        check.status === 'PASS'
+                          ? 'bg-emerald-500/15 text-emerald-400'
+                          : check.status === 'WARN'
+                          ? 'bg-amber-500/15 text-amber-400'
+                          : 'bg-rose-500/15 text-rose-400'
+                      }`}
+                    >
+                      {check.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Section 3: Privacy & Security Architecture Badges */}
           <div>
             <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider mb-2.5 flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
@@ -191,7 +314,7 @@ export function AboutModal({
             </div>
           </div>
 
-          {/* Section 3: Supported Carriers Grid (13+ carriers) */}
+          {/* Section 4: Supported Carriers Grid (13+ carriers) */}
           <div>
             <div className="flex items-center justify-between mb-2.5">
               <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
@@ -207,7 +330,7 @@ export function AboutModal({
               {CARRIER_LIST.map((carrier) => (
                 <div
                   key={carrier.id}
-                  className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/90 hover:border-slate-700 transition-colors flex items-center gap-2 min-h-[44px]"
+                  className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/90 hover:border-slate-700 transition-colors flex items-center gap-2 min-h-[48px]"
                 >
                   <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${carrier.color || 'from-blue-500 to-indigo-500'} shrink-0`} />
                   <div className="min-w-0 flex-1">
@@ -223,13 +346,21 @@ export function AboutModal({
             </div>
           </div>
 
-          {/* Section 4: Release Highlights for v0.2.0-alpha */}
+          {/* Section 5: Release Highlights */}
           <div>
             <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider mb-2.5 flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-amber-400" />
               <span>{language === 'he' ? `חידושים בגרסה ${APP_VERSION}` : `Release Highlights (${APP_VERSION})`}</span>
             </h3>
             <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-2 text-xs">
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                <span className="text-slate-300">
+                  {language === 'he'
+                    ? 'בדיקת תקינות מערכת (BIST) אינטראקטיבית בזמן אמת לאחסון מקומי, זיהוי ספקים ומגבלות זיכרון.'
+                    : 'Interactive live Built-in Self-Test (BIST) diagnostics for storage, carrier regex, and memory invariants.'}
+                </span>
+              </div>
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
                 <span className="text-slate-300">
@@ -250,16 +381,16 @@ export function AboutModal({
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
                 <span className="text-slate-300">
                   {language === 'he'
-                    ? 'זיהוי חכם והדבקה מהירה של מספרי מעקב מתוך הודעות SMS ואימייל.'
-                    : 'Smart paste parsing for carrier tracking numbers and dates directly from SMS & receipts.'}
+                    ? 'זיהוי חכם והדבקה מהירה של מספרי מעקב מתוך הודעות SMS ואימייל עם קריאת לוח אוטומטית.'
+                    : 'Smart auto-clipboard reading & regex parsing for carrier tracking numbers and dates directly from SMS & receipts.'}
                 </span>
               </div>
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
                 <span className="text-slate-300">
                   {language === 'he'
-                    ? 'תמיכה מלאה בהתקנת PWA ומעקב לא מקוון במובייל ודסקטופ.'
-                    : 'PWA offline caching, installable experience, and safe-area touch ergonomics.'}
+                    ? 'תמיכה מלאה בהתקנת PWA ומעקב לא מקוון במובייל ודסקטופ עם ארגונומיית מגע מלאה (48px+).'
+                    : 'PWA offline caching, installable experience, and safe-area touch ergonomics (>=48px touch targets).'}
                 </span>
               </div>
             </div>
@@ -271,7 +402,7 @@ export function AboutModal({
           <button
             type="button"
             onClick={onOpenFeedback}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 font-bold text-xs transition-all cursor-pointer min-h-[44px] w-full sm:w-auto"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 font-bold text-xs transition-all cursor-pointer min-h-[48px] w-full sm:w-auto"
           >
             <Heart className="w-4 h-4 text-purple-400 fill-purple-400/20" />
             <span>{language === 'he' ? 'שלח משוב ❤️' : 'Send Feedback ❤️'}</span>
@@ -280,7 +411,7 @@ export function AboutModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-6 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition-all cursor-pointer min-h-[44px] w-full sm:w-auto"
+            className="px-6 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition-all cursor-pointer min-h-[48px] w-full sm:w-auto"
           >
             {language === 'he' ? 'סגור' : 'Close'}
           </button>

@@ -83,13 +83,13 @@ export function AuthModal({
         if (onShowToast) onShowToast(language === 'he' ? 'התחברת באמצעות Google! החבילות מסונכרנות' : 'Logged in with Google! Packages synced', 'success');
         onClose();
       } else {
-        // Explicitly simulated local demo session
+        // Dynamic local user session
         await loginWithGoogle({
-          name: 'Demo User (Sahar)',
-          email: 'saharaga97@gmail.com',
+          name: nameInput.trim() || emailInput.split('@')[0] || (language === 'he' ? 'משתמש Deliveree' : 'Deliveree User'),
+          email: emailInput.trim() || 'user@deliveree.app',
           avatar: null
         });
-        if (onShowToast) onShowToast(language === 'he' ? 'התחברת לפרופיל הדגמה מקומי!' : 'Signed into local demo profile!', 'info');
+        if (onShowToast) onShowToast(language === 'he' ? 'התחברת לפרופיל אישי מקומי!' : 'Signed into local profile!', 'info');
         onClose();
       }
     } catch (err) {
@@ -98,6 +98,7 @@ export function AuthModal({
       setIsGoogleLoading(false);
     }
   };
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in overflow-y-auto" role="dialog" aria-modal="true">

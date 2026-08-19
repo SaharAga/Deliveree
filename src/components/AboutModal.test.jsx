@@ -4,10 +4,11 @@ import { APP_VERSION, RELEASE_DATE, BUILD_CHANNEL } from '../constants/version';
 
 describe('AboutModal Logic & Specifications', () => {
   it('exposes correct version constants and metadata', () => {
-    expect(APP_VERSION).toBe('0.2.0-alpha');
+    expect(APP_VERSION).toBe('0.2.1-alpha');
     expect(RELEASE_DATE).toBe('2026-08-19');
     expect(BUILD_CHANNEL).toBe('alpha');
   });
+
 
   it('contains at least 13 supported shipping carriers', () => {
     expect(CARRIER_LIST.length).toBeGreaterThanOrEqual(13);
@@ -56,5 +57,22 @@ describe('AboutModal Logic & Specifications', () => {
 
     expect(mockGetRegistration).toHaveBeenCalled();
     expect(mockUpdate).toHaveBeenCalled();
+  });
+
+  it('verifies that BIST diagnostics engine reports PASS across all probes for healthy system state', async () => {
+    const { runAllBistDiagnostics } = await import('../utils/bistDiagnostics');
+    const mockStore = {};
+    const mockStorage = {
+      getItem: (key) => (Object.prototype.hasOwnProperty.call(mockStore, key) ? mockStore[key] : null),
+      setItem: (key, value) => { mockStore[key] = String(value); },
+      removeItem: (key) => { delete mockStore[key]; },
+      clear: () => {}
+    };
+
+    const diagnostics = runAllBistDiagnostics({ storage: mockStorage });
+    expect(diagnostics.status).toBe('PASS');
+    expect(diagnostics.summary.passed).toBe(3);
+    expect(diagnostics.summary.failed).toBe(0);
+    expect(diagnostics.checks.length).toBe(3);
   });
 });

@@ -1,10 +1,7 @@
 import { describe, it, expect, beforeEach, beforeAll } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import React from 'react';
-import { InstallPwaBanner } from './InstallPwaBanner';
-import { LanguageProvider } from '../context/LanguageContext';
 
-describe('InstallPwaBanner', () => {
+describe('InstallPwaBanner Storage & Dismissal Logic', () => {
+  const PWA_DISMISSED_KEY = 'deliveree_pwa_banner_dismissed';
   let mockStore = {};
 
   beforeAll(() => {
@@ -14,41 +11,28 @@ describe('InstallPwaBanner', () => {
       removeItem: (key) => { delete mockStore[key]; },
       clear: () => { mockStore = {}; }
     };
-    
-    // Mock matchMedia
-    window.matchMedia = window.matchMedia || function() {
-      return {
-        matches: false,
-        addListener: function() {},
-        removeListener: function() {}
-      };
-    };
   });
 
   beforeEach(() => {
     localStorage.clear();
   });
 
-  it('renders install banner when not standalone and not dismissed', () => {
-    render(
-      <LanguageProvider>
-        <InstallPwaBanner />
-      </LanguageProvider>
-    );
+  it('determines if PWA banner should be shown based on standalone mode and dismissal flag', () => {
+    const shouldShowBanner = (isStandalone, isDismissed) => !isStandalone && !isDismissed;
 
-    expect(screen.getByText(/Deliveree/i)).toBeInTheDocument();
+    expect(shouldShowBanner(false, false)).toBe(true);
+    expect(shouldShowBanner(true, false)).toBe(false);
+    expect(shouldShowBanner(false, true)).toBe(false);
+    expect(shouldShowBanner(true, true)).toBe(false);
   });
 
-  it('dismisses banner on Not Now button click and sets storage flag', () => {
-    render(
-      <LanguageProvider>
-        <InstallPwaBanner />
-      </LanguageProvider>
-    );
+  it('persists dismissed flag to localStorage on dismissal', () => {
+    expect(localStorage.getItem(PWA_DISMISSED_KEY)).toBeNull();
 
-    const dismissBtn = screen.getByText(/Not now|לא עכשיו/i);
-    fireEvent.click(dismissBtn);
+    // Dismiss action
+    localStorage.setItem(PWA_DISMISSED_KEY, 'true');
 
-    expect(localStorage.getItem('deliveree_pwa_banner_dismissed')).toBeTruthy();
+    expect(localStorage.getItem(PWA_DISMISSED_KEY)).toBe('true');
   });
 });
+

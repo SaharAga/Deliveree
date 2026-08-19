@@ -15,6 +15,20 @@ Coming from a hardware/chip engineering background (ASIC/FPGA/VLSI), software en
 
 ---
 
+## 1.1 Orchestrator Governance & Hands-Off Negative Constraint
+
+To maintain clean separation of concerns and prevent single-threaded state corruption:
+1. **Strict Orchestrator Hands-Off Rule**:
+   - The Lead Orchestrator (`Sahar / Lead Agent`) is **STRICTLY FORBIDDEN** from directly modifying project source code (`src/**`, `scripts/**`) for multi-domain features or refactors.
+   - When a task is received, the Orchestrator's **VERY FIRST TOOL CALL** must be to define and dispatch domain specialists via `invoke_subagent`.
+   - The Orchestrator's sole authority is: (1) Architecture/Task decomposition, (2) Subagent dispatching, and (3) Gate sign-off arbitration.
+2. **Adversarial Testing Mandate ("First-Try Pass" Red Flag)**:
+   - If a newly introduced feature passes all testbenches on the first try without any edge-case failures or adversarial stress testing, **IT IS REJECTED**.
+   - Test suites must include harsh boundary condition fuzzing, torn network simulation, XSS/ReDoS payloads, prototype pollution vectors, and concurrent race-condition simulations before Gate 7 approval.
+
+
+---
+
 ## 2. The 7-Stage Agentic Pipeline
 
 Every task (feature, bugfix, refactoring, or infrastructure update) must pass through these gates in sequence before it can be merged or declared complete:
@@ -90,33 +104,63 @@ Divided into two mandatory review axes, supplemented by mandatory **Domain Speci
 
 ---
 
-## 3. Subsystem Component Specialists
+## 3. Autonomous 3-Squad Topology & Domain Leads
 
-To enforce strict separation of concerns and deep domain mastery, 5 designated Component Specialists own specific files and subsystems:
+To balance deep specialization with clean communication boundaries, agents are organized into **3 Functional Squads**, each managed by a dedicated **Domain Squad Lead**:
 
-| Subagent Specialist | Subsystem Domain | Primary File Scope & Directory Ownership |
-| :--- | :--- | :--- |
-| **`auth_cloud_specialist`** | Authentication, User Identity & Cloud Persistence | [`src/context/AuthContext.jsx`](file:///home/sahar/Deliveree/src/context/AuthContext.jsx), [`src/services/firebase.js`](file:///home/sahar/Deliveree/src/services/firebase.js), [`src/services/cloudStorageAdapter.js`](file:///home/sahar/Deliveree/src/services/cloudStorageAdapter.js), [`src/components/AccountModal.jsx`](file:///home/sahar/Deliveree/src/components/AccountModal.jsx), [`src/components/AuthModal.jsx`](file:///home/sahar/Deliveree/src/components/AuthModal.jsx), [`firestore.rules`](file:///home/sahar/Deliveree/firestore.rules) |
-| **`delivery_pipeline_specialist`** | Package Data Pipeline, Ingestion & Validation | [`src/services/deliveryService.js`](file:///home/sahar/Deliveree/src/services/deliveryService.js), [`src/schemas/packageSchema.js`](file:///home/sahar/Deliveree/src/schemas/packageSchema.js), [`src/utils/carrierDetector.js`](file:///home/sahar/Deliveree/src/utils/carrierDetector.js), [`src/utils/packageValidator.js`](file:///home/sahar/Deliveree/src/utils/packageValidator.js), [`src/utils/smartParser.js`](file:///home/sahar/Deliveree/src/utils/smartParser.js), [`src/components/SmartImportModal.jsx`](file:///home/sahar/Deliveree/src/components/SmartImportModal.jsx), [`src/components/AddEditPackageModal.jsx`](file:///home/sahar/Deliveree/src/components/AddEditPackageModal.jsx) |
-| **`ui_ux_specialist`** | Presentation, Ergonomics, Theming & Accessibility | [`src/App.jsx`](file:///home/sahar/Deliveree/src/App.jsx), [`src/App.css`](file:///home/sahar/Deliveree/src/App.css), [`src/index.css`](file:///home/sahar/Deliveree/src/index.css), [`src/context/LanguageContext.jsx`](file:///home/sahar/Deliveree/src/context/LanguageContext.jsx), [`src/context/ThemeContext.jsx`](file:///home/sahar/Deliveree/src/context/ThemeContext.jsx), [`src/i18n/translations.js`](file:///home/sahar/Deliveree/src/i18n/translations.js), [`src/components/Navbar.jsx`](file:///home/sahar/Deliveree/src/components/Navbar.jsx), [`src/components/PackageCard.jsx`](file:///home/sahar/Deliveree/src/components/PackageCard.jsx), [`src/components/PackageTable.jsx`](file:///home/sahar/Deliveree/src/components/PackageTable.jsx), [`src/components/FilterBar.jsx`](file:///home/sahar/Deliveree/src/components/FilterBar.jsx), [`src/components/StatsCards.jsx`](file:///home/sahar/Deliveree/src/components/StatsCards.jsx), [`src/components/QuickTimeline.jsx`](file:///home/sahar/Deliveree/src/components/QuickTimeline.jsx), [`src/components/Toast.jsx`](file:///home/sahar/Deliveree/src/components/Toast.jsx), [`src/components/DeleteConfirmDialog.jsx`](file:///home/sahar/Deliveree/src/components/DeleteConfirmDialog.jsx), [`src/components/PackageDetailModal.jsx`](file:///home/sahar/Deliveree/src/components/PackageDetailModal.jsx) |
-| **`pwa_offline_specialist`** | Service Worker, Caching & Offline Resilience | [`public/sw.js`](file:///home/sahar/Deliveree/public/sw.js), [`public/manifest.json`](file:///home/sahar/Deliveree/public/manifest.json), [`src/components/InstallPwaBanner.jsx`](file:///home/sahar/Deliveree/src/components/InstallPwaBanner.jsx), [`src/components/ErrorBoundary.jsx`](file:///home/sahar/Deliveree/src/components/ErrorBoundary.jsx), [`src/components/AboutModal.jsx`](file:///home/sahar/Deliveree/src/components/AboutModal.jsx), [`src/constants/version.js`](file:///home/sahar/Deliveree/src/constants/version.js) |
-| **`feedback_telemetry_specialist`** | In-App Feedback, Triage Daemons & Remote Alerts | [`src/components/FeedbackModal.jsx`](file:///home/sahar/Deliveree/src/components/FeedbackModal.jsx), [`scripts/feedback_triage.py`](file:///home/sahar/Deliveree/scripts/feedback_triage.py), [`scripts/feedback_daemon.py`](file:///home/sahar/Deliveree/scripts/feedback_daemon.py), [`scripts/notify.py`](file:///home/sahar/Deliveree/scripts/notify.py), [`scripts/telegram_bot.py`](file:///home/sahar/Deliveree/scripts/telegram_bot.py) |
+```
+                              [Lead Orchestrator / PM (Sahar)]
+                                     │         │         │
+             ┌───────────────────────┘         │         └──────────────────────┐
+             ▼                                 ▼                                ▼
+┌─────────────────────────┐       ┌─────────────────────────┐       ┌─────────────────────────┐
+│  Feature Dev Squad      │       │ High-Assurance Verif    │       │ Adversarial & Red Team  │
+│  (Feature Lead)         │       │ (Verification Lead)     │       │ (Security & Chaos Lead) │
+├─────────────────────────┤       ├─────────────────────────┤       ├─────────────────────────┤
+│ • ui_ux_specialist      │       │ • property_test_eng     │       │ • adversarial_pentester │
+│ • auth_cloud_specialist │       │ • formal_invariant_eng  │       │ • chaos_resilience_eng  │
+│ • delivery_pipeline_spec│       │ • testability_bist_eng  │       │ • compliance_auditor    │
+│ • pwa_offline_specialist│       │ • qa_build_verifier     │       │                         │
+│ • feedback_specialist   │       │                         │       │                         │
+└─────────────────────────┘       └─────────────────────────┘       └─────────────────────────┘
+```
+
+### Squad A: Feature Development Squad (Lead: `feature_squad_lead`)
+* **`ui_ux_specialist`**: Presentation, mobile ergonomics ($\ge 48\text{px}$), bilingual RTL/LTR logical symmetry.
+* **`auth_cloud_specialist`**: Firebase Auth, Firestore persistence, profile governance, and session state.
+* **`delivery_pipeline_specialist`**: Package data ingestion, smart parsing, and carrier detection.
+* **`pwa_offline_specialist`**: Service worker, offline resilience, and cache synchronization.
+* **`feedback_telemetry_specialist`**: In-app feedback ingestion, local buffers, and real-time Telegram bot relays.
+
+### Squad B: High-Assurance Verification Squad (Lead: `verification_squad_lead`)
+* **`property_test_eng` (Constrained-Random / Statistical)**:
+  * Uses `fast-check` to generate $\ge 1,000$ pseudorandom inputs constrained by Zod schemas to discover minimal reproducing counterexamples.
+* **`formal_invariant_eng` (Contract & Invariance Proofs)**:
+  * Validates state-machine transitions, lossless data round-trips ($\forall P: \text{deserialize}(\text{serialize}(P)) \equiv P$), and mathematical invariants.
+* **`testability_bist_eng` (Testability & Built-in Self-Test)**:
+  * Implements non-invasive diagnostic hooks, startup BIST probes, and fault-injection mutation tests.
+* **`qa_build_verifier`**:
+  * Enforces static analysis (`oxlint`), strict typechecking, and zero-warning production builds.
+
+### Squad C: Adversarial & Red Team Squad (Lead: `security_squad_lead`)
+* **`adversarial_pentester`**:
+  * OWASP ASVS Level 3, BOLA/BFLA probing, prototype pollution, XSS/ReDoS exploitation.
+* **`chaos_resilience_eng`**:
+  * Quota overflow recovery, simulated 3G network drops, and corrupted storage state recovery.
 
 ---
 
-## 4. Agent Topology, Loop Limits & Governance Protocols
+## 4. Agent Governance, Loop Limits & Separation Invariant
 
-To prevent agent state drift, resource exhaustion, and ping-pong deadlocks:
+1. **Independent Verification Mandate**:
+   - The Feature Squad is **STRICTLY PROHIBITED** from self-approving tests for Gate 7 sign-off.
+   - Every feature must be independently validated by the **High-Assurance Verification Squad** using Property-Based Testing and Formal Invariants.
+2. **Deterministic Loop Circuit Breaker ($N \le 2$)**:
+   - Adversarial debate pairs (`Feature Lead` $\leftrightarrow$ `Verification Lead`) must not exceed **2 remediation cycles**.
+   - If consensus is not reached by Turn 2, the task escalates to the **Lead Orchestrator** for arbitration.
+3. **Structured JSON Communication**:
+   - Subagents communicate using structured JSON envelopes (`sender`, `recipient`, `task_id`, `status`, `payload`, `errors`).
 
-1. **Deterministic Loop Circuit Breaker ($N \le 2$)**:
-   - Adversarial debate pairs (`auditor` $\leftrightarrow$ `challenger` or `developer` $\leftrightarrow$ `reviewer`) must not exceed **2 debate iterations**.
-   - If consensus is not reached by Turn 2, the task automatically escalates to the **Orchestrator Meta-Judge** for deterministic resolution.
-2. **Structured JSON Inter-Agent Communication**:
-   - Subagents must communicate using structured JSON envelopes (`sender`, `recipient`, `task_id`, `status`, `payload`, `errors`) rather than free-form ambiguous markdown strings for machine handoffs.
-3. **Tool Capability Boundaries & HITL**:
-   - Worker agents operate under the principle of least privilege. Destructive system operations or external notifications require human confirmation gates.
-4. **Context Hygiene**:
-   - Prohibit uncompressed raw stack trace dumping into shared memory contexts. Trim payloads to actionable error signatures.
 
 ---
 

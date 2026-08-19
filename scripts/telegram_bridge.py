@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
-Deliveree Telegram Bridge — Shared utilities only (no polling).
-Provides send_message and send_photo via Telegram Bot API.
-Used by both the daemon and one-shot CLI calls.
+Deliveree Telegram Bridge — Shared utilities (sending, queueing, formatting).
+Provides direct send (TelegramSender) and zero-permission file queueing (queue_message).
 """
 
 import json
@@ -11,6 +10,7 @@ import time
 import urllib.request
 import urllib.error
 from pathlib import Path
+from datetime import datetime, timezone
 
 
 def load_env_file(filepath: Path) -> dict:
@@ -40,6 +40,30 @@ def get_config():
     }
 
 
+def queue_message(text: str, reply_markup: dict = None, root_dir: Path = None) -> bool:
+    """
+    Autonomous zero-permission message queueing.
+    Writes the outbound message to .agents/tg_outbox.jsonl.
+    The persistent background daemon picks it up and sends it to Telegram.
+    Requires NO network permissions in the agent sandbox.
+    """
+    if root_dir is None:
+        root_dir = Path(__file__).resolve().parent.parent
+    outbox_file = root_dir / ".agents" / "tg_outbox.jsonl"
+    outbox_file.parent.mkdir(parents=True, exist_ok=True)
+
+    entry = {
+        "id": f"msg_{int(time.time()*1000)}",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "text": text,
+        "reply_markup": reply_markup,
+    }
+
+    with open(outbox_file, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry) + "\n")
+    return True
+
+
 class TelegramSender:
     """Stateless sender — only POST requests, never polls getUpdates."""
 
@@ -59,23 +83,43 @@ class TelegramSender:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 return json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
-            err = json.loads(e.read().decode("utf-8", errors="ignore")).get("description", str(e))
-            print(f"❌ Telegram API Error ({e.code}): {err}")
-            return None
+            err_msg = ""
+            try:
+                err_msg = json.loads(e.read().decode("utf-8", errors="ignore")).get("description", str(e))
+            except Exception:
+                err_msg = str(e)
+            print(f"❌ Telegram API Error ({e.code}): {err_msg}")
+            return {"ok": False, "error_code": e.code, "description": err_msg}
         except Exception as exc:
             print(f"❌ Request error: {exc}")
-            return None
+            return {"ok": False, "description": str(exc)}
 
     def send_message(self, text: str, reply_markup: dict = None, chat_id: str = None) -> bool:
+        target_chat = chat_id or self.chat_id
         payload = {
-            "chat_id":    chat_id or self.chat_id,
+            "chat_id":    target_chat,
             "text":       text,
             "parse_mode": "HTML",
         }
         if reply_markup:
             payload["reply_markup"] = reply_markup
+
         res = self._post("sendMessage", payload)
-        return bool(res and res.get("ok"))
+        if res and res.get("ok"):
+            return True
+
+        # Fallback: If HTML entity parsing fails, retry as plain text
+        if res and "can't parse entities" in res.get("description", "").lower():
+            plain_payload = {
+                "chat_id": target_chat,
+                "text":    text,
+            }
+            if reply_markup:
+                plain_payload["reply_markup"] = reply_markup
+            res_plain = self._post("sendMessage", plain_payload)
+            return bool(res_plain and res_plain.get("ok"))
+
+        return False
 
     def send_photo(self, photo_path: str, caption: str = None, chat_id: str = None) -> bool:
         path = Path(photo_path)
@@ -102,7 +146,7 @@ class TelegramSender:
         )
         try:
             with urllib.request.urlopen(req, timeout=40) as resp:
-                res = json.loads(resp.read())
+                res = json.loads(resp.read().decode("utf-8"))
                 return bool(res and res.get("ok"))
         except Exception as exc:
             print(f"❌ Photo upload error: {exc}")

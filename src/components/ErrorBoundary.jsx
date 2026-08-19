@@ -27,7 +27,18 @@ export class ErrorBoundary extends React.Component {
   };
 
   handleHardReset = () => {
-    localStorage.removeItem('deliveree_packages_v1');
+    try {
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && /^deliveree_/.test(key)) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((key) => localStorage.removeItem(key));
+    } catch (e) {
+      console.error('Failed to clear Deliveree localStorage data during hard reset:', e);
+    }
     window.location.reload();
   };
 

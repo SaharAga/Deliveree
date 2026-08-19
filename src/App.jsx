@@ -9,12 +9,14 @@ import { PackageDetailModal } from './components/PackageDetailModal';
 import { AddEditPackageModal } from './components/AddEditPackageModal';
 import { SmartImportModal } from './components/SmartImportModal';
 import { AnalyticsModal } from './components/AnalyticsModal';
-import { ConnectAccountsModal } from './components/ConnectAccountsModal';
+import { IngestionGuideModal } from './components/IngestionGuideModal';
 import { AuthModal } from './components/AuthModal';
 import { AccountModal } from './components/AccountModal';
 import { AboutModal } from './components/AboutModal';
 import { FeedbackModal } from './components/FeedbackModal';
+import { AdminFeedbackModal } from './components/AdminFeedbackModal';
 import { DeleteConfirmDialog } from './components/DeleteConfirmDialog';
+
 import { Toast } from './components/Toast';
 import { InstallPwaBanner } from './components/InstallPwaBanner';
 import { deliveryService } from './services/deliveryService';
@@ -94,7 +96,9 @@ function DashboardContent() {
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [isAdminFeedbackOpen, setIsAdminFeedbackOpen] = useState(false);
   const [deletePackageId, setDeletePackageId] = useState(null);
+
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
 
   // Listen for PWA Service Worker instant updates
@@ -142,8 +146,17 @@ function DashboardContent() {
   // Handlers
   const handleAddOrUpdatePackage = (pkgData) => {
     let updated;
-    const exists = packages.some(p => p.id === pkgData.id);
-    if (exists) {
+    const existingPkg = packages.find(p => p.id === pkgData.id);
+    if (existingPkg) {
+      if (pkgData.status && pkgData.status !== existingPkg.status && !deliveryService.canTransition(existingPkg.status, pkgData.status)) {
+        showToast(
+          language === 'he'
+            ? `מעבר לא חוקי מ-${existingPkg.status} אל ${pkgData.status}`
+            : `Invalid state transition from ${existingPkg.status} to ${pkgData.status}`,
+          'error'
+        );
+        return;
+      }
       updated = packages.map(p => (p.id === pkgData.id ? pkgData : p));
       showToast(language === 'he' ? 'החבילה עודכנה בהצלחה!' : 'Package updated successfully!', 'success');
     } else {
@@ -195,6 +208,16 @@ function DashboardContent() {
   };
 
   const handleStatusChange = (id, newStatus) => {
+    const existingPkg = packages.find(p => p.id === id);
+    if (existingPkg && existingPkg.status !== newStatus && !deliveryService.canTransition(existingPkg.status, newStatus)) {
+      showToast(
+        language === 'he'
+          ? `מעבר לא חוקי מ-${existingPkg.status} אל ${newStatus}`
+          : `Invalid state transition from ${existingPkg.status} to ${newStatus}`,
+        'error'
+      );
+      return;
+    }
     const updated = packages.map(p => {
       if (p.id === id) {
         return { ...p, status: newStatus, updatedAt: new Date().toISOString() };
@@ -347,10 +370,13 @@ function DashboardContent() {
           }
         }}
         onOpenAbout={() => setIsAboutOpen(true)}
+        onOpenFeedback={() => setIsFeedbackOpen(true)}
+        onOpenAdminFeedback={() => setIsAdminFeedbackOpen(true)}
         onExportData={handleExportData}
         onImportData={handleImportData}
         onResetData={handleResetData}
       />
+
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -582,12 +608,12 @@ function DashboardContent() {
         />
       </ErrorBoundary>
 
-      {/* 1-Click Connect Accounts (Gmail & Phone Sync) Modal */}
-      <ErrorBoundary compact componentName="ConnectAccountsModal" onReset={() => setIsConnectModalOpen(false)}>
-        <ConnectAccountsModal
+      {/* 1-Click Ingestion Guide Modal */}
+      <ErrorBoundary compact componentName="IngestionGuideModal" onReset={() => setIsConnectModalOpen(false)}>
+        <IngestionGuideModal
           isOpen={isConnectModalOpen}
           onClose={() => setIsConnectModalOpen(false)}
-          onSyncNewDeliveries={handleAddOrUpdatePackage}
+          onOpenSmartImport={() => setIsSmartImportOpen(true)}
           onShowToast={showToast}
         />
       </ErrorBoundary>
@@ -633,6 +659,16 @@ function DashboardContent() {
           onShowToast={showToast}
         />
       </ErrorBoundary>
+
+      {/* Admin Feedback Inspector Modal */}
+      <ErrorBoundary compact componentName="AdminFeedbackModal" onReset={() => setIsAdminFeedbackOpen(false)}>
+        <AdminFeedbackModal
+          isOpen={isAdminFeedbackOpen}
+          onClose={() => setIsAdminFeedbackOpen(false)}
+          onShowToast={showToast}
+        />
+      </ErrorBoundary>
+
 
       {/* Delete Confirmation Dialog */}
       <DeleteConfirmDialog

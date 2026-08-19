@@ -14,16 +14,18 @@ This skill guides the primary Orchestrator agent in planning, delegating, and ve
 
 ---
 
-## 1. Orchestrator Responsibilities
-
+## 1. Orchestrator Responsibilities & Negative Constraints
+ 
 1. **Deconstruct Requirements**: Break user requests into decoupled, modular tasks across the 7 SDLC stages.
-2. **Define Contracts First**: Establish TypeScript types, API payloads, and error codes before invoking developer agents.
-3. **Manage 7-Stage Pipeline Gates**:
+2. **Strict Orchestrator Hands-Off Rule**: The Orchestrator **MUST NOT** directly create or modify application source files (`src/**`, `scripts/**`) when managing multi-domain features or refactors. The Orchestrator's very first tool action must be `invoke_subagent` across the designated domain specialists.
+3. **Define Contracts First**: Establish TypeScript types, API payloads, and error codes before invoking developer agents.
+4. **Manage 7-Stage Pipeline Gates**:
    ```
    [Spec & Architecture] --> [UI/UX Architect] --> [Developer] --> [Code Reviewer] --> [Security & Red Team] --> [Performance & Chaos] --> [QA Verifier] --> [Production Ready]
    ```
-4. **Enforce Gate Thresholds**: Reject subagent output if any gate fails (unresolved review comments, accessibility violations, security flags, or failing testbenches).
-5. **Independent Review Invariant**: The Orchestrator **MUST NOT** self-review its own changes. Review, Security, Performance, and QA gates MUST always be executed by independent subagents.
+5. **Anti-First-Try Pass Flag**: If all tests pass on the first try with 0 failures, treat it as a red flag. Mandate the addition of Tier 5 adversarial stress tests (fuzzing, network teardown, malformed payloads, concurrency races) before Gate 7 approval.
+6. **Independent Review Invariant**: The Orchestrator **MUST NOT** self-review its own changes. Review, Security, Performance, and QA gates MUST always be executed by independent subagents.
+
 
 ---
 

@@ -1,7 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, Sparkles, CheckCircle2, ArrowRight, 
-  AlertCircle, Image as ImageIcon, Upload, ScanLine, FileText 
+  AlertCircle
 } from 'lucide-react';
 import { parseSmartText } from '../utils/smartParser';
 import { CARRIERS } from '../types/carriers';
@@ -13,15 +13,52 @@ export function SmartImportModal({
   onParsedResult
 }) {
   const { t, language, isRTL } = useLanguage();
-  const [activeMode, setActiveMode] = useState('text'); // 'text' | 'image'
   const [rawText, setRawText] = useState('');
   const [parsed, setParsed] = useState(null);
   const [hasSearched, setHasSearched] = useState(false);
 
-  // Image Upload / Screenshot state
-  const [imagePreview, setImagePreview] = useState(null);
-  const [isScanningImage, setIsScanningImage] = useState(false);
-  const fileInputRef = useRef(null);
+  // Auto-read clipboard on modal mount when permission is granted
+  useEffect(() => {
+    let isMounted = true;
+
+    async function checkAndAutoReadClipboard() {
+      if (!isOpen) return;
+      if (typeof navigator === 'undefined' || !navigator.clipboard?.readText) return;
+
+      try {
+        if (navigator.permissions?.query) {
+          try {
+            const permissionStatus = await navigator.permissions.query({ name: 'clipboard-read' });
+            if (permissionStatus.state !== 'granted') {
+              return;
+            }
+          } catch {
+            // Some browsers do not support 'clipboard-read' permission query; fallback safely
+          }
+        }
+
+        const text = await navigator.clipboard.readText();
+        if (isMounted && text && text.trim()) {
+          const trimmed = text.trim();
+          setRawText(trimmed);
+          const result = parseSmartText(trimmed);
+          if (result && result.trackingNumber) {
+            setParsed(result);
+            setHasSearched(true);
+          }
+        }
+      } catch (err) {
+        // Silently catch clipboard access denial on automatic read
+        console.debug?.('[SmartImportModal] Auto-read clipboard skipped:', err?.message);
+      }
+    }
+
+    checkAndAutoReadClipboard();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -34,44 +71,21 @@ export function SmartImportModal({
     setHasSearched(true);
   };
 
-
-  // Image Upload & OCR Simulation
-  const handleImageUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const dataUrl = event.target?.result;
-        setImagePreview(dataUrl);
-        setIsScanningImage(true);
-        setHasSearched(false);
-        setParsed(null);
-
-        // Analyze image: Extract sample text or mock OCR scan
-        setTimeout(() => {
-          setIsScanningImage(false);
-          // If the image filename contains keywords or we extract tracking
-          let extractedText = '';
-          const fileNameLower = file.name.toLowerCase();
-
-          if (fileNameLower.includes('israel') || fileNameLower.includes('post') || fileNameLower.includes('dox')) {
-            extractedText = 'דואר ישראל: דבר דואר שמספרו RS849201948IL נמסר לחלוקה בסניף דיזנגוף סנטר תל אביב.';
-          } else if (fileNameLower.includes('ali') || fileNameLower.includes('cainiao')) {
-            extractedText = 'AliExpress Cainiao update: Order LP00582910482CN arrived in destination country.';
-          } else if (fileNameLower.includes('dhl')) {
-            extractedText = 'DHL Express: Shipment 4829104821 is out for delivery with courier.';
-          } else {
-            // Realistic default OCR extraction from screenshot
-            extractedText = 'דואר ישראל: דבר דואר שמספרו RS948219481IL נמסר לחלוקה בסניף מרכז תל אביב. קוד איסוף 4821.';
-          }
-
-          setRawText(extractedText);
-          const result = parseSmartText(extractedText);
+  // 1-Click Clipboard Auto-Paste
+  const handleClipboardPaste = async () => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.readText) {
+        const text = await navigator.clipboard.readText();
+        if (text && text.trim()) {
+          setRawText(text.trim());
+          const result = parseSmartText(text.trim());
           setParsed(result);
           setHasSearched(true);
-        }, 1500);
-      };
-      reader.readAsDataURL(file);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('[SmartImportModal] Clipboard read permission denied or unavailable:', err);
     }
   };
 
@@ -89,6 +103,7 @@ export function SmartImportModal({
       onClose();
     }
   };
+
 
   const sampleSMS = [
     {
@@ -118,149 +133,89 @@ export function SmartImportModal({
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-100">
-                {language === 'he' ? 'ייבוא מהודעה או צילום מסך' : 'Import from Message or Screenshot'}
+                {language === 'he' ? 'ייבוא חכם מהודעה או טקסט' : 'Smart Import from Message or Text'}
               </h2>
               <p className="text-xs text-slate-400">
-                {language === 'he' ? 'הדבק טקסט או העלה צילום מסך/תמונה של הודעת משלוח' : 'Paste text or upload a screenshot/photo of a delivery notice'}
+                {language === 'he' ? 'הדבק טקסט, הודעת SMS או אימייל לחילוץ פרטי משלוח' : 'Paste text, SMS message, or confirmation email to extract details'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer min-h-[48px] min-w-[48px] flex items-center justify-center"
+            aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Input Mode Selector (Text vs Screenshot) */}
-        <div className="p-4 bg-slate-950/60 border-b border-slate-800/80 flex items-center gap-2">
-          <button
-            onClick={() => setActiveMode('text')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              activeMode === 'text'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                : 'bg-slate-900 text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            <span>{language === 'he' ? '1. הדבקת טקסט / SMS' : '1. Paste Text / SMS'}</span>
-          </button>
-
-          <button
-            onClick={() => setActiveMode('image')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              activeMode === 'image'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                : 'bg-slate-900 text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <ImageIcon className="w-4 h-4" />
-            <span>{language === 'he' ? '2. העלאת צילום מסך (סריקת OCR)' : '2. Upload Screenshot (OCR Scan)'}</span>
-          </button>
-        </div>
-
         {/* Body */}
         <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
-          {/* Mode 1: Text Paste */}
-          {activeMode === 'text' && (
-            <div className="space-y-4 animate-fade-in">
-              {/* Quick Examples */}
-              <div>
-                <span className="text-[11px] font-semibold text-slate-400 block mb-1.5">
-                  {language === 'he' ? 'או נסה דוגמה מוכנה בלחיצה אחת:' : 'Or try a sample message:'}
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  {sampleSMS.map((s, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => {
-                        setRawText(s.text);
-                        const result = parseDeliveryText(s.text);
-                        setParsed(result);
-                        setHasSearched(true);
-                      }}
-                      className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium border border-slate-700 transition-all text-start"
-                    >
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
+          {/* Quick Paste Button */}
+          <div className="flex items-center justify-between p-3.5 bg-blue-950/40 border border-blue-500/30 rounded-2xl">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400">
+                <Sparkles className="w-4 h-4" />
               </div>
+              <span className="text-xs font-semibold text-slate-200">
+                {language === 'he' ? 'העתקת הודעה מהודעות או מהאימייל?' : 'Copied a tracking code or SMS?'}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleClipboardPaste}
+              className="px-3.5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-all shadow-md shadow-blue-500/20 cursor-pointer min-h-[48px] flex items-center justify-center"
+            >
+              {language === 'he' ? 'הדבק מלוח ההעתקה 📋' : 'Paste from Clipboard 📋'}
+            </button>
+          </div>
 
-              {/* Textarea */}
-              <form onSubmit={handleParseText} className="space-y-3">
-                <textarea
-                  rows={4}
-                  value={rawText}
-                  onChange={(e) => setRawText(e.target.value)}
-                  placeholder={t('smartModal.pastePlaceholder')}
-                  className="w-full bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 rounded-2xl p-4 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all leading-relaxed"
-                />
-                <div className="flex justify-end">
+          <div className="space-y-4 animate-fade-in">
+            {/* Quick Examples */}
+            <div>
+              <span className="text-[11px] font-semibold text-slate-400 block mb-1.5">
+                {language === 'he' ? 'או בחר דוגמת הודעה מוכנה לבדיקה:' : 'Or try a sample message:'}
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {sampleSMS.map((s, idx) => (
                   <button
-                    type="submit"
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold transition-all shadow-md shadow-blue-500/20"
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setRawText(s.text);
+                      const result = parseSmartText(s.text);
+                      setParsed(result);
+                      setHasSearched(true);
+                    }}
+                    className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium border border-slate-700 transition-all text-start cursor-pointer min-h-[48px] flex items-center"
                   >
-                    <Sparkles className="w-4 h-4" />
-                    <span>{language === 'he' ? 'חלץ פרטי משלוח' : 'Extract Shipping Details'}</span>
+                    {s.label}
                   </button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {/* Mode 2: Image / Screenshot Upload & OCR */}
-          {activeMode === 'image' && (
-            <div className="space-y-4 animate-fade-in">
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-slate-700 hover:border-blue-500 rounded-2xl p-6 text-center cursor-pointer bg-slate-950/40 hover:bg-slate-950 transition-all group"
-              >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-                
-                {imagePreview ? (
-                  <div className="relative flex flex-col items-center">
-                    <img
-                      src={imagePreview}
-                      alt="Uploaded Screenshot"
-                      className="max-h-48 rounded-xl object-contain border border-slate-700 shadow-md"
-                    />
-                    {isScanningImage && (
-                      <div className="absolute inset-0 bg-slate-950/80 rounded-xl flex flex-col items-center justify-center gap-2">
-                        <ScanLine className="w-8 h-8 text-blue-400 animate-pulse" />
-                        <span className="text-xs font-bold text-blue-300">
-                          {language === 'he' ? 'מפעיל סריקת OCR וזיהוי מספר מעקב...' : 'Scanning screenshot & detecting tracking code...'}
-                        </span>
-                      </div>
-                    )}
-                    <span className="text-[11px] text-slate-400 mt-2">
-                      {language === 'he' ? 'לחץ לבחירת תמונה אחרת' : 'Click to choose another screenshot'}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center gap-2 py-4">
-                    <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 text-blue-400 group-hover:scale-110 transition-transform">
-                      <Upload className="w-6 h-6" />
-                    </div>
-                    <span className="text-xs font-bold text-slate-200">
-                      {language === 'he' ? 'גרור לכאן צילום מסך או לחץ להעלאה' : 'Drag & drop a screenshot or click to upload'}
-                    </span>
-                    <span className="text-[11px] text-slate-500">
-                      {language === 'he' ? 'תומך בתמונות של הודעות SMS, אימייל אישור הזמנה או שובר דואר' : 'Supports images of SMS messages, order emails, or parcel receipts'}
-                    </span>
-                  </div>
-                )}
+                ))}
               </div>
             </div>
-          )}
+
+            {/* Textarea */}
+            <form onSubmit={handleParseText} className="space-y-3">
+              <textarea
+                rows={4}
+                value={rawText}
+                onChange={(e) => setRawText(e.target.value)}
+                placeholder={t('smartModal.pastePlaceholder')}
+                className="w-full bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 rounded-2xl p-4 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all leading-relaxed"
+              />
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold transition-all shadow-md shadow-blue-500/20 cursor-pointer min-h-[48px]"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>{language === 'he' ? 'חלץ פרטי משלוח' : 'Extract Shipping Details'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+
 
           {/* Parsed Result Display */}
           {hasSearched && (
@@ -302,7 +257,7 @@ export function SmartImportModal({
                     <button
                       type="button"
                       onClick={handleApply}
-                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/20 transition-all"
+                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/20 transition-all cursor-pointer min-h-[48px]"
                     >
                       <span>{language === 'he' ? 'המשך להוספת חבילה זו למעקב' : 'Add this Package to Tracker'}</span>
                       <ArrowRight className={`w-4 h-4 ${isRTL ? 'rotate-180' : ''}`} />
@@ -323,7 +278,7 @@ export function SmartImportModal({
         <div className="p-4 border-t border-slate-800 bg-slate-950/80 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-slate-800 text-slate-400 hover:text-slate-200 text-xs font-semibold transition-colors"
+            className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition-colors cursor-pointer min-h-[48px] min-w-[80px]"
           >
             {t('modal.cancel')}
           </button>

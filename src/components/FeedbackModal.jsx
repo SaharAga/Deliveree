@@ -73,7 +73,17 @@ export function FeedbackModal({
       // Ignored
     }
 
-    saveToFirestore().finally(() => {
+    // Direct Telegram Bot Relay to Ping Your Phone in Real-Time
+    const relayToTelegram = async () => {
+      try {
+        const { sendTelegramFeedbackRelay } = await import('../constants/telegram');
+        await sendTelegramFeedbackRelay(feedbackPayload);
+      } catch (tgErr) {
+        console.warn('[FeedbackModal] Direct Telegram dispatch error:', tgErr);
+      }
+    };
+
+    Promise.allSettled([saveToFirestore(), relayToTelegram()]).finally(() => {
       setIsSubmitting(false);
       if (onShowToast) onShowToast(
         language === 'he' ? 'תודה רבה! המשוב שלך נשלח בהצלחה לצוות הפיתוח ❤️' : 'Thank you! Your feedback has been sent to the team ❤️',
@@ -83,6 +93,7 @@ export function FeedbackModal({
       onClose();
     });
   };
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in overflow-y-auto" role="dialog" aria-modal="true">

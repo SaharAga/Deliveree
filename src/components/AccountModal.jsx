@@ -20,7 +20,7 @@ export function AccountModal({
 }) {
   const { language, setLanguage } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
-  const { user, updateUserPreferences, deleteUserAccountAndData, syncStatus, lastSyncTime } = useAuth();
+  const { user, updateUserPreferences, deleteUserAccountAndData, syncStatus, lastSyncTime, logout } = useAuth();
 
   const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'preferences' | 'data' | 'danger'
   const [deleteConfirmationInput, setDeleteConfirmationInput] = useState('');
@@ -147,14 +147,31 @@ export function AccountModal({
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
-            aria-label="Close"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                logout();
+                if (onShowToast) onShowToast(language === 'he' ? 'התנתקת מהחשבון' : 'Logged out', 'info');
+                onClose();
+              }}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 font-semibold text-xs transition-colors cursor-pointer min-h-[40px]"
+              title={language === 'he' ? 'התנתקות מהחשבון' : 'Sign Out'}
+              id="account-modal-signout-btn"
+            >
+              <span>{language === 'he' ? 'התנתקות' : 'Sign Out'}</span>
+            </button>
+
+
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
+
 
         {/* Tab Navigation */}
         <div className="flex border-b border-slate-800 bg-slate-950/50 px-3 sm:px-6 overflow-x-auto no-scrollbar text-xs font-bold">
@@ -541,7 +558,19 @@ export function AccountModal({
 
         {/* Footer */}
         <div className="p-4 sm:p-5 border-t border-slate-800 bg-slate-950/60 flex items-center justify-between">
-          <span className="text-[11px] text-slate-500">
+          <button
+            type="button"
+            onClick={() => {
+              logout();
+              if (onShowToast) onShowToast(language === 'he' ? 'התנתקת מהחשבון' : 'Logged out', 'info');
+              onClose();
+            }}
+            className="sm:hidden px-3.5 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 font-bold text-xs transition-all cursor-pointer min-h-[44px]"
+          >
+            {language === 'he' ? 'התנתקות מהחשבון' : 'Sign Out'}
+          </button>
+
+          <span className="hidden sm:inline text-[11px] text-slate-500">
             {language === 'he' ? `Deliveree v${APP_VERSION} • אבטחת מידע Zero-Trust` : `Deliveree v${APP_VERSION} • Zero-Trust Privacy`}
           </span>
           <button
@@ -552,6 +581,7 @@ export function AccountModal({
             {language === 'he' ? 'סגור' : 'Close'}
           </button>
         </div>
+
       </div>
     </div>
   );

@@ -3,9 +3,10 @@ import { APP_VERSION, RELEASE_DATE, BUILD_CHANNEL, FIREBASE_SCHEMA_VERSION } fro
 
 describe('Version Constants Baseline', () => {
   it('should export correct APP_VERSION semver format', () => {
-    expect(APP_VERSION).toBe('0.2.0-alpha');
+    expect(APP_VERSION).toBe('0.2.1-alpha');
     expect(APP_VERSION).toMatch(/^\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?$/);
   });
+
 
   it('should export valid ISO RELEASE_DATE', () => {
     expect(RELEASE_DATE).toBe('2026-08-19');

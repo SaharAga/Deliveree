@@ -38,7 +38,7 @@ export function extractTrackingCandidates(text) {
   }
 
   // 2. Tokenized match across words
-  const words = text.replace(/[,;:"'()<>[\]{}]/g, ' ').split(/\s+/);
+  const words = text.replace(/[,;:"'()<>[\]{}?&=/\\#%*+!|`^~]/g, ' ').split(/\s+/);
   for (const word of words) {
     const cleaned = word.trim().replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g, '');
     if (!cleaned) continue;
