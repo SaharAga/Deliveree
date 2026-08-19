@@ -1,0 +1,12 @@
+# Global code owner for the repository
+* @SaharAga
+
+# Workflows & CI automation
+/.github/ @SaharAga
+
+# Core application source code
+/src/ @SaharAga
+
+# Security and database rules
+firestore.rules @SaharAga
+firebase.json @SaharAga

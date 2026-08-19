@@ -41,10 +41,16 @@ flowchart LR
 * **Frictionless UX**: Zero unnecessary modal jumps or redundant typing (e.g. 1-click SSO).
 * **Accessibility**: Strict WCAG 2.2 AAA color contrast ($\ge 7:1$), focus states, and semantic ARIA tree.
 
-### Stage 3: Implementation (Developer Subagent)
-* Implement the designated component following **Clean Architecture** and **Single Responsibility**.
-* Co-locate unit tests alongside implementation files (e.g. `*.test.js`, `*.test.jsx`, `*.test.ts`).
-* Write defensive, strongly typed, self-documenting code. Never use implicit `any` or suppress linter errors.
+### Stage 3: Implementation (Specialized Developer Subagents)
+Depending on task complexity and domain scope, the Orchestrator routes implementation to specialized developers or dispatches them concurrently:
+* **Frontend Engineer Subagent (`frontend_developer`)**:
+  * Specializes in React, Tailwind/CSS, component state, touch ergonomics ($\ge 48\text{px}$), bilingual RTL/LTR logical styling, PWA client cache, and DOM performance.
+  * Co-locates component unit tests and accessibility tests.
+* **Backend & Cloud Engineer Subagent (`backend_developer`)**:
+  * Specializes in Firebase / Firestore rules, Cloud Functions, REST/GraphQL APIs, Zod/TypeScript schema contracts, database indexing, query optimization (anti-N+1), and data pipelines.
+  * Co-locates API/service integration tests and mock data fixtures.
+* **Full-Stack Fast-Path Subagent (`fullstack_developer`)**:
+  * Reserved for compact, self-contained tasks (< 50 LOC, minor bugfixes, or unified end-to-end tweaks) to minimize orchestration latency while enforcing the same quality gates.
 
 ### Stage 4: Scalability & Peer Code Review (Code Reviewer Subagent)
 * **Algorithmic Complexity**: Verify time and space complexity ($O(1)$, $O(\log N)$, $O(N)$). Flag and reject accidental $O(N^2)$ iterations or nested loops over dynamic datasets.
@@ -75,7 +81,23 @@ flowchart LR
 
 ---
 
-## 3. Non-Negotiable Sign-Off Criteria
+## 3. Agent Topology, Loop Limits & Governance Protocols
+
+To prevent agent state drift, resource exhaustion, and ping-pong deadlocks:
+
+1. **Deterministic Loop Circuit Breaker ($N \le 2$)**:
+   - Adversarial debate pairs (`auditor` $\leftrightarrow$ `challenger` or `developer` $\leftrightarrow$ `reviewer`) must not exceed **2 debate iterations**.
+   - If consensus is not reached by Turn 2, the task automatically escalates to the **Orchestrator Meta-Judge** for deterministic resolution.
+2. **Structured JSON Inter-Agent Communication**:
+   - Subagents must communicate using structured JSON envelopes (`sender`, `recipient`, `task_id`, `status`, `payload`, `errors`) rather than free-form ambiguous markdown strings for machine handoffs.
+3. **Tool Capability Boundaries & HITL**:
+   - Worker agents operate under the principle of least privilege. Destructive system operations or external notifications require human confirmation gates.
+4. **Context Hygiene**:
+   - Prohibit uncompressed raw stack trace dumping into shared memory contexts. Trim payloads to actionable error signatures.
+
+---
+
+## 4. Non-Negotiable Sign-Off Criteria
 
 No feature or change is approved if:
 1. Any automated test fails.
@@ -88,9 +110,10 @@ No feature or change is approved if:
 
 ---
 
-## 4. Custom Skill Discovery
+## 5. Custom Skill Discovery
 
 The following specialized skills are available in `.agents/skills/`:
+* [`git-branch-and-pr-workflow`](file:///home/sahar/Deliveree/.agents/skills/git-branch-and-pr-workflow/SKILL.md)
 * [`sdlc-orchestrator`](file:///home/sahar/Deliveree/.agents/skills/sdlc-orchestrator/SKILL.md)
 * [`software-development-standards`](file:///home/sahar/Deliveree/.agents/skills/software-development-standards/SKILL.md)
 * [`automated-code-review`](file:///home/sahar/Deliveree/.agents/skills/automated-code-review/SKILL.md)
