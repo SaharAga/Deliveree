@@ -28,6 +28,31 @@ export function AnalyticsModal({
   const deliveredCount = packages.filter(p => p.status === 'delivered').length;
   const activeCount = packages.length - deliveredCount;
 
+  // Dynamic Average Transit Calculation based on orderDate
+  const transitTimes = packages
+    .filter(p => p.orderDate && p.status === 'delivered')
+    .map(p => {
+      const start = new Date(p.orderDate).getTime();
+      const end = p.updatedAt ? new Date(p.updatedAt).getTime() : Date.now();
+      const days = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)));
+      return days;
+    });
+
+  const avgTransitDays = transitTimes.length > 0
+    ? Math.round(transitTimes.reduce((a, b) => a + b, 0) / transitTimes.length)
+    : 8;
+
+  // Find top carrier
+  let topCarrierId = 'israel-post';
+  let topCarrierCount = 0;
+  Object.entries(carrierCounts).forEach(([cid, cnt]) => {
+    if (cnt > topCarrierCount) {
+      topCarrierCount = cnt;
+      topCarrierId = cid;
+    }
+  });
+  const topCarrierObj = CARRIERS[topCarrierId] || CARRIERS['other'];
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in overflow-y-auto">
       <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden my-8">
@@ -64,13 +89,16 @@ export function AnalyticsModal({
             </div>
             <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800">
               <span className="text-[11px] font-semibold text-slate-400 uppercase">{t('insights.avgTime')}</span>
-              <p className="text-2xl font-extrabold text-emerald-400 mt-1">11-14 {language === 'he' ? 'ימים' : 'days'}</p>
+              <p className="text-2xl font-extrabold text-emerald-400 mt-1">{avgTransitDays} {language === 'he' ? 'ימים בממוצע' : 'days avg'}</p>
             </div>
             <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase">{t('insights.fastestCarrier')}</span>
-              <p className="text-lg font-extrabold text-amber-400 mt-1">DHL Express (3 {language === 'he' ? 'ימים' : 'days'})</p>
+              <span className="text-[11px] font-semibold text-slate-400 uppercase">{language === 'he' ? 'חברת שילוח עיקרית' : 'Top Carrier'}</span>
+              <p className="text-base font-extrabold text-amber-400 mt-1 truncate">
+                {language === 'he' ? topCarrierObj.hebrewName : topCarrierObj.name}
+              </p>
             </div>
           </div>
+
 
           {/* Carrier Breakdown */}
           <div className="p-5 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-3">

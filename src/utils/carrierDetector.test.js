@@ -41,9 +41,46 @@ describe('Carrier Detection Engine', () => {
     expect(res.carrierId).toBe('fedex');
   });
 
+  it('detects Chita Delivery tracking numbers', () => {
+    const res = detectCarrier('CH10849201');
+    expect(res.carrierId).toBe('chita');
+    expect(res.confidence).toBe('high');
+  });
+
+  it('detects HFD Delivery tracking numbers', () => {
+    const res = detectCarrier('HFD90481029');
+    expect(res.carrierId).toBe('hfd');
+    expect(res.confidence).toBe('high');
+  });
+
+  it('detects BoxIt tracking numbers', () => {
+    const res = detectCarrier('BOX920194');
+    expect(res.carrierId).toBe('boxit');
+    expect(res.confidence).toBe('high');
+  });
+
+  it('detects YunExpress tracking numbers', () => {
+    const res = detectCarrier('YT2109849201948201');
+    expect(res.carrierId).toBe('yunexpress');
+    expect(res.confidence).toBe('high');
+  });
+
+  it('detects USPS tracking numbers', () => {
+    const res = detectCarrier('9400100000000000000000');
+    expect(res.carrierId).toBe('usps');
+    expect(res.confidence).toBe('high');
+  });
+
+  it('detects Royal Mail tracking numbers', () => {
+    const res = detectCarrier('RN123456789GB');
+    expect(res.carrierId).toBe('royal-mail');
+    expect(res.confidence).toBe('high');
+  });
+
   it('returns other with none confidence for unknown format', () => {
     const res = detectCarrier('UNKNOWN_XYZ_999');
     expect(res.carrierId).toBe('other');
     expect(res.confidence).toBe('none');
   });
 });
+

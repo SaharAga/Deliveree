@@ -5,8 +5,21 @@
       "name": "ui_ux_architect",
       "description": "Specialized UI/UX Design & Human Factors Architect subagent. Audits and crafts mobile-first, bilingual (Hebrew RTL / English LTR) design systems, Micro-Interactions, WCAG 2.2 AAA accessibility, Glassmorphism, and frictionless onboarding flows.",
       "role": "UI/UX Design Architect",
-      "skills": ["ui-ux-design-systems", "modern-web-guidance", "software-development-standards"],
-      "allowed_tools": ["view_file", "replace_file_content", "multi_replace_file_content", "write_to_file", "list_dir", "grep_search", "find_by_name", "run_command"],
+      "skills": [
+        "ui-ux-design-systems",
+        "modern-web-guidance",
+        "software-development-standards"
+      ],
+      "allowed_tools": [
+        "view_file",
+        "replace_file_content",
+        "multi_replace_file_content",
+        "write_to_file",
+        "list_dir",
+        "grep_search",
+        "find_by_name",
+        "run_command"
+      ],
       "model": "inherit",
       "temperature": 0.2
     },
@@ -14,17 +27,37 @@
       "name": "developer",
       "description": "Specialized Software Developer subagent. Implements modular, decoupled components following Clean Architecture and co-locates unit tests.",
       "role": "Feature Developer",
-      "skills": ["software-development-standards"],
-      "allowed_tools": ["view_file", "replace_file_content", "multi_replace_file_content", "write_to_file", "list_dir", "grep_search", "find_by_name", "run_command"],
+      "skills": [
+        "software-development-standards"
+      ],
+      "allowed_tools": [
+        "view_file",
+        "replace_file_content",
+        "multi_replace_file_content",
+        "write_to_file",
+        "list_dir",
+        "grep_search",
+        "find_by_name",
+        "run_command"
+      ],
       "model": "inherit",
       "temperature": 0.2
     },
     {
       "name": "code_reviewer",
-      "description": "Specialized Peer Code Reviewer subagent. Audits code deltas for Big-O complexity, memory leak prevention, async race conditions, and N+1 database queries.",
+      "description": "Specialized Peer Code Reviewer subagent. Audits code deltas for Big-O complexity, memory leak prevention, async race conditions, N+1 database queries, and executes Domain Specialist Consultations.",
       "role": "Scalability & Code Reviewer",
-      "skills": ["automated-code-review"],
-      "allowed_tools": ["view_file", "list_dir", "grep_search", "find_by_name", "run_command"],
+      "skills": [
+        "automated-code-review",
+        "project-release-tracking"
+      ],
+      "allowed_tools": [
+        "view_file",
+        "list_dir",
+        "grep_search",
+        "find_by_name",
+        "run_command"
+      ],
       "model": "inherit",
       "temperature": 0.0
     },
@@ -32,8 +65,16 @@
       "name": "security_auditor",
       "description": "Specialized Enterprise Security Auditor subagent. Audits changes against OWASP ASVS Level 3 and OWASP API Top 10 (Zero-Trust, BOLA/BFLA, ReDoS, SSRF, Dual-Key Rate Limiting, Crypto).",
       "role": "Enterprise Security Auditor",
-      "skills": ["owasp-security-and-rate-limiting"],
-      "allowed_tools": ["view_file", "list_dir", "grep_search", "find_by_name", "run_command"],
+      "skills": [
+        "owasp-security-and-rate-limiting"
+      ],
+      "allowed_tools": [
+        "view_file",
+        "list_dir",
+        "grep_search",
+        "find_by_name",
+        "run_command"
+      ],
       "model": "inherit",
       "temperature": 0.0
     },
@@ -41,8 +82,18 @@
       "name": "adversarial_pentester",
       "description": "Adversarial Security Pentester / Red Team Auditor subagent. Systematically executes controlled offensive attack simulations, attempts access control bypasses (BOLA/BFLA), prototype pollution, XSS injection, and ReDoS starvation in a sandbox, and outputs a formal Vulnerability & Threat Assessment Report.",
       "role": "Adversarial Pentester & Red Team Auditor",
-      "skills": ["adversarial-penetration-testing", "owasp-security-and-rate-limiting"],
-      "allowed_tools": ["view_file", "list_dir", "grep_search", "find_by_name", "run_command", "write_to_file"],
+      "skills": [
+        "adversarial-penetration-testing",
+        "owasp-security-and-rate-limiting"
+      ],
+      "allowed_tools": [
+        "view_file",
+        "list_dir",
+        "grep_search",
+        "find_by_name",
+        "run_command",
+        "write_to_file"
+      ],
       "model": "inherit",
       "temperature": 0.1
     },
@@ -50,8 +101,18 @@
       "name": "perf_chaos_engineer",
       "description": "Specialized Performance, Web Vitals & Chaos Stress Engineer subagent. Tests high-load package queries, memory benchmarks, offline service worker resilience, and Lighthouse 100/100 Core Web Vitals (LCP < 800ms, INP < 50ms, CLS 0).",
       "role": "Performance & Chaos Engineer",
-      "skills": ["performance-and-chaos-stress", "automated-code-review", "software-verification-and-qa"],
-      "allowed_tools": ["view_file", "list_dir", "grep_search", "find_by_name", "run_command"],
+      "skills": [
+        "performance-and-chaos-stress",
+        "automated-code-review",
+        "software-verification-and-qa"
+      ],
+      "allowed_tools": [
+        "view_file",
+        "list_dir",
+        "grep_search",
+        "find_by_name",
+        "run_command"
+      ],
       "model": "inherit",
       "temperature": 0.0
     },
@@ -59,10 +120,126 @@
       "name": "qa_verifier",
       "description": "Specialized QA and Build Verification subagent. Executes static analysis, multi-tier testbenches, anti-facade fault injection, and production builds.",
       "role": "QA Verifier",
-      "skills": ["software-verification-and-qa"],
-      "allowed_tools": ["view_file", "list_dir", "grep_search", "find_by_name", "run_command"],
+      "skills": [
+        "software-verification-and-qa"
+      ],
+      "allowed_tools": [
+        "view_file",
+        "list_dir",
+        "grep_search",
+        "find_by_name",
+        "run_command"
+      ],
       "model": "inherit",
       "temperature": 0.0
+    },
+    {
+      "name": "auth_cloud_specialist",
+      "description": "Component Specialist subagent for Authentication, User Identity, and Cloud Persistence. Owns AuthContext, Firebase Auth state, Firestore security rules, GDPR data deletion (deleteAllUserData), and Spark quota optimizations.",
+      "role": "Auth & Cloud Subsystem Specialist",
+      "skills": [
+        "software-development-standards",
+        "owasp-security-and-rate-limiting"
+      ],
+      "allowed_tools": [
+        "view_file",
+        "replace_file_content",
+        "multi_replace_file_content",
+        "write_to_file",
+        "list_dir",
+        "grep_search",
+        "find_by_name",
+        "run_command"
+      ],
+      "model": "inherit",
+      "temperature": 0.1
+    },
+    {
+      "name": "delivery_pipeline_specialist",
+      "description": "Component Specialist subagent for Package Lifecycle, Ingestion, and Validation. Owns deliveryService, packageSchema (Zod), carrierDetector regex engines, smartParser clipboard ingestion, and package validation pipelines.",
+      "role": "Delivery Pipeline Subsystem Specialist",
+      "skills": [
+        "software-development-standards",
+        "automated-code-review"
+      ],
+      "allowed_tools": [
+        "view_file",
+        "replace_file_content",
+        "multi_replace_file_content",
+        "write_to_file",
+        "list_dir",
+        "grep_search",
+        "find_by_name",
+        "run_command"
+      ],
+      "model": "inherit",
+      "temperature": 0.1
+    },
+    {
+      "name": "ui_ux_specialist",
+      "description": "Component Specialist subagent for Presentation, Layout, Touch Ergonomics, and Theming. Owns App shell, Navbar, PackageCard, PackageTable, FilterBar, StatsCards, iOS notch/safe-area insets, and RTL/LTR bilingual symmetry.",
+      "role": "UI/UX & Human Factors Subsystem Specialist",
+      "skills": [
+        "ui-ux-design-systems",
+        "modern-web-guidance",
+        "software-development-standards"
+      ],
+      "allowed_tools": [
+        "view_file",
+        "replace_file_content",
+        "multi_replace_file_content",
+        "write_to_file",
+        "list_dir",
+        "grep_search",
+        "find_by_name",
+        "run_command"
+      ],
+      "model": "inherit",
+      "temperature": 0.2
+    },
+    {
+      "name": "pwa_offline_specialist",
+      "description": "Component Specialist subagent for PWA, Caching, and Service Worker Resiliency. Owns sw.js cache invalidation, InstallPwaBanner, ErrorBoundary, AboutModal, version constants, and offline data resilience.",
+      "role": "PWA & Offline Resilience Subsystem Specialist",
+      "skills": [
+        "performance-and-chaos-stress",
+        "software-development-standards",
+        "project-release-tracking"
+      ],
+      "allowed_tools": [
+        "view_file",
+        "replace_file_content",
+        "multi_replace_file_content",
+        "write_to_file",
+        "list_dir",
+        "grep_search",
+        "find_by_name",
+        "run_command"
+      ],
+      "model": "inherit",
+      "temperature": 0.1
+    },
+    {
+      "name": "feedback_telemetry_specialist",
+      "description": "Component Specialist subagent for User Feedback, Remote Notifications, and Triage Daemons. Owns FeedbackModal, Firestore feedback collection, Telegram bot relays, and automated feedback triage daemons.",
+      "role": "Feedback & Telemetry Subsystem Specialist",
+      "skills": [
+        "remote-notifications-and-chat",
+        "feedback-triage-and-action-items",
+        "software-development-standards"
+      ],
+      "allowed_tools": [
+        "view_file",
+        "replace_file_content",
+        "multi_replace_file_content",
+        "write_to_file",
+        "list_dir",
+        "grep_search",
+        "find_by_name",
+        "run_command"
+      ],
+      "model": "inherit",
+      "temperature": 0.1
     }
   ]
 }

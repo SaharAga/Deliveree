@@ -69,3 +69,25 @@ Structure code into distinct, decoupled layers:
   2. Boundary conditions (empty lists, 0, max limits).
   3. Error path (network failure, 4xx/5xx responses, malformed data).
   4. Adversarial edge cases (XSS strings, oversized payloads, prototype pollution).
+
+---
+
+## 5. Corporate Scalability & Cost-Aware Engineering (FinOps)
+
+Developers must write code that minimizes operational costs and avoids burning cloud quotas:
+
+### A. Database Read/Write Efficiency (Firestore Free Spark Guardrails)
+* **Never Poll Unnecessarily**: Replace short polling intervals with real-time reactive listeners (`onSnapshot`) or user-triggered refreshes.
+* **Document Caching**: Always check local storage / IndexedDB cache before making remote queries.
+* **Consolidated Batches**: Combine multiple related state updates into single batch writes (`writeBatch`) rather than issuing separate document writes.
+* **Narrow Queries**: Always specify `.limit(N)` and exact field filters on queries — never fetch full collections to filter client-side.
+
+### B. Bandwidth & Bundle Optimization (Vercel 100 GB Guardrails)
+* **Code Splitting**: Dynamically import heavy modals, charts, or third-party libraries using `React.lazy()` and dynamic `import()`.
+* **Zero Asset Redundancy**: Use vector icons (`lucide-react`) and SVG/WebP assets; avoid uncompressed PNGs/JPEGs.
+* **Cache-First PWA Strategies**: Ensure Service Worker caches all static immutable bundles so returning users consume 0 hosting bandwidth.
+
+### C. Third-Party API Cost & Rate Limiting
+* **TTL Caching**: Wrap all external carrier/tracking API calls with a client or edge cache (minimum 1 to 4 hour TTL).
+* **Defensive Debouncing**: Debounce tracking number input searches and form submissions by at least $400\text{--}600\text{ms}$ to prevent accidental multi-calls.
+* **Modular Provider Adapters**: Build all external integrations behind interface adapters (e.g. `carrierAdapter`, `storageAdapter`) so providers can be swapped if pricing changes.

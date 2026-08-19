@@ -156,6 +156,24 @@ describe('packageValidator - validatePackage', () => {
     expect({}.isAdmin).toBeUndefined();
     expect(Object.prototype.polluted).toBeUndefined();
   });
+
+  it('strips unwhitelisted rogue keys from package objects', () => {
+    const roguePayload = {
+      id: 'pkg-100',
+      title: 'Valid Title',
+      trackingNumber: 'TRK100',
+      carrier: 'israel_post',
+      rogueProperty: 'malicious payload',
+      injectedScript: 'alert(1)',
+      isAdmin: true
+    };
+
+    const validated = validatePackage(roguePayload);
+    expect(validated.title).toBe('Valid Title');
+    expect(validated.rogueProperty).toBeUndefined();
+    expect(validated.injectedScript).toBeUndefined();
+    expect(validated.isAdmin).toBeUndefined();
+  });
 });
 
 describe('packageValidator - validatePackageList', () => {

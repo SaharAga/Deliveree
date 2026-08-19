@@ -52,7 +52,15 @@ describe('AuthContext - validateUserProfile', () => {
     };
 
     const validated = validateUserProfile(raw);
-    expect(validated).toEqual(raw);
+    expect(validated).toEqual({
+      ...raw,
+      preferences: {
+        defaultCarrier: 'all',
+        language: 'he',
+        theme: 'dark',
+        dateFormat: 'DD/MM/YYYY'
+      }
+    });
   });
 
   it('sanitizes XSS payloads and script tags from user fields', () => {
@@ -97,7 +105,7 @@ describe('AuthContext - validateUserProfile', () => {
     expect(nanDevices.devicesCount).toBe(1);
   });
 
-  it('provides sensible default properties when minimal data is supplied', () => {
+  it('provides sensible default properties and preferences when minimal data is supplied', () => {
     const minimal = { name: 'Charlie' };
     const validated = validateUserProfile(minimal);
 
@@ -106,5 +114,30 @@ describe('AuthContext - validateUserProfile', () => {
     expect(validated.plan).toBe('Personal Account');
     expect(validated.ingestionEmail).toBe('charlie.pkg@in.deliveree.app');
     expect(validated.devicesCount).toBe(1);
+    expect(validated.preferences).toEqual({
+      defaultCarrier: 'all',
+      language: 'he',
+      theme: 'dark',
+      dateFormat: 'DD/MM/YYYY'
+    });
+  });
+
+  it('validates and sanitizes custom user preferences', () => {
+    const withCustomPrefs = {
+      id: 'usr-456',
+      name: 'Dana',
+      preferences: {
+        defaultCarrier: 'israel_post',
+        language: 'en',
+        theme: 'light',
+        dateFormat: 'YYYY-MM-DD'
+      }
+    };
+
+    const validated = validateUserProfile(withCustomPrefs);
+    expect(validated.preferences.defaultCarrier).toBe('israel_post');
+    expect(validated.preferences.language).toBe('en');
+    expect(validated.preferences.theme).toBe('light');
+    expect(validated.preferences.dateFormat).toBe('YYYY-MM-DD');
   });
 });

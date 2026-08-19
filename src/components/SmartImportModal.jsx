@@ -3,7 +3,7 @@ import {
   X, Sparkles, CheckCircle2, ArrowRight, 
   AlertCircle, Image as ImageIcon, Upload, ScanLine, FileText 
 } from 'lucide-react';
-import { parseDeliveryText } from '../utils/smartParser';
+import { parseSmartText } from '../utils/smartParser';
 import { CARRIERS } from '../types/carriers';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -29,10 +29,11 @@ export function SmartImportModal({
     if (e) e.preventDefault();
     if (!rawText.trim()) return;
 
-    const result = parseDeliveryText(rawText);
+    const result = parseSmartText(rawText);
     setParsed(result);
     setHasSearched(true);
   };
+
 
   // Image Upload & OCR Simulation
   const handleImageUpload = (e) => {
@@ -65,7 +66,7 @@ export function SmartImportModal({
           }
 
           setRawText(extractedText);
-          const result = parseDeliveryText(extractedText);
+          const result = parseSmartText(extractedText);
           setParsed(result);
           setHasSearched(true);
         }, 1500);
@@ -78,11 +79,12 @@ export function SmartImportModal({
     if (parsed && parsed.trackingNumber) {
       onParsedResult({
         title: parsed.title,
+        titleHe: parsed.titleHe,
         trackingNumber: parsed.trackingNumber,
-        carrierId: parsed.carrierId,
+        carrierId: parsed.carrier || 'other',
         notes: parsed.notes,
-        origin: '',
-        destination: parsed.pickupLocation || 'Tel Aviv, Israel'
+        origin: parsed.origin || '',
+        destination: parsed.destination || 'Israel'
       });
       onClose();
     }
@@ -103,7 +105,7 @@ export function SmartImportModal({
     }
   ];
 
-  const detectedCarrierObj = parsed ? (CARRIERS[parsed.carrierId] || CARRIERS['other']) : null;
+  const detectedCarrierObj = parsed ? (CARRIERS[parsed.carrier] || CARRIERS['other']) : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in overflow-y-auto">

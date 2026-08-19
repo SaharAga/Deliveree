@@ -228,5 +228,80 @@ export const INITIAL_PACKAGES = [
     ],
     createdAt: '2026-08-14T08:00:00Z',
     updatedAt: '2026-08-15T06:30:00Z'
+  },
+  {
+    id: 'pkg-6',
+    title: 'Sony WH-1000XM5 Headphones',
+    titleHe: 'אוזניות אלחוטיות Sony WH-1000XM5',
+    trackingNumber: 'CH10849201',
+    carrier: 'chita',
+    carrierName: 'Cheetah Delivery (Chita)',
+    status: 'out_for_delivery',
+    category: 'electronics',
+    orderDate: '2026-08-17',
+    expectedDeliveryDate: '2026-08-19',
+    origin: 'Petah Tikva, Israel',
+    destination: 'Tel Aviv, Israel',
+    notes: 'Cheetah courier David assigned. Estimated delivery window: 14:00-16:00',
+    notesHe: 'שליח צ\'יטה דוד שובץ. חלון מסירה משוער: 14:00-16:00',
+    isPinned: true,
+    isArchived: false,
+    checkpoints: [
+      {
+        id: 'cp-6-1',
+        title: 'Order Picked Up from Store',
+        titleHe: 'נאסף מהחנות',
+        description: 'Package picked up from KSP warehouse',
+        descriptionHe: 'נאסף ממרכז הלוגיסטיקה של KSP',
+        location: 'Petah Tikva Hub',
+        timestamp: '2026-08-17T18:00:00Z',
+        isCompleted: true
+      },
+      {
+        id: 'cp-6-2',
+        title: 'Out for Delivery',
+        titleHe: 'יצא לחלוקה עם שליח',
+        description: 'Courier is en route to delivery address',
+        descriptionHe: 'השליח בדרך למסירה בכתובת היעד',
+        location: 'Tel Aviv Distribution',
+        timestamp: '2026-08-19T08:30:00Z',
+        isCompleted: true
+      }
+    ],
+    createdAt: '2026-08-17T10:00:00Z',
+    updatedAt: '2026-08-19T08:30:00Z'
+  },
+  {
+    id: 'pkg-7',
+    title: 'ASOS Summer Linen Shirt',
+    titleHe: 'חולצת פשתן קייצית ASOS',
+    trackingNumber: 'BOX920194',
+    carrier: 'boxit',
+    carrierName: 'BoxIt',
+    status: 'delivered',
+    category: 'clothing',
+    orderDate: '2026-08-10',
+    expectedDeliveryDate: '2026-08-17',
+    origin: 'London, UK',
+    destination: 'BoxIt Locker 42, Tel Aviv',
+    notes: 'Awaiting locker pickup. Locker code: 8492',
+    notesHe: 'ממתין לאיסוף בלוקר בוקסיט סניף שרונה. קוד: 8492',
+    isPinned: false,
+    isArchived: false,
+    checkpoints: [
+      {
+        id: 'cp-7-1',
+        title: 'Deposited in Locker',
+        titleHe: 'הופקד בלוקר האוטומטי',
+        description: 'Package available for pickup 24/7',
+        descriptionHe: 'החבילה זמינה לאיסוף 24/7 בלוקר שרונה',
+        location: 'Sarona BoxIt Terminal',
+        timestamp: '2026-08-17T11:20:00Z',
+        isCompleted: true
+      }
+    ],
+    createdAt: '2026-08-10T14:00:00Z',
+    updatedAt: '2026-08-17T11:20:00Z'
   }
 ];
+

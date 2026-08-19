@@ -62,21 +62,45 @@ Requirements:
 - WCAG 2.2 AAA accessibility (>= 7:1 contrast ratios, semantic ARIA tree).
 ```
 
-### B. Developer Subagent
-* **Subagent Name**: `developer`
-* **Target Skill**: `software-development-standards`
+### B1. Frontend Engineer Subagent
+* **Subagent Name**: `frontend_developer`
+* **Target Skills**: `software-development-standards`, `ui-ux-design-systems`, `modern-web-guidance`
+* **Tool Permissions**: `view_file`, `write_to_file`, `replace_file_content`, `list_dir`, `grep_search`, `run_command`
+```markdown
+Activate the `software-development-standards` and `ui-ux-design-systems` skills.
+Task: [Describe frontend components, pages, or client state to implement]
+Target Files: [List of UI component/page/hook files]
+Data/API Contract: [Zod schemas / TypeScript interfaces]
+Requirements:
+- Implement responsive, mobile-first layouts (touch targets >= 48x48px).
+- Maintain pixel-perfect RTL (Hebrew) / LTR (English) symmetry using CSS logical properties.
+- Guarantee WCAG 2.2 AAA accessibility and ARIA tree consistency.
+- FinOps & Bandwidth: Enforce route-level code-splitting (React.lazy) and PWA cache-first strategies (Vercel 100GB limit).
+- Co-locate component unit/render tests (e.g. *.test.tsx).
+```
+
+### B2. Backend & Cloud Engineer Subagent
+* **Subagent Name**: `backend_developer`
+* **Target Skills**: `software-development-standards`, `owasp-security-and-rate-limiting`
 * **Tool Permissions**: `view_file`, `write_to_file`, `replace_file_content`, `list_dir`, `grep_search`, `run_command`
 ```markdown
 Activate the `software-development-standards` skill.
-Task: [Describe the feature or component to implement]
-Target Files: [List of files to create or modify]
-API / Data Contract: [Explicit types / schemas]
+Task: [Describe backend services, Firestore rules, API routes, or data models]
+Target Files: [List of service/repository/rules files]
+Schema/API Contract: [Zod schemas / TypeScript interfaces]
 Requirements:
-- Follow Clean Architecture and separation of concerns.
-- Write strongly-typed, self-documenting code.
-- Co-locate unit tests for every new function/component.
-- Handle all boundary conditions and error states gracefully.
+- Enforce Clean Architecture, separation of concerns, and defensive data validation.
+- Prevent N+1 query loops; optimize indexing and keyset pagination.
+- FinOps & Quotas: Guard against Firebase Spark burn (50k reads/20k writes limit); implement local caching, batched writes, and external API TTL caching (>= 1h).
+- Ensure strict Firestore/API security rules & idempotency.
+- Co-locate unit and service integration tests (e.g. *.test.ts).
 ```
+
+### B3. Full-Stack Fast-Path Subagent
+* **Subagent Name**: `fullstack_developer`
+* **Target Skill**: `software-development-standards`
+* **Tool Permissions**: `view_file`, `write_to_file`, `replace_file_content`, `list_dir`, `grep_search`, `run_command`
+* **Use Case**: Compact changes (< 50 LOC, localized bugfixes, or small atomic features).
 
 ### C. Scalability & Code Reviewer Subagent
 * **Subagent Name**: `code_reviewer`
@@ -87,11 +111,9 @@ Activate the `automated-code-review` skill.
 Review Target: [List of modified files and their diffs]
 Framework Context: [React 19 / Next.js 15 / Vue 3 / etc.]
 Evaluate against:
-1. Algorithmic complexity (O(N) budget, quadratic patterns, allocation efficiency).
-2. Database I/O scalability (N+1, keyset pagination, index coverage).
-3. Framework lifecycle & memory teardown (memoization, timer/socket/worker cleanup).
-4. Concurrency & state edge cases (race conditions, storage quota, empty-state invariant).
-5. RTL/LTR layout and WCAG accessibility compliance.
+1. Axis A - Technical Scalability: Algorithmic complexity (O(N) budget), DB I/O (N+1, keyset pagination), framework lifecycle, and memory teardown.
+2. Axis B - Corporate & FinOps Scalability: Quota burn rate (Firebase Spark, Vercel bandwidth), API caching/TTL strategy, vendor lock-in prevention, and zero-cost fallbacks.
+3. RTL/LTR layout and WCAG accessibility compliance.
 Output: Structured review (APPROVED / CHANGES REQUESTED) with line-cited findings.
 ```
 

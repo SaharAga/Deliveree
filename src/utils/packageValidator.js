@@ -1,8 +1,9 @@
 import { CARRIERS } from '../types/carriers';
 import { STAGES, CATEGORIES } from '../types/stages';
+import { VALID_STATUSES } from '../schemas/packageSchema';
 
 const VALID_CARRIER_IDS = new Set(Object.keys(CARRIERS));
-const VALID_STAGE_IDS = new Set(STAGES.map(s => s.id));
+const VALID_STAGE_IDS = new Set(VALID_STATUSES || STAGES.map(s => s.id));
 const VALID_CATEGORY_IDS = new Set(CATEGORIES.map(c => c.id));
 
 const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
@@ -102,9 +103,33 @@ function validateCheckpoint(cp, index = 0) {
   };
 }
 
+// Strict whitelist of permitted top-level keys
+const ALLOWED_PACKAGE_KEYS = new Set([
+  'id',
+  'title',
+  'titleHe',
+  'trackingNumber',
+  'carrier',
+  'carrierName',
+  'status',
+  'category',
+  'orderDate',
+  'expectedDeliveryDate',
+  'origin',
+  'destination',
+  'notes',
+  'notesHe',
+  'isPinned',
+  'isArchived',
+  'checkpoints',
+  'createdAt',
+  'updatedAt',
+  'userId'
+]);
+
 /**
  * Strictly validates and normalizes a package object against system schemas.
- * Provides sane fallbacks for missing fields and guards against prototype pollution.
+ * Rejects prototype pollution, strips unwhitelisted keys, and ensures strict data integrity.
  *
  * @param {unknown} pkg - The package object to validate
  * @returns {object|null} Validated and sanitized package object, or null if input is not an object
@@ -114,10 +139,10 @@ export function validatePackage(pkg) {
     return null;
   }
 
-  // Guard against prototype pollution
+  // Guard against prototype pollution and unwhitelisted keys
   const safeObj = Object.create(null);
   for (const key of Object.keys(pkg)) {
-    if (!DANGEROUS_KEYS.has(key)) {
+    if (!DANGEROUS_KEYS.has(key) && ALLOWED_PACKAGE_KEYS.has(key)) {
       safeObj[key] = pkg[key];
     }
   }
@@ -159,10 +184,11 @@ export function validatePackage(pkg) {
   const isPinned = Boolean(safeObj.isPinned);
   const isArchived = Boolean(safeObj.isArchived);
 
-  // 8. Checkpoints list validation
+  // 8. Checkpoints list validation (cap at 50)
   let checkpoints = [];
   if (Array.isArray(safeObj.checkpoints)) {
     checkpoints = safeObj.checkpoints
+      .slice(0, 50)
       .map((cp, idx) => validateCheckpoint(cp, idx))
       .filter(Boolean);
   }
@@ -170,9 +196,12 @@ export function validatePackage(pkg) {
   // 9. Timestamps
   const createdAt = sanitizeString(safeObj.createdAt, 50) || new Date().toISOString();
   const updatedAt = sanitizeString(safeObj.updatedAt, 50) || new Date().toISOString();
+  
+  // Optional userId
+  const userId = safeObj.userId ? sanitizeString(safeObj.userId, 128) : undefined;
 
   // Construct a clean, isolated output object
-  return {
+  const output = {
     id,
     title,
     titleHe,
@@ -193,6 +222,12 @@ export function validatePackage(pkg) {
     createdAt,
     updatedAt
   };
+
+  if (userId) {
+    output.userId = userId;
+  }
+
+  return output;
 }
 
 /**

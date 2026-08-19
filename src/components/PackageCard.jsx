@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   Copy, Check, MoreVertical, Pin, Archive, Trash2, Edit3, 
   MapPin, Calendar, CheckCircle, ArrowUpRight, ChevronRight
@@ -9,6 +9,7 @@ import { CATEGORIES } from '../types/stages';
 import { QuickTimeline } from './QuickTimeline';
 import { useLanguage } from '../context/LanguageContext';
 import { formatDate, getDaysRemaining } from '../utils/dateUtils';
+import { triggerHapticFeedback } from '../utils/haptics';
 
 export function PackageCard({
   pkg,
@@ -24,11 +25,66 @@ export function PackageCard({
   const [copied, setCopied] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // Mobile Swipe Gesture State
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const [isSwiping, setIsSwiping] = useState(false);
+  const touchStartXRef = useRef(0);
+  const touchStartYRef = useRef(0);
+  const hapticTriggeredRef = useRef(false);
+
   const carrier = CARRIERS[pkg.carrier] || CARRIERS['other'];
   const category = CATEGORIES.find(c => c.id === pkg.category) || CATEGORIES[CATEGORIES.length - 1];
   const daysInfo = getDaysRemaining(pkg.expectedDeliveryDate, language);
 
   const trackingUrl = carrier.getTrackingUrl(pkg.trackingNumber);
+
+  const handleTouchStart = (e) => {
+    touchStartXRef.current = e.touches[0].clientX;
+    touchStartYRef.current = e.touches[0].clientY;
+    setIsSwiping(false);
+    hapticTriggeredRef.current = false;
+  };
+
+  const handleTouchMove = (e) => {
+    const deltaX = e.touches[0].clientX - touchStartXRef.current;
+    const deltaY = e.touches[0].clientY - touchStartYRef.current;
+
+    // Ignore vertical scrolling
+    if (Math.abs(deltaY) > Math.abs(deltaX)) {
+      return;
+    }
+
+    if (Math.abs(deltaX) > 15) {
+      setIsSwiping(true);
+      // Dampen swipe drag distance
+      const boundedOffset = Math.max(-120, Math.min(120, deltaX));
+      setSwipeOffset(boundedOffset);
+
+      if (Math.abs(boundedOffset) >= 80 && !hapticTriggeredRef.current) {
+        triggerHapticFeedback(18);
+        hapticTriggeredRef.current = true;
+      } else if (Math.abs(boundedOffset) < 80) {
+        hapticTriggeredRef.current = false;
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!isSwiping) return;
+
+    if (swipeOffset >= 80) {
+      // Swiped Right -> Toggle Archive
+      onToggleArchive(pkg.id);
+      triggerHapticFeedback([10, 50, 20]);
+    } else if (swipeOffset <= -80) {
+      // Swiped Left -> Delete
+      onDelete(pkg.id);
+      triggerHapticFeedback([20, 40, 30]);
+    }
+
+    setSwipeOffset(0);
+    setIsSwiping(false);
+  };
 
   const handleCopy = (e) => {
     e.stopPropagation();
@@ -60,12 +116,35 @@ export function PackageCard({
   const itemNotes = (language === 'he' && pkg.notesHe) ? pkg.notesHe : pkg.notes;
 
   return (
-    <div
-      onClick={() => onOpenDetails(pkg)}
-      className={`group relative bg-slate-900/70 hover:bg-slate-900 border rounded-2xl p-5 transition-all duration-300 backdrop-blur-xl cursor-pointer flex flex-col justify-between shadow-lg hover:shadow-2xl hover:-translate-y-1 ${
-        pkg.isPinned ? 'border-blue-500/40 ring-1 ring-blue-500/20' : 'border-slate-800/80 hover:border-slate-700'
-      } ${pkg.status === 'out_for_delivery' ? 'glow-amber' : ''} ${pkg.status === 'delivered' ? 'border-emerald-500/30' : ''}`}
-    >
+    <div className="relative overflow-hidden rounded-2xl">
+      {/* Swipe Action Background Indicator */}
+      {isSwiping && (
+        <div className="absolute inset-0 flex items-center justify-between px-6 rounded-2xl transition-colors">
+          <div className={`flex items-center gap-2 font-bold text-xs ${swipeOffset > 40 ? 'text-amber-400 opacity-100' : 'opacity-0'}`}>
+            <Archive className="w-5 h-5" />
+            <span>{pkg.isArchived ? t('card.unarchive') : t('card.archive')}</span>
+          </div>
+          <div className={`flex items-center gap-2 font-bold text-xs ${swipeOffset < -40 ? 'text-rose-400 opacity-100' : 'opacity-0'}`}>
+            <span>{t('card.delete')}</span>
+            <Trash2 className="w-5 h-5" />
+          </div>
+        </div>
+      )}
+
+      <div
+        onClick={() => onOpenDetails(pkg)}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        style={{
+          transform: swipeOffset ? `translateX(${swipeOffset}px)` : 'none',
+          transition: isSwiping ? 'none' : 'transform 0.25s ease-out'
+        }}
+        className={`group relative bg-slate-900/70 hover:bg-slate-900 border rounded-2xl p-5 transition-all duration-300 backdrop-blur-xl cursor-pointer flex flex-col justify-between shadow-lg hover:shadow-2xl hover:-translate-y-1 ${
+          pkg.isPinned ? 'border-blue-500/40 ring-1 ring-blue-500/20' : 'border-slate-800/80 hover:border-slate-700'
+        } ${pkg.status === 'out_for_delivery' ? 'glow-amber' : ''} ${pkg.status === 'delivered' ? 'border-emerald-500/30' : ''}`}
+      >
+
       {/* Top Header: Carrier Badge, Category, Pin, Menu */}
       <div>
         <div className="flex items-center justify-between gap-2 mb-3">
@@ -268,5 +347,7 @@ export function PackageCard({
         </div>
       </div>
     </div>
+  </div>
   );
 }
+

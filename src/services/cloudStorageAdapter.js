@@ -11,7 +11,37 @@ import {
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './firebase';
 import { deliveryService } from './deliveryService';
+import { validatePackageListSafe, validatePackageSafe } from '../schemas/packageSchema';
 import { validatePackageList, validatePackage } from '../utils/packageValidator';
+
+/**
+ * Validates a package using Zod schema with fallback to packageValidator.
+ * 
+ * @param {unknown} pkg
+ * @returns {object|null}
+ */
+function strictlyValidatePackage(pkg) {
+  const result = validatePackageSafe(pkg);
+  if (result.success) {
+    return result.data;
+  }
+  return validatePackage(pkg);
+}
+
+/**
+ * Validates a package list using Zod schema with fallback to packageValidator.
+ * 
+ * @param {unknown} packages
+ * @returns {Array<object>}
+ */
+function strictlyValidatePackageList(packages) {
+  if (!Array.isArray(packages)) return [];
+  const result = validatePackageListSafe(packages);
+  if (result.success) {
+    return result.data;
+  }
+  return validatePackageList(packages);
+}
 
 /**
  * Unified Cloud Storage Adapter
@@ -52,6 +82,12 @@ export class CloudStorageAdapter {
   initFirestoreListener() {
     if (!this.isFirestoreActive()) return;
 
+    // Teardown any existing listener before attaching a new one
+    if (this.firestoreUnsubscribe) {
+      this.firestoreUnsubscribe();
+      this.firestoreUnsubscribe = null;
+    }
+
     try {
       const packagesRef = collection(db, 'users', this.userId, 'packages');
       const q = query(packagesRef, orderBy('updatedAt', 'desc'));
@@ -64,7 +100,7 @@ export class CloudStorageAdapter {
             remotePackages.push({ ...docSnap.data(), id: docSnap.id });
           });
 
-          const validated = validatePackageList(remotePackages);
+          const validated = strictlyValidatePackageList(remotePackages);
           // Keep local storage mirror in sync
           deliveryService.savePackages(validated, this.userId);
           this.notifyListeners(validated);
@@ -100,7 +136,7 @@ export class CloudStorageAdapter {
         remotePackages.push({ ...docSnap.data(), id: docSnap.id });
       });
 
-      const validated = validatePackageList(remotePackages);
+      const validated = strictlyValidatePackageList(remotePackages);
       deliveryService.savePackages(validated, this.userId);
       return validated;
     } catch (err) {
@@ -113,7 +149,7 @@ export class CloudStorageAdapter {
    * Saves/Syncs full package list
    */
   async savePackages(packages) {
-    const validated = validatePackageList(packages);
+    const validated = strictlyValidatePackageList(packages);
     deliveryService.savePackages(validated, this.userId);
     this.notifyListeners(validated);
 
@@ -142,7 +178,9 @@ export class CloudStorageAdapter {
    * Adds or updates a single package
    */
   async upsertPackage(pkg) {
-    const validatedPkg = validatePackage(pkg);
+    const validatedPkg = strictlyValidatePackage(pkg);
+    if (!validatedPkg) return await this.getPackages();
+
     const existing = await this.getPackages();
     const index = existing.findIndex((p) => p.id === validatedPkg.id);
 

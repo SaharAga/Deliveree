@@ -20,6 +20,61 @@ export const CARRIERS = {
     sample: 'RS948219481IL',
     country: 'Israel'
   },
+  'chita': {
+    id: 'chita',
+    name: 'Cheetah Delivery (Chita)',
+    hebrewName: 'צ\'יטה שליחויות',
+    color: 'from-amber-600 to-orange-700',
+    badgeBg: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
+    accentColor: '#d97706',
+    logoText: 'צ\'יטה',
+    website: 'https://chita-il.com',
+    getTrackingUrl: (trackNum) => `https://chita-il.com/runportal/tracking?num=${encodeURIComponent(trackNum)}`,
+    fallbackTrackingUrl: (trackNum) => `https://t.17track.net/en#nums=${encodeURIComponent(trackNum)}`,
+    patterns: [
+      /^CH\d{8,12}$/i,
+      /^CT\d{8,12}$/i,
+      /^CHT[A-Z0-9]{8,12}$/i
+    ],
+    sample: 'CH10849201',
+    country: 'Israel'
+  },
+  'hfd': {
+    id: 'hfd',
+    name: 'HFD Delivery',
+    hebrewName: 'HFD שליחויות',
+    color: 'from-blue-700 to-indigo-800',
+    badgeBg: 'bg-blue-500/10 border-blue-500/30 text-blue-400',
+    accentColor: '#3b82f6',
+    logoText: 'HFD',
+    website: 'https://hfd.co.il',
+    getTrackingUrl: (trackNum) => `https://hfd.co.il/tracking?num=${encodeURIComponent(trackNum)}`,
+    fallbackTrackingUrl: (trackNum) => `https://t.17track.net/en#nums=${encodeURIComponent(trackNum)}`,
+    patterns: [
+      /^HFD\d{8,12}$/i,
+      /^5\d{8,9}$/
+    ],
+    sample: 'HFD90481029',
+    country: 'Israel'
+  },
+  'boxit': {
+    id: 'boxit',
+    name: 'BoxIt',
+    hebrewName: 'בוקסיט (BoxIt)',
+    color: 'from-pink-600 to-rose-600',
+    badgeBg: 'bg-rose-500/10 border-rose-500/30 text-rose-400',
+    accentColor: '#f43f5e',
+    logoText: 'BoxIt',
+    website: 'https://boxit.co.il',
+    getTrackingUrl: (trackNum) => `https://boxit.co.il/tracking/${encodeURIComponent(trackNum)}`,
+    fallbackTrackingUrl: (trackNum) => `https://t.17track.net/en#nums=${encodeURIComponent(trackNum)}`,
+    patterns: [
+      /^BOX[0-9A-Z]{6,12}$/i,
+      /^BX\d{7,10}$/i
+    ],
+    sample: 'BOX920194',
+    country: 'Israel'
+  },
   'cainiao': {
     id: 'cainiao',
     name: 'AliExpress / Cainiao',
@@ -34,10 +89,29 @@ export const CARRIERS = {
     patterns: [
       /^(LP|CAINIAO)\d+/i,            // LP00582910482CN
       /^[A-Z]{2}\d{9}CN$/i,           // Standard China Post
-      /^CN\d{10,}/i
+      /^CN\d{10,}/i,
+      /^AE[A-Z0-9]{10,18}$/i
     ],
     sample: 'LP00582910482CN',
     country: 'China'
+  },
+  'yunexpress': {
+    id: 'yunexpress',
+    name: 'YunExpress',
+    hebrewName: 'יון אקספרס (YunExpress)',
+    color: 'from-teal-600 to-emerald-700',
+    badgeBg: 'bg-teal-500/10 border-teal-500/30 text-teal-400',
+    accentColor: '#0d9488',
+    logoText: 'Yun',
+    website: 'https://www.yunexpress.com',
+    getTrackingUrl: (trackNum) => `https://www.yuntrack.com/parcelTracking?pNumbers=${encodeURIComponent(trackNum)}`,
+    fallbackTrackingUrl: (trackNum) => `https://t.17track.net/en#nums=${encodeURIComponent(trackNum)}`,
+    patterns: [
+      /^YT\d{16}$/i,
+      /^YT\d{18}$/i
+    ],
+    sample: 'YT2109849201948201',
+    country: 'China / Global'
   },
   '4px': {
     id: '4px',
@@ -114,6 +188,61 @@ export const CARRIERS = {
     ],
     sample: '1Z999AA10123456784',
     country: 'USA / Global'
+  },
+  'usps': {
+    id: 'usps',
+    name: 'USPS',
+    hebrewName: 'שירות הדואר של ארה"ב (USPS)',
+    color: 'from-blue-800 to-slate-900',
+    badgeBg: 'bg-blue-700/10 border-blue-700/30 text-blue-300',
+    accentColor: '#1d4ed8',
+    logoText: 'USPS',
+    website: 'https://www.usps.com',
+    getTrackingUrl: (trackNum) => `https://tools.usps.com/go/TrackConfirmAction?tLabels=${encodeURIComponent(trackNum)}`,
+    fallbackTrackingUrl: (trackNum) => `https://t.17track.net/en#nums=${encodeURIComponent(trackNum)}`,
+    patterns: [
+      /^94\d{20}$/,                   // 9400 1000 0000 0000 0000 00
+      /^92\d{20}$/,
+      /^93\d{20}$/,
+      /^[A-Z]{2}\d{9}US$/i
+    ],
+    sample: '9400100000000000000000',
+    country: 'USA'
+  },
+  'royal-mail': {
+    id: 'royal-mail',
+    name: 'Royal Mail',
+    hebrewName: 'רויאל מייל (בריטניה)',
+    color: 'from-red-600 to-red-800',
+    badgeBg: 'bg-red-600/10 border-red-600/30 text-red-300',
+    accentColor: '#dc2626',
+    logoText: 'Royal Mail',
+    website: 'https://www.royalmail.com',
+    getTrackingUrl: (trackNum) => `https://www.royalmail.com/track-your-item#/tracking-results/${encodeURIComponent(trackNum)}`,
+    fallbackTrackingUrl: (trackNum) => `https://t.17track.net/en#nums=${encodeURIComponent(trackNum)}`,
+    patterns: [
+      /^[A-Z]{2}\d{9}GB$/i
+    ],
+    sample: 'RN123456789GB',
+    country: 'United Kingdom'
+  },
+  'aramex': {
+    id: 'aramex',
+    name: 'Aramex',
+    hebrewName: 'אראמקס (Aramex)',
+    color: 'from-orange-600 to-red-700',
+    badgeBg: 'bg-orange-600/10 border-orange-600/30 text-orange-300',
+    accentColor: '#ea580c',
+    logoText: 'Aramex',
+    website: 'https://www.aramex.com',
+    getTrackingUrl: (trackNum) => `https://www.aramex.com/track/results?ShipmentNumber=${encodeURIComponent(trackNum)}`,
+    fallbackTrackingUrl: (trackNum) => `https://t.17track.net/en#nums=${encodeURIComponent(trackNum)}`,
+    patterns: [
+      /^\d{10,11}$/,
+      /^3\d{9}$/
+    ],
+    sample: '3094829104',
+    country: 'Middle East / Global'
   },
   'yanwen': {
     id: 'yanwen',

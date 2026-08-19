@@ -1,0 +1,29 @@
+[
+  {
+    "id": "fb-1787153055-1",
+    "status": "triaged",
+    "type": "bug",
+    "message": "כשמזינים מספר מעקב של דואר ישראל האפליקציה קורסת בנייד",
+    "rating": 1,
+    "appVersion": "0.2.0-alpha",
+    "user": {
+      "name": "Alpha Tester",
+      "email": "tester@example.com"
+    },
+    "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)",
+    "timestamp": "2026-08-19T18:24:15.789914",
+    "triagedAt": "2026-08-19T18:24:15.797638"
+  },
+  {
+    "id": "fb-1787153055-2",
+    "status": "triaged",
+    "type": "feature",
+    "message": "Would love an option to export package tracking history to CSV or PDF",
+    "rating": 5,
+    "appVersion": "0.2.0-alpha",
+    "user": "David R.",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+    "timestamp": "2026-08-19T18:24:15.789927",
+    "triagedAt": "2026-08-19T18:24:15.797652"
+  }
+]

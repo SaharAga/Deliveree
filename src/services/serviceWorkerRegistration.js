@@ -14,11 +14,21 @@ export function registerServiceWorker() {
             if (installingWorker) {
               installingWorker.addEventListener('statechange', () => {
                 if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  // New content available
+                  // New content available, emit custom update event
                   console.info('[SW] New version available, cached and ready.');
+                  window.dispatchEvent(
+                    new CustomEvent('sw-update-ready', {
+                      detail: { registration }
+                    })
+                  );
                 }
               });
             }
+          });
+
+          // Check for updates periodically and on tab focus
+          window.addEventListener('focus', () => {
+            registration.update().catch(() => {});
           });
         })
         .catch((error) => {

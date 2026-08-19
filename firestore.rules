@@ -1,19 +1,72 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Helper validation functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidPackageData(data, userId) {
+      let allowedKeys = [
+        'id', 'title', 'titleHe', 'trackingNumber', 'carrier', 'carrierName',
+        'status', 'category', 'orderDate', 'expectedDeliveryDate', 'origin',
+        'destination', 'notes', 'notesHe', 'isPinned', 'isArchived',
+        'checkpoints', 'createdAt', 'updatedAt', 'userId'
+      ];
+      
+      let validStatuses = [
+        'ordered', 'shipped', 'in_transit', 'customs', 
+        'out_for_delivery', 'delivered', 'exception', 'archived'
+      ];
+
+      return data.keys().hasOnly(allowedKeys) &&
+        data.userId == userId &&
+        data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+        (!('titleHe' in data) || (data.titleHe is string && data.titleHe.size() <= 200)) &&
+        data.trackingNumber is string && data.trackingNumber.size() > 0 && data.trackingNumber.size() <= 100 &&
+        (!('carrier' in data) || (data.carrier is string && data.carrier.size() <= 50)) &&
+        (!('carrierName' in data) || (data.carrierName is string && data.carrierName.size() <= 100)) &&
+        data.status is string && data.status in validStatuses &&
+        (!('category' in data) || (data.category is string && data.category.size() <= 50)) &&
+        (!('orderDate' in data) || (data.orderDate is string && data.orderDate.size() <= 50)) &&
+        (!('expectedDeliveryDate' in data) || (data.expectedDeliveryDate is string && data.expectedDeliveryDate.size() <= 50)) &&
+        (!('origin' in data) || (data.origin is string && data.origin.size() <= 150)) &&
+        (!('destination' in data) || (data.destination is string && data.destination.size() <= 150)) &&
+        (!('notes' in data) || (data.notes is string && data.notes.size() <= 1000)) &&
+        (!('notesHe' in data) || (data.notesHe is string && data.notesHe.size() <= 1000)) &&
+        (!('isPinned' in data) || data.isPinned is bool) &&
+        (!('isArchived' in data) || data.isArchived is bool) &&
+        (!('checkpoints' in data) || (data.checkpoints is list && data.checkpoints.size() <= 50)) &&
+        (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 50)) &&
+        (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 50));
+    }
+
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if isOwner(userId);
+
       match /packages/{packageId} {
-        allow read, delete: if request.auth != null && request.auth.uid == userId;
-        allow create: if request.auth != null && request.auth.uid == userId && request.resource.data.userId == request.auth.uid;
-        allow update: if request.auth != null && request.auth.uid == userId && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid;
+        allow read, delete: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidPackageData(request.resource.data, userId);
+        allow update: if isOwner(userId) &&
+          isValidPackageData(request.resource.data, userId) &&
+          request.resource.data.userId == resource.data.userId;
       }
     }
-    match /packages/{packageId} {
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow read, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow update: if request.auth != null && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid;
+
+    // Alpha Tester Feedback Collection
+    match /feedback/{feedbackId} {
+      allow create: if request.resource.data.message is string &&
+        request.resource.data.message.size() > 0 &&
+        request.resource.data.message.size() <= 1500 &&
+        request.resource.data.type in ['bug', 'feature', 'praise'];
+      allow read, update, delete: if false; // Private to administrators
     }
+
+    // Explicitly deny everything else
     match /{document=**} {
       allow read, write: if false;
     }

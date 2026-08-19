@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Plus, Inbox, ShieldCheck, Sparkles, LogIn, UserPlus, PlayCircle, MessageSquarePlus } from 'lucide-react';
+import { Plus, Inbox, ShieldCheck, Sparkles, LogIn, UserPlus, PlayCircle, MessageSquarePlus, RefreshCw } from 'lucide-react';
 import { Navbar } from './components/Navbar';
 import { StatsCards } from './components/StatsCards';
 import { FilterBar } from './components/FilterBar';
@@ -11,6 +11,8 @@ import { SmartImportModal } from './components/SmartImportModal';
 import { AnalyticsModal } from './components/AnalyticsModal';
 import { ConnectAccountsModal } from './components/ConnectAccountsModal';
 import { AuthModal } from './components/AuthModal';
+import { AccountModal } from './components/AccountModal';
+import { AboutModal } from './components/AboutModal';
 import { FeedbackModal } from './components/FeedbackModal';
 import { DeleteConfirmDialog } from './components/DeleteConfirmDialog';
 import { Toast } from './components/Toast';
@@ -22,7 +24,10 @@ import { useLanguage, LanguageProvider } from './context/LanguageContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { useAuth, AuthProvider } from './context/AuthContext';
 
+import { ErrorBoundary } from './components/ErrorBoundary';
+
 function DashboardContent() {
+
   const { t, language, isRTL } = useLanguage();
   const { user, triggerCloudSync } = useAuth();
 
@@ -86,8 +91,27 @@ function DashboardContent() {
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [deletePackageId, setDeletePackageId] = useState(null);
+  const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
+
+  // Listen for PWA Service Worker instant updates
+  useEffect(() => {
+    const handleSwUpdate = () => {
+      setIsUpdateAvailable(true);
+    };
+
+    window.addEventListener('sw-update-ready', handleSwUpdate);
+    return () => window.removeEventListener('sw-update-ready', handleSwUpdate);
+  }, []);
+
+  const handleApplyUpdate = () => {
+    if (typeof window !== 'undefined') {
+      window.location.reload();
+    }
+  };
 
   // Toast notifications
   const [toast, setToast] = useState(null);
@@ -315,7 +339,14 @@ function DashboardContent() {
         onOpenSmartImport={() => setIsSmartImportOpen(true)}
         onOpenAnalytics={() => setIsAnalyticsOpen(true)}
         onOpenConnectModal={() => setIsConnectModalOpen(true)}
-        onOpenAuth={() => setIsAuthOpen(true)}
+        onOpenAuth={() => {
+          if (user) {
+            setIsAccountOpen(true);
+          } else {
+            setIsAuthOpen(true);
+          }
+        }}
+        onOpenAbout={() => setIsAboutOpen(true)}
         onExportData={handleExportData}
         onImportData={handleImportData}
         onResetData={handleResetData}
@@ -508,62 +539,100 @@ function DashboardContent() {
       </footer>
 
       {/* Add / Edit Package Modal */}
-      <AddEditPackageModal
-        isOpen={isAddModalOpen}
-        onClose={() => {
-          setIsAddModalOpen(false);
-          setEditPackage(null);
-          setSmartPrefill(null);
-        }}
-        onSave={handleAddOrUpdatePackage}
-        editPackage={editPackage}
-        initialValues={smartPrefill}
-      />
+      <ErrorBoundary compact componentName="AddEditPackageModal" onReset={() => setIsAddModalOpen(false)}>
+        <AddEditPackageModal
+          isOpen={isAddModalOpen}
+          onClose={() => {
+            setIsAddModalOpen(false);
+            setEditPackage(null);
+            setSmartPrefill(null);
+          }}
+          onSave={handleAddOrUpdatePackage}
+          editPackage={editPackage}
+          initialValues={smartPrefill}
+        />
+      </ErrorBoundary>
 
       {/* Smart Import from SMS / Email Modal */}
-      <SmartImportModal
-        isOpen={isSmartImportOpen}
-        onClose={() => setIsSmartImportOpen(false)}
-        onParsedResult={handleSmartImportResult}
-      />
+      <ErrorBoundary compact componentName="SmartImportModal" onReset={() => setIsSmartImportOpen(false)}>
+        <SmartImportModal
+          isOpen={isSmartImportOpen}
+          onClose={() => setIsSmartImportOpen(false)}
+          onParsedResult={handleSmartImportResult}
+        />
+      </ErrorBoundary>
 
       {/* Shipment Details & Interactive Timeline Modal */}
-      <PackageDetailModal
-        pkg={selectedDetailPackage}
-        isOpen={!!selectedDetailPackage}
-        onClose={() => setSelectedDetailPackage(null)}
-        onUpdatePackage={handleAddOrUpdatePackage}
-        onShowToast={showToast}
-      />
+      <ErrorBoundary compact componentName="PackageDetailModal" onReset={() => setSelectedDetailPackage(null)}>
+        <PackageDetailModal
+          pkg={selectedDetailPackage}
+          isOpen={!!selectedDetailPackage}
+          onClose={() => setSelectedDetailPackage(null)}
+          onUpdatePackage={handleAddOrUpdatePackage}
+          onShowToast={showToast}
+        />
+      </ErrorBoundary>
 
       {/* Analytics & Performance Modal */}
-      <AnalyticsModal
-        isOpen={isAnalyticsOpen}
-        onClose={() => setIsAnalyticsOpen(false)}
-        packages={packages}
-      />
+      <ErrorBoundary compact componentName="AnalyticsModal" onReset={() => setIsAnalyticsOpen(false)}>
+        <AnalyticsModal
+          isOpen={isAnalyticsOpen}
+          onClose={() => setIsAnalyticsOpen(false)}
+          packages={packages}
+        />
+      </ErrorBoundary>
 
       {/* 1-Click Connect Accounts (Gmail & Phone Sync) Modal */}
-      <ConnectAccountsModal
-        isOpen={isConnectModalOpen}
-        onClose={() => setIsConnectModalOpen(false)}
-        onSyncNewDeliveries={handleAddOrUpdatePackage}
-        onShowToast={showToast}
-      />
+      <ErrorBoundary compact componentName="ConnectAccountsModal" onReset={() => setIsConnectModalOpen(false)}>
+        <ConnectAccountsModal
+          isOpen={isConnectModalOpen}
+          onClose={() => setIsConnectModalOpen(false)}
+          onSyncNewDeliveries={handleAddOrUpdatePackage}
+          onShowToast={showToast}
+        />
+      </ErrorBoundary>
 
       {/* User Account & Cloud Sync Modal */}
-      <AuthModal
-        isOpen={isAuthOpen}
-        onClose={() => setIsAuthOpen(false)}
-        onShowToast={showToast}
-      />
+      <ErrorBoundary compact componentName="AuthModal" onReset={() => setIsAuthOpen(false)}>
+        <AuthModal
+          isOpen={isAuthOpen}
+          onClose={() => setIsAuthOpen(false)}
+          onShowToast={showToast}
+        />
+      </ErrorBoundary>
+
+      {/* Dedicated Account & Personal Settings Modal */}
+      <ErrorBoundary compact componentName="AccountModal" onReset={() => setIsAccountOpen(false)}>
+        <AccountModal
+          isOpen={isAccountOpen}
+          onClose={() => setIsAccountOpen(false)}
+          packages={packages}
+          onExportData={handleExportData}
+          onShowToast={showToast}
+        />
+      </ErrorBoundary>
+
+      {/* About & System Info Modal */}
+      <ErrorBoundary compact componentName="AboutModal" onReset={() => setIsAboutOpen(false)}>
+        <AboutModal
+          isOpen={isAboutOpen}
+          onClose={() => setIsAboutOpen(false)}
+          onOpenFeedback={() => {
+            setIsAboutOpen(false);
+            setIsFeedbackOpen(true);
+          }}
+          onShowToast={showToast}
+        />
+      </ErrorBoundary>
 
       {/* Alpha Tester Feedback Modal */}
-      <FeedbackModal
-        isOpen={isFeedbackOpen}
-        onClose={() => setIsFeedbackOpen(false)}
-        onShowToast={showToast}
-      />
+      <ErrorBoundary compact componentName="FeedbackModal" onReset={() => setIsFeedbackOpen(false)}>
+        <FeedbackModal
+          isOpen={isFeedbackOpen}
+          onClose={() => setIsFeedbackOpen(false)}
+          onShowToast={showToast}
+        />
+      </ErrorBoundary>
 
       {/* Delete Confirmation Dialog */}
       <DeleteConfirmDialog
@@ -576,6 +645,22 @@ function DashboardContent() {
           }
         }}
       />
+
+      {/* PWA Floating Update Available Banner */}
+      {isUpdateAvailable && (
+        <aside aria-label="App Update Ready" className="fixed top-18 left-1/2 -translate-x-1/2 z-50 animate-bounce-subtle">
+          <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold shadow-2xl border border-blue-400/30 backdrop-blur-xl">
+            <RefreshCw className="w-4 h-4 animate-spin text-blue-200" />
+            <span>{isRTL ? 'גרסה חדשה של Deliveree זמינה!' : 'A new version of Deliveree is ready!'}</span>
+            <button
+              onClick={handleApplyUpdate}
+              className="px-3 py-1 rounded-xl bg-white text-blue-600 font-bold hover:bg-blue-50 transition-colors cursor-pointer"
+            >
+              {isRTL ? 'רענן כעת' : 'Update Now'}
+            </button>
+          </div>
+        </aside>
+      )}
 
       {/* Floating PWA Installation Banner */}
       <InstallPwaBanner />

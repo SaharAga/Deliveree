@@ -59,6 +59,25 @@
   }
 }
 
+@layer utilities {
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .safe-left {
+    padding-left: env(safe-area-inset-left, 0px);
+  }
+  .safe-right {
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+  .min-h-touch {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
   width: 5px;

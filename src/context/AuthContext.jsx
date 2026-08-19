@@ -97,6 +97,20 @@ export function validateUserProfile(raw) {
 
   const createdAt = sanitizeString(safeObj.createdAt, 50) || new Date().toISOString().slice(0, 10);
 
+  const preferences = safeObj.preferences && typeof safeObj.preferences === 'object' && !Array.isArray(safeObj.preferences)
+    ? {
+        defaultCarrier: sanitizeString(safeObj.preferences.defaultCarrier, 50) || 'all',
+        language: sanitizeString(safeObj.preferences.language, 10) || 'he',
+        theme: sanitizeString(safeObj.preferences.theme, 10) || 'dark',
+        dateFormat: sanitizeString(safeObj.preferences.dateFormat, 20) || 'DD/MM/YYYY'
+      }
+    : {
+        defaultCarrier: 'all',
+        language: 'he',
+        theme: 'dark',
+        dateFormat: 'DD/MM/YYYY'
+      };
+
   return {
     id,
     name,
@@ -105,7 +119,8 @@ export function validateUserProfile(raw) {
     ingestionEmail,
     plan,
     devicesCount,
-    createdAt
+    createdAt,
+    preferences
   };
 }
 
@@ -299,6 +314,74 @@ export function AuthProvider({ children }) {
     }
   }, [triggerCloudSync]);
 
+  const updateUserPreferences = useCallback((newPrefs) => {
+    if (!user) return;
+    const sanitizedPrefs = {
+      defaultCarrier: sanitizeString(newPrefs?.defaultCarrier, 50) || user.preferences?.defaultCarrier || 'all',
+      language: sanitizeString(newPrefs?.language, 10) || user.preferences?.language || 'he',
+      theme: sanitizeString(newPrefs?.theme, 10) || user.preferences?.theme || 'dark',
+      dateFormat: sanitizeString(newPrefs?.dateFormat, 20) || user.preferences?.dateFormat || 'DD/MM/YYYY'
+    };
+
+    const updatedUser = {
+      ...user,
+      preferences: sanitizedPrefs
+    };
+    setUser(updatedUser);
+    triggerCloudSync();
+  }, [user, triggerCloudSync]);
+
+  const deleteUserAccountAndData = useCallback(async (userId) => {
+    const targetId = userId || user?.id;
+    if (!targetId) return;
+
+    // 1. Wipe cloud Firestore data if configured
+    if (isFirebaseConfigured && db) {
+      try {
+        const { collection, getDocs, deleteDoc, doc } = await import('firebase/firestore');
+        const userPackagesRef = collection(db, 'users', targetId, 'packages');
+        const snapshot = await getDocs(userPackagesRef);
+        const deletePromises = snapshot.docs.map(d => deleteDoc(d.ref));
+        await Promise.all(deletePromises);
+
+        // Delete user root doc
+        await deleteDoc(doc(db, 'users', targetId));
+      } catch (err) {
+        console.warn('[AuthContext] Error deleting cloud data:', err);
+      }
+    }
+
+    // 2. Clear local storage delivery packages & custom data
+    try {
+      localStorage.removeItem(`deliveree_packages_${targetId}`);
+      localStorage.removeItem('deliveree_packages_guest');
+      localStorage.removeItem(STORAGE_AUTH_KEY);
+      localStorage.removeItem('deliveree_tester_feedback');
+      localStorage.removeItem('deliveree_pwa_banner_dismissed');
+    } catch {
+      // Ignore localStorage errors
+    }
+
+    // 3. Delete Firebase Auth user if active
+    if (isFirebaseConfigured && auth && auth.currentUser) {
+      try {
+        const { deleteUser } = await import('firebase/auth');
+        await deleteUser(auth.currentUser);
+      } catch (err) {
+        console.warn('[AuthContext] Error deleting auth user:', err);
+        try {
+          await firebaseSignOut(auth);
+        } catch {
+          // Ignore
+        }
+      }
+    }
+
+    // 4. Reset state
+    cloudAdapter.setUserId(null);
+    setUser(null);
+  }, [user]);
+
   const logout = useCallback(async () => {
     if (isFirebaseConfigured && auth) {
       try {
@@ -317,6 +400,8 @@ export function AuthProvider({ children }) {
     loginWithGoogle,
     loginWithEmail,
     registerWithEmail,
+    updateUserPreferences,
+    deleteUserAccountAndData,
     logout,
     syncStatus,
     lastSyncTime,
@@ -328,6 +413,8 @@ export function AuthProvider({ children }) {
     loginWithGoogle,
     loginWithEmail,
     registerWithEmail,
+    updateUserPreferences,
+    deleteUserAccountAndData,
     logout,
     syncStatus,
     lastSyncTime,

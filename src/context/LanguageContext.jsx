@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { translations } from '../i18n/translations';
 
 const LanguageContext = createContext();
@@ -23,14 +23,14 @@ export function LanguageProvider({ children }) {
     }
   }, [language, isRTL]);
 
-  const toggleLanguage = () => {
+  const toggleLanguage = useCallback(() => {
     setLanguage(prev => (prev === 'en' ? 'he' : 'en'));
-  };
+  }, []);
 
   /**
    * Helper to look up translation key safely
    */
-  const t = (path) => {
+  const t = useCallback((path) => {
     if (!path || typeof path !== 'string') return '';
     const keys = path.split('.');
 
@@ -65,10 +65,18 @@ export function LanguageProvider({ children }) {
     }
 
     return path;
-  };
+  }, [language]);
+
+  const contextValue = useMemo(() => ({
+    language,
+    setLanguage,
+    toggleLanguage,
+    isRTL,
+    t
+  }), [language, toggleLanguage, isRTL, t]);
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, toggleLanguage, isRTL, t }}>
+    <LanguageContext.Provider value={contextValue}>
       {children}
     </LanguageContext.Provider>
   );

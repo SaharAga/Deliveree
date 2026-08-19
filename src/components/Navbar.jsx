@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Package, Plus, Sparkles, Globe, Sun, Moon, Download, Upload, RotateCcw, 
-  BarChart3, User, ChevronDown, Link2, Menu, X, LogIn
+  BarChart3, User, ChevronDown, Link2, Menu, X, LogIn, Info
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
@@ -14,6 +14,7 @@ export function Navbar({
   onOpenAnalytics,
   onOpenConnectModal,
   onOpenAuth,
+  onOpenAbout,
   onExportData,
   onImportData,
   onResetData
@@ -40,7 +41,7 @@ export function Navbar({
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-800/80 bg-slate-950/90 backdrop-blur-2xl transition-all duration-300">
+    <header className="sticky top-0 z-40 w-full border-b border-slate-800/80 bg-slate-950/90 backdrop-blur-2xl transition-all duration-300 pt-[env(safe-area-inset-top,0px)]">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2">
         {/* Brand Logo & Title */}
         <div className="flex items-center gap-2.5 min-w-0">
@@ -82,9 +83,19 @@ export function Navbar({
           <button
             onClick={onOpenAnalytics}
             title={t('insights.title')}
-            className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer"
+            className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
           >
             <BarChart3 className="w-4 h-4" />
+          </button>
+
+          {/* Info / About Button */}
+          <button
+            onClick={onOpenAbout}
+            title={language === 'he' ? 'אודות ופרטי מערכת' : 'About & System Info'}
+            className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-blue-400 transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
+            aria-label={language === 'he' ? 'אודות ופרטי מערכת' : 'About & System Info'}
+          >
+            <Info className="w-4 h-4" />
           </button>
 
           {/* Backup / Data Management Menu */}
@@ -228,7 +239,7 @@ export function Navbar({
           {/* Quick Language Toggle */}
           <button
             onClick={toggleLanguage}
-            className="px-2 py-1 rounded-lg bg-slate-900 border border-slate-800 text-[11px] font-bold text-slate-300 cursor-pointer"
+            className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-bold text-slate-300 cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
           >
             {language === 'he' ? 'EN' : 'עב'}
           </button>
@@ -236,13 +247,13 @@ export function Navbar({
           {/* User Sign In / Profile Avatar */}
           <button
             onClick={onOpenAuth}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 cursor-pointer min-h-[44px] min-w-[44px] justify-center"
             title={user ? user.name : 'Sign In / Account'}
           >
             {user?.avatar ? (
-              <img src={user.avatar} alt={user.name} className="w-4 h-4 rounded-full object-cover" />
+              <img src={user.avatar} alt={user.name} className="w-5 h-5 rounded-full object-cover" />
             ) : user ? (
-              <div className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-[9px]">
+              <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-[10px]">
                 {user.name.charAt(0)}
               </div>
             ) : (
@@ -256,16 +267,16 @@ export function Navbar({
           {/* Primary Mobile Add Package Button */}
           <button
             onClick={onOpenAddModal}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-500/25 cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-500/25 cursor-pointer min-h-[44px]"
           >
-            <Plus className="w-3.5 h-3.5 stroke-[3]" />
+            <Plus className="w-4 h-4 stroke-[3]" />
             <span className="hidden sm:inline">{t('addPackage')}</span>
           </button>
 
           {/* Mobile Hamburger Menu Toggle */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 cursor-pointer"
+            className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
             aria-label="Toggle Navigation Menu"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -321,10 +332,22 @@ export function Navbar({
                 setMobileMenuOpen(false);
                 onOpenAnalytics();
               }}
-              className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 text-start cursor-pointer"
+              className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 text-start cursor-pointer min-h-[44px]"
             >
               <BarChart3 className="w-4 h-4 text-emerald-400 shrink-0" />
               <span className="font-semibold truncate">{t('insights.title')}</span>
+            </button>
+
+            {/* About & System Info */}
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onOpenAbout();
+              }}
+              className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 text-start cursor-pointer min-h-[44px]"
+            >
+              <Info className="w-4 h-4 text-blue-400 shrink-0" />
+              <span className="font-semibold truncate">{language === 'he' ? 'אודות ומידע' : 'About & Info'}</span>
             </button>
           </div>
 

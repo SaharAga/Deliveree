@@ -5,12 +5,12 @@ inputs:
   - List of modified files and their code diffs
   - Framework context (React 19, Next.js 15, Vue 3, etc.)
 outputs:
-  - Structured Code Review Report (APPROVED / CHANGES REQUESTED) with line-cited findings and drop-in remediation code
+  - Structured Code Review Report (APPROVED / CHANGES REQUESTED) with line-cited findings, specialist consultation notes, and drop-in remediation code
 ---
 
 # Automated Code Review, Scalability & UX Protocol
 
-This skill guides any agent or reviewer subagent in performing high-rigor, adversarial peer reviews focusing on **Scalability, Algorithmic Efficiency, Database I/O, State Lifecycle, Resource Teardown, and Bi-Directional UX**.
+This skill guides any agent or reviewer subagent in performing high-rigor, adversarial peer reviews focusing on **Scalability, Algorithmic Efficiency, Database I/O, State Lifecycle, Resource Teardown, Bi-Directional UX, and Domain Specialist Consultation**.
 
 ---
 
@@ -70,44 +70,85 @@ Every resource acquired during a component lifecycle **MUST** be explicitly rele
 * **Directional Icons**: Flip arrows (`→`/`←`) based on `isRTL`; alternatively apply `rtl:rotate-180`.
 * **Number Isolation**: Wrap tracking numbers, IDs, and phone numbers in `<bdi dir="ltr">` to prevent punctuation flipping in RTL mode.
 * **Theme Contrast (WCAG AA 4.5:1)**: Use semantic CSS custom properties (`var(--bg-surface)`, `var(--text-primary)`) — never hardcode dark mode text classes on light mode backgrounds.
-* **Touch Targets (WCAG 2.5.5)**: Maintain $\ge 44\times 44\text{px}$ interactive targets on mobile.
+* **Touch Targets (WCAG 2.5.5)**: Maintain $\ge 48\times 48\text{px}$ interactive targets on mobile.
 * **Pinch-to-Zoom**: Never set `user-scalable=no` or `maximum-scale=1.0` — violates WCAG 1.4.4.
 
 ---
 
-## 3. Structured Review Output Template
+## 3. Domain Specialist Consultation Protocol
+
+Before issuing a final code review verdict on non-trivial code modifications, `code_reviewer` must consult the relevant Subsystem Component Specialist based on the changed file paths:
+
+### Subsystem Mapping & Consultation Matrix
+
+| Subsystem Domain | Owning Specialist | Mandatory Consultation Invariants |
+| :--- | :--- | :--- |
+| **Auth & Cloud Infrastructure** | `auth_cloud_specialist` | - Verify Firebase Spark free-tier quotas (reads $\le 50\text{k/day}$, writes $\le 20\text{k/day}$).<br>- Enforce GDPR data deletion cascades (`deleteAllUserData`).<br>- Verify Firestore security rule constraints and auth token claims. |
+| **Delivery & Data Pipeline** | `delivery_pipeline_specialist` | - Validate Zod schema coverage on all incoming package payloads.<br>- Check regex catastrophic backtracking (ReDoS) on carrier detector patterns.<br>- Ensure immutability in timeline tracking and status transitions. |
+| **UI/UX & Ergonomics** | `ui_ux_specialist` | - Verify mobile touch targets $\ge 48\times 48\text{px}$ and safe-area inset propagation (`env(safe-area-inset-*)`).<br>- Check Hebrew RTL / English LTR mirror symmetry and logical Tailwind classes.<br>- Verify WCAG 2.2 AAA contrast and focus trap handling on modal dialogs. |
+| **PWA & Offline Resilience** | `pwa_offline_specialist` | - Check Service Worker cache version incrementation in `public/sw.js`.<br>- Verify `SKIP_WAITING` and `controllerchange` auto-update handlers.<br>- Ensure offline fallback and zero quota exception crashes in `localStorage`/IndexedDB. |
+| **Feedback & Telemetry** | `feedback_telemetry_specialist` | - Verify error payload sanitization (no raw stack traces or tokens in feedback documents).<br>- Check rate limiting on feedback submission endpoints.<br>- Ensure non-blocking async execution for notification dispatchers (`notify.py`, Telegram bots). |
+
+### Consultation Workflow Steps
+1. **Analyze Diff Scope**: Identify which domain specialists map to the modified files.
+2. **Execute Invariant Check**: Verify that all domain-specific invariants are satisfied by the changes.
+3. **Document in Review Report**: Include a dedicated "Domain Specialist Consultation" section in the review output recording checks passed or remediation requests.
+
+---
+
+## 4. Corporate Scalability, FinOps & Vendor Quota Protocol
+
+Reviewers must evaluate the **unit economics, vendor quota burn, and subscription dependency** of code changes:
+
+### A. Vendor Tier & Quota Limits
+* **Firebase Free (Spark)**:
+  * Reads: $\le 50,000\text{/day}$ | Writes: $\le 20,000\text{/day}$ | Storage: $\le 1\text{ GB}$.
+  * *Requirement*: Reject unbounded pollers or multi-read loops. Use real-time snapshot listeners with local document caches or IndexedDB persistence.
+* **Hosting Bandwidth (Vercel / CDN)**:
+  * Vercel Free: $\le 100\text{ GB/month}$ | Cloudflare Pages: Unlimited.
+  * *Requirement*: Audit bundle size changes. Enforce route-based code splitting (`React.lazy`), dynamic imports, and aggressive PWA asset caching so returning users consume 0 hosting bandwidth.
+* **Third-Party Carrier APIs (17Track, DHL, Israel Post)**:
+  * Free API tiers often limit calls to $100\text{--}500\text{ requests/day}$.
+  * *Requirement*: Implement strict serverless caching / TTLs (minimum 1--4 hours per tracking lookup) to prevent premature paid API tier upgrades.
+
+### B. Vendor Lock-In & Zero-Cost Fallback
+* Avoid hard dependencies on proprietary cloud services without abstraction adapters (e.g. use clean repository/storage adapters like `cloudStorageAdapter.js` that can seamlessly switch between Firebase, Supabase, or PostgreSQL).
+* Provide low-cost or zero-cost migration paths for any feature that approaches corporate tier ceilings.
+
+---
+
+## 5. Structured Review Output Template
 
 ```markdown
 # 🔍 Code Review & Scalability Report
 
 ## Summary Verdict: [ APPROVED | CHANGES REQUESTED ]
 
-### 1. Algorithmic Complexity & Allocation
+### 1. Technical Scalability (Code & Architecture)
 - **Big-O Budget**: [O(1)/O(N) verified | Flagged: describe issue]
 - **Reducer / Loop Anti-Patterns**: [Pass | Issue: file:line]
 - **Formatter & Allocator Caching**: [Pass | Issue: file:line]
+- **Database & I/O (N+1 / Keyset Pagination)**: [Pass | Issue: describe pattern]
+- **Framework Lifecycle & Memory Teardown**: [Pass | Leak at: file:line]
+- **Concurrency & State Edge Cases**: [Pass | Race condition/resurrection risk]
 
-### 2. Database & I/O Scalability
-- **N+1 Queries**: [Pass | Issue: describe pattern]
-- **Pagination Strategy**: [Keyset/Cursor | OFFSET (rejected)]
-- **Index Coverage**: [Pass | Missing index on: column]
+### 2. Domain Specialist Consultation
+- **Consulted Specialist(s)**: [e.g. `auth_cloud_specialist`, `delivery_pipeline_specialist`]
+- **Domain Invariant Checks**: [e.g. Firestore Spark read budget verified; Zod schema sanitization confirmed]
+- **Specialist Verdict**: [APPROVED | REMEDIATION REQUIRED]
 
-### 3. Framework Lifecycle & Memory Teardown
-- **Context Memoization (useMemo/useCallback)**: [Pass | Issue: file:line]
-- **Component Memoization (React.memo)**: [Pass | Issue: file:line]
-- **Resource Cleanup (timers, workers, sockets, URLs)**: [Pass | Leak at: file:line]
+### 3. Corporate & FinOps Scalability (Quotas & Unit Economics)
+- **Vendor Quota Burn (Firebase / APIs)**: [Compliant with Spark/Free quotas | Excessive DB read/write pattern flagged]
+- **Bandwidth & Bundle Size Impact**: [Optimized / PWA-cached | Uncompressed asset/bundle bloat flagged]
+- **API Cache & TTL Strategy**: [Pass (TTL >= 1h) | Missing cache on external API calls]
+- **Lock-in & Zero-Cost Fallback**: [Adapter pattern respected | Proprietary lock-in flagged]
 
-### 4. Concurrency & State Edge Cases
-- **Race Conditions**: [Pass | Issue: describe]
-- **Storage Quota Handling**: [Pass | Silent failure at: file:line]
-- **Empty State Fallback**: [Pass | Resurrection risk at: file:line]
-
-### 5. RTL/LTR & Accessibility
+### 4. RTL/LTR & Accessibility
 - **Logical CSS Positioning**: [Pass | Hardcoded offset at: file:line]
 - **WCAG Contrast & Touch Targets**: [Pass | Issue: describe]
 
-### 6. Critical Blocking Issues (if CHANGES REQUESTED)
-| File:Line | Issue | Severity | Drop-In Fix |
-|---|---|---|---|
-| file.js:N | Description | HIGH | `code fix` |
+### 5. Critical Blocking Issues (if CHANGES REQUESTED)
+| File:Line | Category (Technical / Domain / Corporate) | Issue | Severity | Drop-In Fix |
+|---|---|---|---|---|
+| file.js:N | Domain Specialist | Missing Zod schema parsing on imported payload | HIGH | `code fix` |
 ```

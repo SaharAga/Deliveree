@@ -22,8 +22,8 @@ Every task (feature, bugfix, refactoring, or infrastructure update) must pass th
 ```mermaid
 flowchart LR
     G1["Gate 1: Architecture\n(Orchestrator)"] --> G2["Gate 2: UI/UX & Human Factors\n(UI/UX Architect)"]
-    G2 --> G3["Gate 3: Implementation\n(Developer)"]
-    G3 --> G4["Gate 4: Scalability Review\n(Code Reviewer)"]
+    G2 --> G3["Gate 3: Implementation\n(Developer / Component Specialist)"]
+    G3 --> G4["Gate 4: Scalability Review\n(Code Reviewer & Specialist Consultation)"]
     G4 --> G5["Gate 5: Security & Red Team\n(Security Auditor & Pentester)"]
     G5 --> G6["Gate 6: Performance & Chaos\n(Perf & Chaos Engineer)"]
     G6 --> G7["Gate 7: QA Verification\n(QA Verifier)"]
@@ -41,21 +41,30 @@ flowchart LR
 * **Frictionless UX**: Zero unnecessary modal jumps or redundant typing (e.g. 1-click SSO).
 * **Accessibility**: Strict WCAG 2.2 AAA color contrast ($\ge 7:1$), focus states, and semantic ARIA tree.
 
-### Stage 3: Implementation (Specialized Developer Subagents)
-Depending on task complexity and domain scope, the Orchestrator routes implementation to specialized developers or dispatches them concurrently:
-* **Frontend Engineer Subagent (`frontend_developer`)**:
+### Stage 3: Implementation (Specialized Developer & Component Specialist Subagents)
+Depending on task complexity and domain scope, the Orchestrator routes implementation to the designated subsystem specialist:
+* **Frontend Engineer Subagent (`frontend_developer` / `ui_ux_specialist`)**:
   * Specializes in React, Tailwind/CSS, component state, touch ergonomics ($\ge 48\text{px}$), bilingual RTL/LTR logical styling, PWA client cache, and DOM performance.
   * Co-locates component unit tests and accessibility tests.
-* **Backend & Cloud Engineer Subagent (`backend_developer`)**:
+* **Backend & Cloud Engineer Subagent (`backend_developer` / `auth_cloud_specialist`)**:
   * Specializes in Firebase / Firestore rules, Cloud Functions, REST/GraphQL APIs, Zod/TypeScript schema contracts, database indexing, query optimization (anti-N+1), and data pipelines.
   * Co-locates API/service integration tests and mock data fixtures.
-* **Full-Stack Fast-Path Subagent (`fullstack_developer`)**:
+* **Full-Stack Fast-Path Subagent (`fullstack_developer` / `developer`)**:
   * Reserved for compact, self-contained tasks (< 50 LOC, minor bugfixes, or unified end-to-end tweaks) to minimize orchestration latency while enforcing the same quality gates.
 
-### Stage 4: Scalability & Peer Code Review (Code Reviewer Subagent)
-* **Algorithmic Complexity**: Verify time and space complexity ($O(1)$, $O(\log N)$, $O(N)$). Flag and reject accidental $O(N^2)$ iterations or nested loops over dynamic datasets.
-* **Data Access & Memory**: Eliminate N+1 query patterns. Ensure memory cleanup (unsubscribing event listeners, cleaning timers, using `AbortController`).
-* **Maintainability & SOLID**: Check code modularity, DRY principles, naming conventions, and boundary error handling.
+### Stage 4: Scalability & Peer Code Review (Code Reviewer Subagent & Domain Consultation Protocol)
+Divided into two mandatory review axes, supplemented by mandatory **Domain Specialist Consultation**:
+* **Axis A: Technical Scalability (Code & Architecture)**:
+  * **Algorithmic Complexity**: Verify time and space complexity ($O(1)$, $O(\log N)$, $O(N)$). Flag and reject accidental $O(N^2)$ iterations or nested loops over dynamic datasets.
+  * **Data Access & Memory**: Eliminate N+1 query patterns. Ensure memory cleanup (unsubscribing event listeners, cleaning timers, using `AbortController`).
+  * **Maintainability & SOLID**: Check code modularity, DRY principles, naming conventions, and boundary error handling.
+* **Axis B: Corporate & FinOps Scalability (Quotas, Vendor Lock-in & Unit Economics)**:
+  * **Tier & Quota Burn Rate**: Model the impact of new features against vendor free/paid tier limits (e.g. Firebase Spark 50k reads/20k writes/day, Vercel 100GB bandwidth, serverless invocations).
+  * **Cost-Aware Architecture (FinOps)**: Enforce client-side caching (IndexedDB/PWA Service Worker) and query consolidation to minimize paid API/DB ingress.
+  * **Subscription & Lock-in Risk Analysis**: Flag features that force costly tier upgrades before product-market fit; require migration paths or zero-cost fallbacks (e.g., Cloudflare Pages, self-hosted alternatives).
+  * **Runaway Cost Guardrails**: Mandate spend alerts, query pagination limits, and backoff throttling to prevent accidental billing spikes.
+* **Domain Specialist Consultation Protocol**:
+  * When reviewing code modifications touching specific subsystems, `code_reviewer` must consult the owning Subsystem Component Specialist (see Section 3) to verify domain-specific invariants (e.g., Firestore free-tier read budgets with `auth_cloud_specialist`, regex safety with `delivery_pipeline_specialist`, or cache invalidation hooks with `pwa_offline_specialist`).
 
 ### Stage 5: Enterprise Security & Adversarial Red Team Pentest (Security Auditor & Adversarial Pentester)
 * **OWASP ASVS Level 3 & OWASP API Top 10**:
@@ -81,7 +90,21 @@ Depending on task complexity and domain scope, the Orchestrator routes implement
 
 ---
 
-## 3. Agent Topology, Loop Limits & Governance Protocols
+## 3. Subsystem Component Specialists
+
+To enforce strict separation of concerns and deep domain mastery, 5 designated Component Specialists own specific files and subsystems:
+
+| Subagent Specialist | Subsystem Domain | Primary File Scope & Directory Ownership |
+| :--- | :--- | :--- |
+| **`auth_cloud_specialist`** | Authentication, User Identity & Cloud Persistence | [`src/context/AuthContext.jsx`](file:///home/sahar/Deliveree/src/context/AuthContext.jsx), [`src/services/firebase.js`](file:///home/sahar/Deliveree/src/services/firebase.js), [`src/services/cloudStorageAdapter.js`](file:///home/sahar/Deliveree/src/services/cloudStorageAdapter.js), [`src/components/AccountModal.jsx`](file:///home/sahar/Deliveree/src/components/AccountModal.jsx), [`src/components/AuthModal.jsx`](file:///home/sahar/Deliveree/src/components/AuthModal.jsx), [`firestore.rules`](file:///home/sahar/Deliveree/firestore.rules) |
+| **`delivery_pipeline_specialist`** | Package Data Pipeline, Ingestion & Validation | [`src/services/deliveryService.js`](file:///home/sahar/Deliveree/src/services/deliveryService.js), [`src/schemas/packageSchema.js`](file:///home/sahar/Deliveree/src/schemas/packageSchema.js), [`src/utils/carrierDetector.js`](file:///home/sahar/Deliveree/src/utils/carrierDetector.js), [`src/utils/packageValidator.js`](file:///home/sahar/Deliveree/src/utils/packageValidator.js), [`src/utils/smartParser.js`](file:///home/sahar/Deliveree/src/utils/smartParser.js), [`src/components/SmartImportModal.jsx`](file:///home/sahar/Deliveree/src/components/SmartImportModal.jsx), [`src/components/AddEditPackageModal.jsx`](file:///home/sahar/Deliveree/src/components/AddEditPackageModal.jsx) |
+| **`ui_ux_specialist`** | Presentation, Ergonomics, Theming & Accessibility | [`src/App.jsx`](file:///home/sahar/Deliveree/src/App.jsx), [`src/App.css`](file:///home/sahar/Deliveree/src/App.css), [`src/index.css`](file:///home/sahar/Deliveree/src/index.css), [`src/context/LanguageContext.jsx`](file:///home/sahar/Deliveree/src/context/LanguageContext.jsx), [`src/context/ThemeContext.jsx`](file:///home/sahar/Deliveree/src/context/ThemeContext.jsx), [`src/i18n/translations.js`](file:///home/sahar/Deliveree/src/i18n/translations.js), [`src/components/Navbar.jsx`](file:///home/sahar/Deliveree/src/components/Navbar.jsx), [`src/components/PackageCard.jsx`](file:///home/sahar/Deliveree/src/components/PackageCard.jsx), [`src/components/PackageTable.jsx`](file:///home/sahar/Deliveree/src/components/PackageTable.jsx), [`src/components/FilterBar.jsx`](file:///home/sahar/Deliveree/src/components/FilterBar.jsx), [`src/components/StatsCards.jsx`](file:///home/sahar/Deliveree/src/components/StatsCards.jsx), [`src/components/QuickTimeline.jsx`](file:///home/sahar/Deliveree/src/components/QuickTimeline.jsx), [`src/components/Toast.jsx`](file:///home/sahar/Deliveree/src/components/Toast.jsx), [`src/components/DeleteConfirmDialog.jsx`](file:///home/sahar/Deliveree/src/components/DeleteConfirmDialog.jsx), [`src/components/PackageDetailModal.jsx`](file:///home/sahar/Deliveree/src/components/PackageDetailModal.jsx) |
+| **`pwa_offline_specialist`** | Service Worker, Caching & Offline Resilience | [`public/sw.js`](file:///home/sahar/Deliveree/public/sw.js), [`public/manifest.json`](file:///home/sahar/Deliveree/public/manifest.json), [`src/components/InstallPwaBanner.jsx`](file:///home/sahar/Deliveree/src/components/InstallPwaBanner.jsx), [`src/components/ErrorBoundary.jsx`](file:///home/sahar/Deliveree/src/components/ErrorBoundary.jsx), [`src/components/AboutModal.jsx`](file:///home/sahar/Deliveree/src/components/AboutModal.jsx), [`src/constants/version.js`](file:///home/sahar/Deliveree/src/constants/version.js) |
+| **`feedback_telemetry_specialist`** | In-App Feedback, Triage Daemons & Remote Alerts | [`src/components/FeedbackModal.jsx`](file:///home/sahar/Deliveree/src/components/FeedbackModal.jsx), [`scripts/feedback_triage.py`](file:///home/sahar/Deliveree/scripts/feedback_triage.py), [`scripts/feedback_daemon.py`](file:///home/sahar/Deliveree/scripts/feedback_daemon.py), [`scripts/notify.py`](file:///home/sahar/Deliveree/scripts/notify.py), [`scripts/telegram_bot.py`](file:///home/sahar/Deliveree/scripts/telegram_bot.py) |
+
+---
+
+## 4. Agent Topology, Loop Limits & Governance Protocols
 
 To prevent agent state drift, resource exhaustion, and ping-pong deadlocks:
 
@@ -97,7 +120,7 @@ To prevent agent state drift, resource exhaustion, and ping-pong deadlocks:
 
 ---
 
-## 4. Non-Negotiable Sign-Off Criteria
+## 5. Non-Negotiable Sign-Off Criteria
 
 No feature or change is approved if:
 1. Any automated test fails.
@@ -110,7 +133,7 @@ No feature or change is approved if:
 
 ---
 
-## 5. Custom Skill Discovery
+## 6. Custom Skill Discovery
 
 The following specialized skills are available in `.agents/skills/`:
 * [`git-branch-and-pr-workflow`](file:///home/sahar/Deliveree/.agents/skills/git-branch-and-pr-workflow/SKILL.md)
@@ -120,3 +143,5 @@ The following specialized skills are available in `.agents/skills/`:
 * [`owasp-security-and-rate-limiting`](file:///home/sahar/Deliveree/.agents/skills/owasp-security-and-rate-limiting/SKILL.md)
 * [`software-verification-and-qa`](file:///home/sahar/Deliveree/.agents/skills/software-verification-and-qa/SKILL.md)
 * [`remote-notifications-and-chat`](file:///home/sahar/Deliveree/.agents/skills/remote-notifications-and-chat/SKILL.md)
+* [`feedback-triage-and-action-items`](file:///home/sahar/Deliveree/.agents/skills/feedback-triage-and-action-items/SKILL.md)
+* [`project-release-tracking`](file:///home/sahar/Deliveree/.agents/skills/project-release-tracking/SKILL.md)

@@ -6,6 +6,7 @@ import {
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { sanitizeString } from '../utils/packageValidator';
+import { APP_VERSION, BUILD_CHANNEL } from '../constants/version';
 
 export function FeedbackModal({
   isOpen,
@@ -37,9 +38,12 @@ export function FeedbackModal({
 
     const feedbackPayload = {
       id: `fb-${Date.now()}`,
+      status: 'pending',
       type: feedbackType,
       message: cleanMsg,
       rating,
+      appVersion: APP_VERSION,
+      buildChannel: BUILD_CHANNEL,
       user: user ? { id: user.id, name: user.name, email: user.email } : 'Anonymous Tester',
       userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
       screenWidth: typeof window !== 'undefined' ? window.innerWidth : 0,
@@ -47,7 +51,20 @@ export function FeedbackModal({
       timestamp: new Date().toISOString()
     };
 
-    // Store in local feedback buffer
+    // Store in Cloud Firestore /feedback collection if available
+    const saveToFirestore = async () => {
+      try {
+        const { isFirebaseConfigured, db } = await import('../services/firebase');
+        if (isFirebaseConfigured && db) {
+          const { collection, addDoc } = await import('firebase/firestore');
+          await addDoc(collection(db, 'feedback'), feedbackPayload);
+        }
+      } catch (err) {
+        console.warn('[FeedbackModal] Firestore submission error, falling back locally:', err);
+      }
+    };
+
+    // Store in local feedback buffer as fallback
     try {
       const existing = JSON.parse(localStorage.getItem('deliveree_tester_feedback') || '[]');
       existing.push(feedbackPayload);
@@ -56,7 +73,7 @@ export function FeedbackModal({
       // Ignored
     }
 
-    setTimeout(() => {
+    saveToFirestore().finally(() => {
       setIsSubmitting(false);
       if (onShowToast) onShowToast(
         language === 'he' ? 'תודה רבה! המשוב שלך נשלח בהצלחה לצוות הפיתוח ❤️' : 'Thank you! Your feedback has been sent to the team ❤️',
@@ -64,7 +81,7 @@ export function FeedbackModal({
       );
       setMessage('');
       onClose();
-    }, 600);
+    });
   };
 
   return (

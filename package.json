@@ -1,7 +1,7 @@
 {
   "name": "deliveree",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.2.0-alpha",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,7 +10,9 @@
     "test": "vitest run",
     "preview": "vite preview",
     "notify": "python3 scripts/notify.py",
-    "telegram": "python3 scripts/telegram_bot.py"
+    "telegram": "python3 scripts/telegram_bot.py",
+    "feedback:triage": "python3 scripts/feedback_triage.py --once",
+    "feedback:daemon": "python3 scripts/feedback_daemon.py"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
@@ -21,7 +23,8 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "tailwind-merge": "^3.6.0",
-    "tailwindcss": "^4.3.3"
+    "tailwindcss": "^4.3.3",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",
