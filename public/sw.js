@@ -1,4 +1,5 @@
-const CACHE_NAME = 'deliveree-cache-v0.2.0-alpha';
+const CACHE_NAME = 'deliveree-cache-v0.3.0-alpha';
+
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
