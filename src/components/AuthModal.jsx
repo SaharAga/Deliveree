@@ -273,7 +273,7 @@ export function AuthModal({
                         value={nameInput}
                         onChange={(e) => setNameInput(e.target.value)}
                         placeholder="e.g. Alex Cohen"
-                        className={`w-full bg-slate-950 border border-slate-800 text-xs text-slate-100 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none min-h-[44px] ${isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'}`}
+                        className={`w-full bg-slate-950 border border-slate-800 text-base sm:text-sm text-slate-100 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none min-h-[44px] ${isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'}`}
                       />
                     </div>
                   </div>
@@ -291,7 +291,7 @@ export function AuthModal({
                       value={emailInput}
                       onChange={(e) => setEmailInput(e.target.value)}
                       placeholder="you@domain.com"
-                      className={`w-full bg-slate-950 border border-slate-800 text-xs text-slate-100 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none min-h-[44px] ${isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'}`}
+                      className={`w-full bg-slate-950 border border-slate-800 text-base sm:text-sm text-slate-100 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none min-h-[44px] ${isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'}`}
                     />
                   </div>
                 </div>
@@ -309,7 +309,7 @@ export function AuthModal({
                       value={passwordInput}
                       onChange={(e) => setPasswordInput(e.target.value)}
                       placeholder="••••••••"
-                      className={`w-full bg-slate-950 border border-slate-800 text-xs text-slate-100 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none min-h-[44px] ${isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'}`}
+                      className={`w-full bg-slate-950 border border-slate-800 text-base sm:text-sm text-slate-100 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none min-h-[44px] ${isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'}`}
                     />
                   </div>
                 </div>

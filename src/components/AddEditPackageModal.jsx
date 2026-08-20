@@ -164,7 +164,7 @@ export function AddEditPackageModal({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={t('modal.itemTitlePlaceholder')}
-              className="w-full bg-slate-950 border border-slate-800 text-sm text-slate-100 placeholder-slate-500 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+              className="w-full bg-slate-950 border border-slate-800 text-base sm:text-sm text-slate-100 placeholder-slate-500 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all min-h-[44px]"
             />
           </div>
 
@@ -187,7 +187,7 @@ export function AddEditPackageModal({
               value={trackingNumber}
               onChange={(e) => setTrackingNumber(e.target.value)}
               placeholder={t('modal.trackingNumPlaceholder')}
-              className="w-full font-mono bg-slate-950 border border-slate-800 text-sm text-slate-100 placeholder-slate-500 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+              className="w-full font-mono bg-slate-950 border border-slate-800 text-base sm:text-sm text-slate-100 placeholder-slate-500 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all min-h-[44px]"
             />
           </div>
 
@@ -204,7 +204,7 @@ export function AddEditPackageModal({
                   setCarrier(e.target.value);
                   setIsManualCarrier(true);
                 }}
-                className="w-full bg-slate-950 border border-slate-800 text-xs text-slate-100 rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer"
+                className="w-full bg-slate-950 border border-slate-800 text-base sm:text-sm text-slate-100 rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer min-h-[44px]"
               >
                 {CARRIER_LIST.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -222,7 +222,7 @@ export function AddEditPackageModal({
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 text-xs text-slate-100 rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer"
+                className="w-full bg-slate-950 border border-slate-800 text-base sm:text-sm text-slate-100 rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer min-h-[44px]"
               >
                 {CATEGORIES.map((cat) => (
                   <option key={cat.id} value={cat.id}>
@@ -243,7 +243,7 @@ export function AddEditPackageModal({
                 type="date"
                 value={orderDate}
                 onChange={(e) => setOrderDate(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 text-xs text-slate-100 rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer"
+                className="w-full bg-slate-950 border border-slate-800 text-base sm:text-sm text-slate-100 rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer min-h-[44px]"
               />
             </div>
 
@@ -255,7 +255,7 @@ export function AddEditPackageModal({
                 type="date"
                 value={expectedDeliveryDate}
                 onChange={(e) => setExpectedDeliveryDate(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 text-xs text-slate-100 rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer"
+                className="w-full bg-slate-950 border border-slate-800 text-base sm:text-sm text-slate-100 rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer min-h-[44px]"
               />
             </div>
           </div>
@@ -271,7 +271,7 @@ export function AddEditPackageModal({
                 value={origin}
                 onChange={(e) => setOrigin(e.target.value)}
                 placeholder={t('modal.originPlaceholder')}
-                className="w-full bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500"
+                className="w-full bg-slate-950 border border-slate-800 text-base sm:text-sm text-slate-100 placeholder-slate-500 rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 min-h-[44px]"
               />
             </div>
 
@@ -284,7 +284,7 @@ export function AddEditPackageModal({
                 value={destination}
                 onChange={(e) => setDestination(e.target.value)}
                 placeholder={t('modal.destinationPlaceholder')}
-                className="w-full bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500"
+                className="w-full bg-slate-950 border border-slate-800 text-base sm:text-sm text-slate-100 placeholder-slate-500 rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 min-h-[44px]"
               />
             </div>
           </div>
@@ -300,7 +300,7 @@ export function AddEditPackageModal({
                   type="button"
                   key={s.id}
                   onClick={() => setStatus(s.id)}
-                  className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all text-center ${
+                  className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all text-center min-h-[40px] cursor-pointer ${
                     status === s.id
                       ? 'bg-blue-600 border-blue-500 text-white shadow-sm'
                       : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
@@ -322,7 +322,7 @@ export function AddEditPackageModal({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder={t('modal.notesPlaceholder')}
-              className="w-full bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 rounded-xl p-3 focus:outline-none focus:border-blue-500 transition-all resize-none"
+              className="w-full bg-slate-950 border border-slate-800 text-base sm:text-sm text-slate-100 placeholder-slate-500 rounded-xl p-3 focus:outline-none focus:border-blue-500 transition-all resize-none"
             />
           </div>
 

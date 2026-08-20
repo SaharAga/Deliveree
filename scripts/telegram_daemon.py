@@ -2,7 +2,7 @@
 """
 Deliveree Telegram Daemon — 24/7 background bridge service.
 - Multi-threaded: Instant outbound queue dispatch (<0.5s) + Instant inbound long-polling.
-- Handles user commands (/status, /test, /build, /inbox, /help, /ping).
+- Handles user commands (/status, /test, /build, /inbox, /feedback, /help, /ping).
 - Logs incoming messages and media into .agents/inbox.jsonl.
 - Handles agent questions (.agents/tg_ask.json -> .agents/tg_answer.txt).
 - Flushes outbound queue (.agents/tg_outbox.jsonl -> Telegram).
@@ -21,6 +21,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from telegram_bridge import TelegramSender, get_config
+from ai_responder import respond_to_message
 
 
 AGENTS_DIR_NAME  = ".agents"
@@ -29,6 +30,8 @@ ANS_FILE_NAME    = "tg_answer.txt"
 OUTBOX_FILE_NAME = "tg_outbox.jsonl"
 INBOX_FILE_NAME  = "inbox.jsonl"
 MEDIA_DIR_NAME   = "media"
+BUFFER_FILE_NAME = "feedback_buffer.json"
+BACKLOG_FILE_REL = Path(".agents") / "backlog" / "FEEDBACK_ACTION_ITEMS.md"
 
 pending_ask_lock = threading.Lock()
 pending_ask_state = {"spec": None}
@@ -51,6 +54,50 @@ def log_inbox(root_dir: Path, sender: str, text: str, extra: dict = None):
 def get_node_env() -> dict:
     node_path = f"/home/sahar/.local/nodejs/bin:/usr/local/bin:/usr/bin:/bin:{os.environ.get('PATH', '')}"
     return {**os.environ, "PATH": node_path}
+
+
+def format_feedback_summary(root_dir: Path) -> str:
+    """Formats a concise report of feedback items and triage status for Telegram."""
+    buffer_path = root_dir / AGENTS_DIR_NAME / BUFFER_FILE_NAME
+    backlog_path = root_dir / BACKLOG_FILE_REL
+
+    items = []
+    if buffer_path.is_file():
+        try:
+            items = json.loads(buffer_path.read_text(encoding="utf-8"))
+        except Exception:
+            items = []
+
+    total_items = len(items)
+    pending_items = [i for i in items if i.get("status", "pending") == "pending"]
+    triaged_items = [i for i in items if i.get("status") == "triaged"]
+
+    lines = [
+        "📊 <b>Deliveree Alpha Feedback Report</b>",
+        f"• <b>Total Submissions:</b> {total_items}",
+        f"• <b>Pending Triage:</b> {len(pending_items)}",
+        f"• <b>Triaged Action Items:</b> {len(triaged_items)}",
+        ""
+    ]
+
+    if items:
+        lines.append("📝 <b>Last 5 Submissions:</b>")
+        last_five = items[-5:]
+        for item in reversed(last_five):
+            emoji = "🚨" if item.get("type") == "bug" else ("💡" if item.get("type") == "feature" else "❤️")
+            status_icon = "⏳" if item.get("status", "pending") == "pending" else "✅"
+            user_info = item.get("user", "Tester")
+            user_str = user_info.get("name", "Tester") if isinstance(user_info, dict) else str(user_info)
+            msg_snippet = item.get("message", "").replace("<", "&lt;").replace(">", "&gt;")[:75]
+            rating = item.get("rating", 5)
+            lines.append(f"{emoji} {status_icon} <b>[{item.get('type','bug')}]</b> ⭐{rating} <i>{user_str}</i>: {msg_snippet}")
+    else:
+        lines.append("ℹ️ No feedback records found in buffer.")
+
+    if backlog_path.is_file():
+        lines.append(f"\n📋 Backlog available at: <code>{BACKLOG_FILE_REL}</code>")
+
+    return "\n".join(lines)
 
 
 def handle_command(text: str, root_dir: Path) -> str | None:
@@ -105,18 +152,25 @@ def handle_command(text: str, root_dir: Path) -> str | None:
         except Exception as e:
             return f"❌ Error reading inbox: {e}"
 
+    if cmd in ["/feedback", "feedback", "/fb"]:
+        try:
+            return format_feedback_summary(root_dir)
+        except Exception as e:
+            return f"❌ Error generating feedback summary: {e}"
+
     if cmd in ["/ping", "ping"]:
         return "🏓 <b>Pong!</b> Deliveree Telegram Daemon is active and connected."
 
     if cmd in ["/start", "/help", "help"]:
         return (
             "🤖 <b>Deliveree AI Assistant Bot</b>\n\n"
-            "• <code>/status</code> — Run linter & project check\n"
-            "• <code>/test</code>   — Run unit test suite\n"
-            "• <code>/build</code>  — Run production build verification\n"
-            "• <code>/inbox</code>  — View recent messages queued for the AI agent\n"
-            "• <code>/ping</code>   — Check bot daemon health\n"
-            "• <code>/help</code>   — Show this guide\n\n"
+            "• <code>/feedback</code> — View latest tester feedback & triage status\n"
+            "• <code>/status</code>   — Run linter & project check\n"
+            "• <code>/test</code>     — Run unit test suite\n"
+            "• <code>/build</code>    — Run production build verification\n"
+            "• <code>/inbox</code>    — View recent messages queued for the AI agent\n"
+            "• <code>/ping</code>     — Check bot daemon health\n"
+            "• <code>/help</code>     — Show this guide\n\n"
             "💬 <b>Direct Agent Chat:</b> Any message or screenshot you send is immediately logged into the AI agent's active queue."
         )
 
@@ -295,12 +349,22 @@ def run_daemon():
                     if reply:
                         sender.send_message(reply)
                     else:
-                        # Rich receipt for freeform user instructions/feedback
-                        sender.send_message(
-                            f"📥 <b>Message received!</b>\n\n"
-                            f"<i>\"{text}\"</i>\n\n"
-                            f"⚡ Queued into Deliveree AI Agent context."
-                        )
+                        # Autonomous AI conversational bridge response (run async in worker thread)
+                        def generate_and_send_ai_reply(user_query: str, user_name: str, media_loc: str | None):
+                            try:
+                                ai_reply = respond_to_message(user_query, user_name=user_name, media_path=media_loc, root_dir=root_dir)
+                                if ai_reply:
+                                    sender.send_message(ai_reply)
+                                    print(f"🤖 [AI Responder] Replied to {user_name}: {ai_reply[:60]}...", flush=True)
+                            except Exception as e:
+                                print(f"⚠️ Error generating AI reply: {e}", file=sys.stderr, flush=True)
+
+                        attached_media = media_meta.get("local_file")
+                        threading.Thread(
+                            target=generate_and_send_ai_reply,
+                            args=(text, name, attached_media),
+                            daemon=True
+                        ).start()
 
             time.sleep(0.1)
 

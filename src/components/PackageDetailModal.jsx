@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { 
   X, ExternalLink, Copy, Check, Calendar, MapPin, Plus, 
-  Truck, Clock
+  Truck, Clock, RefreshCw
 } from 'lucide-react';
 import { CARRIERS } from '../types/carriers';
+import { copyToClipboard } from '../utils/clipboard';
 import { STAGES, CATEGORIES } from '../types/stages';
 import { useLanguage } from '../context/LanguageContext';
 import { formatDate, formatDateTime, getDaysRemaining } from '../utils/dateUtils';
+import { canTransition, TRANSITION_MATRIX } from '../services/deliveryService';
+import { checkRateLimit } from '../services/trackingService';
 import confetti from 'canvas-confetti';
 
 export function PackageDetailModal({
@@ -14,10 +17,12 @@ export function PackageDetailModal({
   isOpen,
   onClose,
   onUpdatePackage,
+  onRefreshTracking,
   onShowToast
 }) {
   const { t, language } = useLanguage();
   const [copied, setCopied] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isAddingCheckpoint, setIsAddingCheckpoint] = useState(false);
 
   // New Checkpoint Form State
@@ -34,18 +39,60 @@ export function PackageDetailModal({
   const category = CATEGORIES.find(c => c.id === pkg.category) || CATEGORIES[CATEGORIES.length - 1];
   const daysInfo = getDaysRemaining(pkg.expectedDeliveryDate, language);
 
-  const handleCopy = () => {
-    if (navigator?.clipboard?.writeText) {
-      navigator.clipboard.writeText(pkg.trackingNumber).catch(() => {});
+  const handleCopy = async () => {
+    const success = await copyToClipboard(pkg.trackingNumber);
+    if (success) {
+      setCopied(true);
+      if (onShowToast) onShowToast(t('card.copied'), 'success');
+      setTimeout(() => setCopied(false), 2000);
+    } else if (onShowToast) {
+      onShowToast(language === 'he' ? 'ההעתקה ללוח נכשלה' : 'Failed to copy to clipboard', 'error');
     }
-    setCopied(true);
-    if (onShowToast) onShowToast(t('card.copied'), 'success');
-    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+
+    const rateCheck = checkRateLimit(pkg.trackingNumber);
+    if (rateCheck.isLimited) {
+      const waitSec = Math.ceil(rateCheck.remainingMs / 1000);
+      if (onShowToast) {
+        onShowToast(
+          language === 'he'
+            ? `נא להמתין ${waitSec} שניות לפני רענון נוסף`
+            : `Please wait ${waitSec}s before refreshing again`,
+          'info'
+        );
+      }
+      return;
+    }
+
+    setIsRefreshing(true);
+    try {
+      if (onRefreshTracking) {
+        await onRefreshTracking(pkg);
+      }
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const handleAdvanceStage = () => {
     if (effectiveIndex < STAGES.length - 1) {
       const nextStage = STAGES[effectiveIndex + 1];
+
+      if (!canTransition(pkg.status, nextStage.id)) {
+        if (onShowToast) {
+          onShowToast(
+            language === 'he'
+              ? `מעבר לא חוקי מ-${pkg.status} אל ${nextStage.id}`
+              : `Cannot transition from ${pkg.status} to ${nextStage.id}`,
+            'error'
+          );
+        }
+        return;
+      }
+
       if (nextStage.id === 'delivered') {
         confetti({ particleCount: 100, spread: 70 });
       }
@@ -74,6 +121,18 @@ export function PackageDetailModal({
   };
 
   const handleSetStage = (stageId) => {
+    if (!canTransition(pkg.status, stageId)) {
+      if (onShowToast) {
+        onShowToast(
+          language === 'he'
+            ? `מעבר לא חוקי מ-${pkg.status} אל ${stageId}`
+            : `Cannot transition from ${pkg.status} to ${stageId}`,
+          'error'
+        );
+      }
+      return;
+    }
+
     if (stageId === 'delivered') {
       confetti({ particleCount: 80, spread: 60 });
     }
@@ -170,20 +229,34 @@ export function PackageDetailModal({
               </button>
             </div>
 
-            <a
-              href={carrier.getTrackingUrl(pkg.trackingNumber)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md shadow-blue-500/20"
-            >
-              <span>{t('detailModal.carrierDirectLink')}</span>
-              <ExternalLink className="w-4 h-4" />
-            </a>
+            <div className="flex items-center gap-2">
+              {onRefreshTracking && (
+                <button
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-emerald-400 text-xs font-bold transition-all border border-slate-700/80 min-h-[44px]"
+                  title={t('card.refreshStatus')}
+                >
+                  <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-emerald-400' : ''}`} />
+                  <span>{t('card.refreshStatus')}</span>
+                </button>
+              )}
+
+              <a
+                href={carrier.getTrackingUrl(pkg.trackingNumber)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md shadow-blue-500/20 min-h-[44px]"
+              >
+                <span>{t('detailModal.carrierDirectLink')}</span>
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            </div>
           </div>
 
-          {/* Stepper Progress Section */}
-          <div className="p-5 rounded-2xl bg-slate-950/40 border border-slate-800/80">
-            <div className="flex items-center justify-between mb-4">
+          {/* Stepper Progress Section & Status Transition Override */}
+          <div className="p-5 rounded-2xl bg-slate-950/40 border border-slate-800/80 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <h3 className="text-sm font-bold text-slate-300 flex items-center gap-2">
                 <Truck className="w-4 h-4 text-blue-400" />
                 <span>{t('detailModal.currentStage')}:</span>
@@ -192,14 +265,36 @@ export function PackageDetailModal({
                 </span>
               </h3>
 
-              {effectiveIndex < STAGES.length - 1 && (
-                <button
-                  onClick={handleAdvanceStage}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold transition-all shadow-md"
+              <div className="flex items-center gap-2">
+                {/* State Machine Transition Selector (Only showing allowed transitions) */}
+                <select
+                  value={pkg.status}
+                  onChange={(e) => handleSetStage(e.target.value)}
+                  className="bg-slate-900 border border-slate-700 text-slate-200 text-xs font-semibold rounded-xl px-3 py-1.5 focus:outline-none focus:border-blue-500 min-h-[36px] cursor-pointer"
+                  aria-label={t('tracking.overrideStatus')}
                 >
-                  <span>{t('detailModal.advanceStageBtn')}</span>
-                </button>
-              )}
+                  {(TRANSITION_MATRIX[pkg.status] || [pkg.status]).map((statusKey) => {
+                    const stageObj = STAGES.find(s => s.id === statusKey);
+                    const label = stageObj
+                      ? (language === 'he' ? stageObj.hebrewLabel : stageObj.label)
+                      : statusKey;
+                    return (
+                      <option key={statusKey} value={statusKey}>
+                        {label}
+                      </option>
+                    );
+                  })}
+                </select>
+
+                {effectiveIndex < STAGES.length - 1 && canTransition(pkg.status, STAGES[effectiveIndex + 1]?.id) && (
+                  <button
+                    onClick={handleAdvanceStage}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold transition-all shadow-md min-h-[36px]"
+                  >
+                    <span>{t('detailModal.advanceStageBtn')}</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Visual 6 Stages Clickable Stepper */}
@@ -207,21 +302,26 @@ export function PackageDetailModal({
               {STAGES.map((s, idx) => {
                 const isPassed = idx < effectiveIndex;
                 const isCurrent = idx === effectiveIndex;
+                const isAllowed = canTransition(pkg.status, s.id);
 
                 return (
                   <button
                     key={s.id}
                     onClick={() => handleSetStage(s.id)}
+                    disabled={!isAllowed && !isCurrent}
+                    title={!isAllowed && !isCurrent ? (language === 'he' ? 'מעבר לא מורשה' : 'Transition not permitted') : ''}
                     className={`flex flex-col items-center p-2.5 rounded-xl border text-center transition-all ${
                       isCurrent
                         ? 'border-blue-500 bg-blue-500/10 text-blue-300 ring-2 ring-blue-500/30'
                         : isPassed
                         ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-400'
-                        : 'border-slate-800 bg-slate-900/50 text-slate-500 hover:border-slate-700 hover:text-slate-300'
+                        : isAllowed
+                        ? 'border-slate-800 bg-slate-900/50 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                        : 'border-slate-900/60 bg-slate-950/40 text-slate-600 opacity-40 cursor-not-allowed'
                     }`}
                   >
                     <div className={`w-5 h-5 rounded-full mb-1 flex items-center justify-center text-[10px] font-bold ${
-                      isCurrent ? 'bg-blue-500 text-white' : isPassed ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400'
+                      isCurrent ? 'bg-blue-500 text-white' : isPassed ? 'bg-emerald-500 text-white' : isAllowed ? 'bg-slate-800 text-slate-400' : 'bg-slate-900 text-slate-700'
                     }`}>
                       {isPassed ? <Check className="w-3 h-3 stroke-[3]" /> : idx + 1}
                     </div>

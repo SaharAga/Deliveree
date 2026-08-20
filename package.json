@@ -1,7 +1,7 @@
 {
   "name": "deliveree",
   "private": true,
-  "version": "0.2.0-alpha",
+  "version": "0.3.0-alpha",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "notify": "python3 scripts/notify.py",
     "telegram": "python3 scripts/telegram_bot.py",
+    "feedback:sync": "python3 scripts/feedback_sync.py",
     "feedback:triage": "python3 scripts/feedback_triage.py --once",
     "feedback:daemon": "python3 scripts/feedback_daemon.py"
   },

@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X, User, Settings, ShieldAlert, Database,
   Download, Trash2, CheckCircle2, Moon, Sun, Globe,
   Truck, Calendar, Mail, Check, AlertTriangle, Cloud,
-  Info, Sparkles, Package, ShieldCheck
+  Info, Sparkles, Package, ShieldCheck, Bell, Send
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { CARRIERS, CARRIER_LIST } from '../types/carriers';
 import { APP_VERSION, RELEASE_DATE, BUILD_CHANNEL } from '../constants/version';
+import { notificationService } from '../services/notificationService';
 
 export function AccountModal({
   isOpen,
@@ -18,13 +19,74 @@ export function AccountModal({
   onExportData,
   onShowToast
 }) {
-  const { language, setLanguage } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
   const { user, updateUserPreferences, deleteUserAccountAndData, syncStatus, lastSyncTime, logout } = useAuth();
 
-  const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'preferences' | 'data' | 'danger'
+  const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'notifications' | 'preferences' | 'data' | 'danger'
   const [deleteConfirmationInput, setDeleteConfirmationInput] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [notificationPrefs, setNotificationPrefs] = useState(() => notificationService.getPreferences());
+  const [permissionStatus, setPermissionStatus] = useState(() => notificationService.getNotificationPermission());
+  const [isSendingTest, setIsSendingTest] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setNotificationPrefs(notificationService.getPreferences());
+      setPermissionStatus(notificationService.getNotificationPermission());
+    }
+  }, [isOpen]);
+
+  const handleUpdateNotifPref = (key, value) => {
+    const updated = notificationService.savePreferences({ [key]: value });
+    setNotificationPrefs(updated);
+    if (onShowToast) {
+      onShowToast(t('notifications.preferencesSaved') || 'Preferences saved', 'success');
+    }
+  };
+
+  const handleRequestPushPermission = async () => {
+    const perm = await notificationService.requestNotificationPermission();
+    setPermissionStatus(perm);
+    setNotificationPrefs(notificationService.getPreferences());
+    if (perm === 'granted') {
+      if (onShowToast) onShowToast(language === 'he' ? 'הרשאת התראות הופעלה בהצלחה!' : 'Notification permission granted!', 'success');
+    } else if (perm === 'denied') {
+      if (onShowToast) onShowToast(language === 'he' ? 'הרשאת התראות נדחתה בדפדפן' : 'Notification permission denied', 'error');
+    }
+  };
+
+  const handleSendTestTelegram = async () => {
+    if (!notificationPrefs.telegramChatId) {
+      if (onShowToast) onShowToast(language === 'he' ? 'נא להזין Chat ID תחילה' : 'Please enter Telegram Chat ID first', 'error');
+      return;
+    }
+
+    setIsSendingTest(true);
+    const mockPkg = packages[0] || {
+      id: 'test-1',
+      title: 'Deliveree Test Shipment',
+      titleHe: 'משלוח בדיקה Deliveree',
+      trackingNumber: 'IL999888777TEST',
+      carrier: 'israel_post',
+      status: 'out_for_delivery',
+      expectedDeliveryDate: new Date().toISOString().slice(0, 10),
+      destination: 'Tel Aviv'
+    };
+
+    const success = await notificationService.sendTelegramPackageAlert(notificationPrefs.telegramChatId, mockPkg, {
+      fromStatus: 'in_transit',
+      toStatus: 'out_for_delivery',
+      message: language === 'he' ? 'זוהי התראת בדיקה של Deliveree!' : 'This is a Deliveree test alert!'
+    });
+
+    setIsSendingTest(false);
+    if (success) {
+      if (onShowToast) onShowToast(t('notifications.testSentSuccess') || 'Test notification sent!', 'success');
+    } else {
+      if (onShowToast) onShowToast(t('notifications.testSentFailed') || 'Failed to send test notification', 'error');
+    }
+  };
 
   if (!isOpen || !user) return null;
 
@@ -188,6 +250,18 @@ export function AccountModal({
           </button>
 
           <button
+            onClick={() => setActiveTab('notifications')}
+            className={`flex items-center gap-2 py-3 px-3 border-b-2 transition-all cursor-pointer whitespace-nowrap min-h-[44px] ${
+              activeTab === 'notifications'
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Bell className="w-4 h-4" />
+            <span>{language === 'he' ? 'התראות' : 'Notifications'}</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('preferences')}
             className={`flex items-center gap-2 py-3 px-3 border-b-2 transition-all cursor-pointer whitespace-nowrap min-h-[44px] ${
               activeTab === 'preferences'
@@ -293,6 +367,169 @@ export function AccountModal({
             </div>
           )}
 
+          {/* TAB: NOTIFICATIONS & ALERTS */}
+          {activeTab === 'notifications' && (
+            <div className="space-y-4 animate-fade-in">
+              {/* Web Push Section */}
+              <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <span className="text-xs font-bold text-slate-200 flex items-center gap-2">
+                      <Bell className="w-4 h-4 text-blue-400" />
+                      <span>{t('notifications.webPush')}</span>
+                    </span>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      {t('notifications.webPushDesc')}
+                    </p>
+                  </div>
+
+                  <div className="shrink-0 flex items-center gap-2">
+                    {permissionStatus === 'granted' ? (
+                      <label className="relative inline-flex items-center cursor-pointer min-h-[44px]">
+                        <input
+                          type="checkbox"
+                          checked={notificationPrefs.pushEnabled}
+                          onChange={(e) => handleUpdateNotifPref('pushEnabled', e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[12px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    ) : permissionStatus === 'denied' ? (
+                      <span className="text-[10px] px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-300 border border-rose-500/20 font-semibold">
+                        {t('notifications.permissionDenied')}
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleRequestPushPermission}
+                        className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer min-h-[44px]"
+                      >
+                        <Bell className="w-3.5 h-3.5" />
+                        <span>{t('notifications.requestPermission')}</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {permissionStatus === 'granted' && (
+                  <div className="flex items-center gap-2 text-[11px] text-emerald-400 font-semibold pt-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>{t('notifications.permissionGranted')}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Telegram Alerts Section */}
+              <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <span className="text-xs font-bold text-slate-200 flex items-center gap-2">
+                      <Send className="w-4 h-4 text-sky-400" />
+                      <span>{t('notifications.telegramAlerts')}</span>
+                    </span>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      {t('notifications.telegramAlertsDesc')}
+                    </p>
+                  </div>
+
+                  <label className="relative inline-flex items-center cursor-pointer min-h-[44px] shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.telegramEnabled}
+                      onChange={(e) => handleUpdateNotifPref('telegramEnabled', e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[12px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600"></div>
+                  </label>
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-slate-800/80">
+                  <label className="text-[11px] font-bold text-slate-300 block">
+                    {t('notifications.telegramChatId')}
+                  </label>
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <input
+                      type="text"
+                      value={notificationPrefs.telegramChatId}
+                      onChange={(e) => handleUpdateNotifPref('telegramChatId', e.target.value.trim())}
+                      placeholder={t('notifications.telegramChatIdPlaceholder')}
+                      className="flex-1 bg-slate-900 border border-slate-700 text-slate-100 text-base sm:text-sm rounded-xl p-2.5 focus:border-sky-500 focus:outline-none font-mono min-h-[44px]"
+                    />
+                    <button
+                      type="button"
+                      disabled={isSendingTest || !notificationPrefs.telegramChatId}
+                      onClick={handleSendTestTelegram}
+                      className="px-3.5 py-2 rounded-xl bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border border-sky-500/30 font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 min-h-[44px]"
+                    >
+                      <Send className={`w-3.5 h-3.5 ${isSendingTest ? 'animate-spin' : ''}`} />
+                      <span>{isSendingTest ? (language === 'he' ? 'שולח...' : 'Sending...') : t('notifications.sendTestNotification')}</span>
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-slate-500">
+                    ℹ️ {t('notifications.telegramHelp')}
+                  </p>
+                </div>
+              </div>
+
+              {/* Notification Events Filter Settings */}
+              <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-3">
+                <span className="text-xs font-bold text-slate-200 block">
+                  {t('notifications.alertEventsTitle')}
+                </span>
+
+                <div className="space-y-2.5">
+                  <label className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 cursor-pointer min-h-[44px]">
+                    <span className="text-[11px] font-semibold text-slate-300">
+                      {t('notifications.notifyOnAll')}
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.notifyOnStatusChange}
+                      onChange={(e) => handleUpdateNotifPref('notifyOnStatusChange', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 rounded bg-slate-800 border-slate-700 focus:ring-blue-500 cursor-pointer"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 cursor-pointer min-h-[44px]">
+                    <span className="text-[11px] font-semibold text-slate-300">
+                      {t('notifications.notifyOnDelivered')}
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.notifyOnDelivered}
+                      onChange={(e) => handleUpdateNotifPref('notifyOnDelivered', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 rounded bg-slate-800 border-slate-700 focus:ring-blue-500 cursor-pointer"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 cursor-pointer min-h-[44px]">
+                    <span className="text-[11px] font-semibold text-slate-300">
+                      {t('notifications.notifyOnCustoms')}
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.notifyOnCustoms}
+                      onChange={(e) => handleUpdateNotifPref('notifyOnCustoms', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 rounded bg-slate-800 border-slate-700 focus:ring-blue-500 cursor-pointer"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 cursor-pointer min-h-[44px]">
+                    <span className="text-[11px] font-semibold text-slate-300">
+                      {t('notifications.notifyOnException')}
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.notifyOnException}
+                      onChange={(e) => handleUpdateNotifPref('notifyOnException', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 rounded bg-slate-800 border-slate-700 focus:ring-blue-500 cursor-pointer"
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* TAB 2: PERSONAL PREFERENCES */}
           {activeTab === 'preferences' && (
             <div className="space-y-4 animate-fade-in">
@@ -305,7 +542,7 @@ export function AccountModal({
                 <select
                   value={currentPrefs.defaultCarrier}
                   onChange={handleCarrierChange}
-                  className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl p-2.5 focus:border-blue-500 focus:outline-none cursor-pointer"
+                  className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-base sm:text-sm rounded-xl p-2.5 focus:border-blue-500 focus:outline-none cursor-pointer min-h-[44px]"
                 >
                   <option value="all">{language === 'he' ? 'זיהוי אוטומטי (ללא קיבוע)' : 'Auto-detect (No default)'}</option>
                   {Object.entries(CARRIERS).map(([key, carrier]) => (
@@ -376,7 +613,7 @@ export function AccountModal({
                   <select
                     value={currentPrefs.dateFormat}
                     onChange={handleDateFormatChange}
-                    className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl p-2.5 focus:border-blue-500 focus:outline-none cursor-pointer min-h-[44px]"
+                    className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-base sm:text-sm rounded-xl p-2.5 focus:border-blue-500 focus:outline-none cursor-pointer min-h-[44px]"
                   >
                     <option value="DD/MM/YYYY">DD/MM/YYYY (19/08/2026)</option>
                     <option value="MM/DD/YYYY">MM/DD/YYYY (08/19/2026)</option>
@@ -460,7 +697,7 @@ export function AccountModal({
                   value={deleteConfirmationInput}
                   onChange={(e) => setDeleteConfirmationInput(e.target.value)}
                   placeholder={language === 'he' ? 'הקלד מחק או DELETE' : 'Type DELETE'}
-                  className="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs rounded-xl p-3 focus:border-rose-500 focus:outline-none"
+                  className="w-full bg-slate-900 border border-slate-700 text-slate-100 text-base sm:text-sm rounded-xl p-3 focus:border-rose-500 focus:outline-none min-h-[44px]"
                 />
 
                 <button

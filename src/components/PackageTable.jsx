@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Copy, Check, ExternalLink, Pin, Trash2, Edit3, CheckCircle } from 'lucide-react';
 import { CARRIERS } from '../types/carriers';
+import { copyToClipboard } from '../utils/clipboard';
 import { STAGES } from '../types/stages';
 import { useLanguage } from '../context/LanguageContext';
 import { formatDate, getDaysRemaining } from '../utils/dateUtils';
@@ -18,14 +19,16 @@ export function PackageTable({
   const { t, language } = useLanguage();
   const [copiedId, setCopiedId] = useState(null);
 
-  const handleCopy = (id, trackingNumber, e) => {
+  const handleCopy = async (id, trackingNumber, e) => {
     e.stopPropagation();
-    if (navigator?.clipboard?.writeText) {
-      navigator.clipboard.writeText(trackingNumber).catch(() => {});
+    const success = await copyToClipboard(trackingNumber);
+    if (success) {
+      setCopiedId(id);
+      if (onShowToast) onShowToast(t('card.copied'), 'success');
+      setTimeout(() => setCopiedId(null), 2000);
+    } else if (onShowToast) {
+      onShowToast(language === 'he' ? 'ההעתקה ללוח נכשלה' : 'Failed to copy to clipboard', 'error');
     }
-    setCopiedId(id);
-    if (onShowToast) onShowToast(t('card.copied'), 'success');
-    setTimeout(() => setCopiedId(null), 2000);
   };
 
   const handleMarkDelivered = (pkg, e) => {

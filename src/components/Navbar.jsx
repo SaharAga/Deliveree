@@ -21,7 +21,8 @@ export function Navbar({
   onOpenAdminFeedback,
   onExportData,
   onImportData,
-  onResetData
+  onResetData,
+  onShowToast
 }) {
   const { language, toggleLanguage, isRTL, t } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
@@ -34,6 +35,19 @@ export function Navbar({
   const handleFileInput = (e) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        if (onShowToast) {
+          onShowToast(
+            language === 'he'
+              ? 'קובץ הגיבוי גדול מדי (מקסימום 2MB)'
+              : 'Backup file exceeds maximum limit of 2MB',
+            'error'
+          );
+        }
+        e.target.value = '';
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = (event) => {
         const content = event.target?.result;
@@ -41,7 +55,16 @@ export function Navbar({
           onImportData(content);
         }
       };
+      reader.onerror = () => {
+        if (onShowToast) {
+          onShowToast(
+            language === 'he' ? 'שגיאה בקריאת הקובץ' : 'Failed to read file',
+            'error'
+          );
+        }
+      };
       reader.readAsText(file);
+      e.target.value = '';
     }
   };
 

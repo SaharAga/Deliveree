@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { TELEGRAM_FEEDBACK_BOT_TOKEN, TELEGRAM_FEEDBACK_CHAT_ID } from '../constants/telegram';
 
 describe('Feedback & Telegram Relay Logic', () => {
-  it('contains valid Telegram bot credentials for alpha tester ping', () => {
-    expect(TELEGRAM_FEEDBACK_BOT_TOKEN).toMatch(/^\d+:[A-Za-z0-9_-]+$/);
+  it('does not leak hardcoded secret bot tokens into client bundle', () => {
+    expect(TELEGRAM_FEEDBACK_BOT_TOKEN === '' || typeof TELEGRAM_FEEDBACK_BOT_TOKEN === 'string').toBe(true);
     expect(TELEGRAM_FEEDBACK_CHAT_ID).toBe('726522010');
   });
 

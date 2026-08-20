@@ -1,65 +1,56 @@
 # 📋 Deliveree User Feedback Action Items & Bug Backlog
 
-> Auto-generated and triaged by Deliveree Feedback Automation.
+> Triaged, logged, and tracked for Deliveree Alpha Releases.
 
 ---
 
-
-### 🚨 [P0-Critical] Courier Tracking Engine: כשמזינים מספר מעקב של דואר ישראל האפליקציה קורסת בנייד...
-* **ID**: `fb-1787153042-1`
-* **Category**: `bug` | **Rating**: ⭐ 1/5 | **App Version**: `0.2.0-alpha`
-* **Reported by**: Alpha Tester (tester@example.com)
-* **Date**: 2026-08-19T18:24:02.901205
-* **User Feedback**:
-  > "כשמזינים מספר מעקב של דואר ישראל האפליקציה קורסת בנייד"
-* **Affected Components**: `src/services/courierDetector.js`, `src/services/trackingService.js`
-* **Generated Action Items**:
-- [ ] Investigate error logs and parsing patterns in `src/services/courierDetector.js`
-- [ ] Add regression test cases covering reported payload in `src/tests/`
-
----
-
-
-### ⚠️ [P1-High] Courier Tracking Engine: Would love an option to export package tracking history to C...
-* **ID**: `fb-1787153042-2`
-* **Category**: `feature` | **Rating**: ⭐ 5/5 | **App Version**: `0.2.0-alpha`
-* **Reported by**: David R.
-* **Date**: 2026-08-19T18:24:02.901217
-* **User Feedback**:
-  > "Would love an option to export package tracking history to CSV or PDF"
-* **Affected Components**: `src/services/courierDetector.js`, `src/services/trackingService.js`
-* **Generated Action Items**:
-- [ ] Investigate error logs and parsing patterns in `src/services/courierDetector.js`
-- [ ] Add regression test cases covering reported payload in `src/tests/`
+### 🚨 [P0-Critical] Issue #1: [P0-Auth] Session lost on cold reload / mobile tab close
+* **ID**: `fb-20260820-001`
+* **Status**: `RESOLVED` (v0.3.0-alpha)
+* **Category**: `bug` | **Rating**: ⭐ 1/5 | **App Version**: `0.3.0-alpha`
+* **Reported by**: Mobile Alpha Testers (iOS / Android)
+* **Date**: 2026-08-20T09:30:00+03:00
+* **User Feedback (Hebrew)**:
+  > "כל פעם שאני סוגר את הטאב או מרענן את הדף בספארי, אני צריך להתחבר מחדש והחבילות נעלמות עד שאני מתחבר שוב."
+* **Affected Components**: `src/services/firebase.js`, `src/context/AuthContext.jsx`, `src/App.jsx`
+* **Action Items & Resolution**:
+  - [x] Configure `setPersistence(auth, browserLocalPersistence)` in `src/services/firebase.js`.
+  - [x] Prevent `AuthContext` from dropping cached user on cold start / offline boot `null` emission.
+  - [x] Track `isExplicitLogout` ref to only clear credentials and storage on user-initiated `logout()`.
+  - [x] Add sleek loading state in `src/App.jsx` during cold start session resolution.
 
 ---
 
-
-### 🚨 [P0-Critical] Courier Tracking Engine: כשמזינים מספר מעקב של דואר ישראל האפליקציה קורסת בנייד...
-* **ID**: `fb-1787153055-1`
-* **Category**: `bug` | **Rating**: ⭐ 1/5 | **App Version**: `0.2.0-alpha`
-* **Reported by**: Alpha Tester (tester@example.com)
-* **Date**: 2026-08-19T18:24:15.789914
-* **User Feedback**:
-  > "כשמזינים מספר מעקב של דואר ישראל האפליקציה קורסת בנייד"
-* **Affected Components**: `src/services/courierDetector.js`, `src/services/trackingService.js`
-* **Generated Action Items**:
-- [ ] Investigate error logs and parsing patterns in `src/services/courierDetector.js`
-- [ ] Add regression test cases covering reported payload in `src/tests/`
+### 🚨 [P0-Critical] Issue #2: [P0-UX] iOS Safari auto-zoom on `<16px` inputs causing resolution cutoff
+* **ID**: `fb-20260820-002`
+* **Status**: `RESOLVED` (v0.3.0-alpha)
+* **Category**: `bug` | **Rating**: ⭐ 2/5 | **App Version**: `0.3.0-alpha`
+* **Reported by**: iOS Safari Alpha Testers
+* **Date**: 2026-08-20T09:32:00+03:00
+* **User Feedback (Hebrew)**:
+  > "בזמן הקלדת מספר מעקב או טקסט באייפון, המסך עושה זום אוטומטי מוגזם וחותך את שולי האפליקציה וכפתורי השמירה."
+* **Affected Components**: `src/index.css`, `src/components/AuthModal.jsx`, `src/components/AddEditPackageModal.jsx`, `src/components/FilterBar.jsx`, `src/components/FeedbackModal.jsx`, `src/components/SmartImportModal.jsx`, `src/components/AccountModal.jsx`
+* **Action Items & Resolution**:
+  - [x] Add `-webkit-text-size-adjust: 100%;` on `html` and `body` in `src/index.css`.
+  - [x] Add mobile media query rule enforcing `font-size: 16px !important;` for `input, select, textarea`.
+  - [x] Update all modal form controls to `text-base sm:text-sm` (16px on mobile) to eliminate iOS Safari viewport zoom.
 
 ---
 
-
-### ⚠️ [P1-High] Feature Request / UX Enhancement: Would love an option to export package tracking history to C...
-* **ID**: `fb-1787153055-2`
-* **Category**: `feature` | **Rating**: ⭐ 5/5 | **App Version**: `0.2.0-alpha`
-* **Reported by**: David R.
-* **Date**: 2026-08-19T18:24:15.789927
-* **User Feedback**:
-  > "Would love an option to export package tracking history to CSV or PDF"
-* **Affected Components**: `src/components/ExportModal.jsx`, `src/App.jsx`
-* **Generated Action Items**:
-- [ ] Design schema and component for `src/components/ExportModal.jsx`
-- [ ] Update feature backlog and user flow specs
+### ⚠️ [P1-High] Issue #3: [P1-PWA] Version mismatch (v0.2.1 vs v0.2.2/v0.3.0) and stale SW cache update mechanism
+* **ID**: `fb-20260820-003`
+* **Status**: `RESOLVED` (v0.3.0-alpha)
+* **Category**: `bug` | **Rating**: ⭐ 3/5 | **App Version**: `0.3.0-alpha`
+* **Reported by**: Desktop & Mobile Alpha Testers
+* **Date**: 2026-08-20T09:35:00+03:00
+* **User Feedback (Hebrew)**:
+  > "בחלון אודות מופיע מספר גרסה שונה ממה שנמצא ב-package.json, וכשמעלים עדכון חדש הדפדפן ממשיך להציג גרסה ישנה מהמטמון."
+* **Affected Components**: `package.json`, `src/constants/version.js`, `public/sw.js`, `src/components/AboutModal.jsx`
+* **Action Items & Resolution**:
+  - [x] Align `package.json` and `src/constants/version.js` to `0.3.0-alpha` (Release Date: `2026-08-20`).
+  - [x] Bump Service Worker cache name to `deliveree-cache-v0.3.1-alpha`.
+  - [x] Enforce network-first strategy for navigation, scripts, and assets in `public/sw.js`.
+  - [x] Improve `handleCheckForUpdates` to detect `registration.waiting` / `registration.installing` and show update available prompt.
+  - [x] Add "Clear Cache & Force Refresh" button in `AboutModal.jsx`.
 
 ---

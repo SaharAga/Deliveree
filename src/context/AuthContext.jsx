@@ -144,6 +144,7 @@ export function AuthProvider({ children }) {
   const [syncStatus, setSyncStatus] = useState('synced');
   const [lastSyncTime, setLastSyncTime] = useState(new Date());
   const syncTimerRef = useRef(null);
+  const isExplicitLogoutRef = useRef(false);
 
   // Sync state with cloudAdapter and localStorage with quota error resilience
   useEffect(() => {
@@ -153,7 +154,9 @@ export function AuthProvider({ children }) {
         localStorage.setItem(STORAGE_AUTH_KEY, JSON.stringify(user));
       } else {
         cloudAdapter.setUserId(null);
-        localStorage.removeItem(STORAGE_AUTH_KEY);
+        if (isExplicitLogoutRef.current) {
+          localStorage.removeItem(STORAGE_AUTH_KEY);
+        }
       }
     } catch (storageErr) {
       console.warn('[AuthContext] LocalStorage setItem error:', storageErr);
@@ -181,7 +184,11 @@ export function AuthProvider({ children }) {
         });
         setUser(cleanUser);
       } else {
-        setUser(null);
+        // Only wipe user if an explicit logout action was initiated.
+        // On cold start or offline boot, retain cached user from localStorage.
+        if (isExplicitLogoutRef.current) {
+          setUser(null);
+        }
       }
       setLoading(false);
     });
@@ -211,6 +218,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const loginWithGoogle = useCallback(async (customProfile = null) => {
+    isExplicitLogoutRef.current = false;
     setAuthError(null);
     if (!isFirebaseConfigured || !auth) {
       // Dynamic local user generation for demo / offline mode
@@ -255,6 +263,7 @@ export function AuthProvider({ children }) {
   }, [triggerCloudSync]);
 
   const loginWithEmail = useCallback(async (email, password = '', name = '') => {
+    isExplicitLogoutRef.current = false;
     setAuthError(null);
     if (!isFirebaseConfigured || !auth) {
       const cleanPrefix = (email || '').split('@')[0].replace(/[^a-zA-Z0-9]/g, '') || 'user';
@@ -285,6 +294,7 @@ export function AuthProvider({ children }) {
   }, [triggerCloudSync]);
 
   const registerWithEmail = useCallback(async (email, password, name = '') => {
+    isExplicitLogoutRef.current = false;
     setAuthError(null);
     if (!isFirebaseConfigured || !auth) {
       const cleanPrefix = (email || '').split('@')[0].replace(/[^a-zA-Z0-9]/g, '') || 'user';
@@ -334,6 +344,7 @@ export function AuthProvider({ children }) {
   const deleteUserAccountAndData = useCallback(async (userId) => {
     const targetId = userId || user?.id;
     if (!targetId) return;
+    isExplicitLogoutRef.current = true;
 
     // 1. Wipe cloud Firestore data if configured
     if (isFirebaseConfigured && db) {
@@ -383,6 +394,7 @@ export function AuthProvider({ children }) {
   }, [user]);
 
   const logout = useCallback(async () => {
+    isExplicitLogoutRef.current = true;
     if (isFirebaseConfigured && auth) {
       try {
         await firebaseSignOut(auth);
@@ -390,6 +402,12 @@ export function AuthProvider({ children }) {
         console.warn('Sign out error:', err);
       }
     }
+    try {
+      localStorage.removeItem(STORAGE_AUTH_KEY);
+    } catch {
+      // Ignore
+    }
+    cloudAdapter.setUserId(null);
     setUser(null);
   }, []);
 

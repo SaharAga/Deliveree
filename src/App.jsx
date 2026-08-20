@@ -21,6 +21,7 @@ import { Toast } from './components/Toast';
 import { InstallPwaBanner } from './components/InstallPwaBanner';
 import { deliveryService } from './services/deliveryService';
 import { cloudAdapter } from './services/cloudStorageAdapter';
+import { notificationService } from './services/notificationService';
 import { INITIAL_PACKAGES } from './data/initialMockData';
 import { useLanguage, LanguageProvider } from './context/LanguageContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -31,7 +32,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 function DashboardContent() {
 
   const { t, language, isRTL } = useLanguage();
-  const { user, triggerCloudSync } = useAuth();
+  const { user, loading, triggerCloudSync } = useAuth();
 
   // Demo URL Parameter Check (?demo=true or #demo)
   const isDemoUrl = useMemo(() => {
@@ -157,6 +158,9 @@ function DashboardContent() {
         );
         return;
       }
+      if (pkgData.status && pkgData.status !== existingPkg.status) {
+        notificationService.notifyStatusChange(pkgData, existingPkg.status, pkgData.status, language);
+      }
       updated = packages.map(p => (p.id === pkgData.id ? pkgData : p));
       showToast(language === 'he' ? 'החבילה עודכנה בהצלחה!' : 'Package updated successfully!', 'success');
     } else {
@@ -218,6 +222,9 @@ function DashboardContent() {
       );
       return;
     }
+    if (existingPkg && existingPkg.status !== newStatus) {
+      notificationService.notifyStatusChange({ ...existingPkg, status: newStatus }, existingPkg.status, newStatus, language);
+    }
     const updated = packages.map(p => {
       if (p.id === id) {
         return { ...p, status: newStatus, updatedAt: new Date().toISOString() };
@@ -227,6 +234,50 @@ function DashboardContent() {
     updatePackagesState(updated);
     if (selectedDetailPackage?.id === id) {
       setSelectedDetailPackage(prev => ({ ...prev, status: newStatus, updatedAt: new Date().toISOString() }));
+    }
+  };
+
+  const handleRefreshSinglePackage = async (pkg) => {
+    const res = await deliveryService.refreshPackageTracking(pkg, user?.id || null);
+    if (res.success && res.updatedPackage) {
+      const updatedList = packages.map(p => (p.id === pkg.id ? res.updatedPackage : p));
+      updatePackagesState(updatedList);
+      if (selectedDetailPackage?.id === pkg.id) {
+        setSelectedDetailPackage(res.updatedPackage);
+      }
+      showToast(t('tracking.refreshSuccessSingle'), 'success');
+    } else if (res.rateLimited) {
+      showToast(res.error || t('card.rateLimited'), 'info');
+    } else {
+      showToast(res.error || 'Failed to refresh tracking', 'error');
+    }
+  };
+
+  const [isBatchRefreshing, setIsBatchRefreshing] = useState(false);
+
+  const handleBatchRefreshAll = async () => {
+    if (isBatchRefreshing || packages.length === 0) return;
+    setIsBatchRefreshing(true);
+    showToast(t('tracking.refreshingAll'), 'info');
+
+    const { trackingService } = await import('./services/trackingService');
+    const res = await trackingService.batchRefreshTracking(packages);
+
+    if (res.updatedPackages && res.updatedPackages.length > 0) {
+      updatePackagesState(res.updatedPackages);
+      if (selectedDetailPackage) {
+        const updatedDetail = res.updatedPackages.find(p => p.id === selectedDetailPackage.id);
+        if (updatedDetail) setSelectedDetailPackage(updatedDetail);
+      }
+    }
+
+    setIsBatchRefreshing(false);
+    if (res.refreshedCount > 0) {
+      showToast(t('tracking.refreshedSuccess').replace('{count}', String(res.refreshedCount)), 'success');
+    } else if (res.rateLimitedCount > 0) {
+      showToast(t('card.rateLimited'), 'info');
+    } else {
+      showToast(t('tracking.refreshSuccessSingle'), 'info');
     }
   };
 
@@ -375,12 +426,22 @@ function DashboardContent() {
         onExportData={handleExportData}
         onImportData={handleImportData}
         onResetData={handleResetData}
+        onShowToast={showToast}
       />
 
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {!user && !isDemoMode ? (
+        {loading && !user ? (
+          /* SLEEK INITIAL COLD-START SKELETON / LOADING STATE */
+          <div className="max-w-2xl mx-auto my-12 p-8 sm:p-12 bg-slate-900/40 border border-slate-800/60 rounded-3xl backdrop-blur-xl text-center flex flex-col items-center justify-center animate-pulse">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-gradient-to-tr from-blue-600/30 to-indigo-500/30 border border-blue-500/20 text-blue-400 flex items-center justify-center mb-6 shadow-xl">
+              <RefreshCw className="w-8 h-8 sm:w-10 sm:h-10 animate-spin" />
+            </div>
+            <div className="h-6 w-48 bg-slate-800 rounded-xl mb-3" />
+            <div className="h-4 w-72 bg-slate-800/60 rounded-lg" />
+          </div>
+        ) : !user && !isDemoMode ? (
           /* GUEST / NEW USER WELCOME ONBOARDING GATE */
           <div className="max-w-2xl mx-auto my-6 sm:my-12 p-6 sm:p-10 bg-gradient-to-b from-slate-900/90 to-slate-950/90 border border-slate-800/80 rounded-3xl shadow-2xl backdrop-blur-2xl text-center animate-in fade-in slide-in-from-bottom-6">
             <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center mx-auto mb-6 shadow-xl shadow-blue-600/30">
@@ -460,6 +521,8 @@ function DashboardContent() {
               onSortChange={setSortBy}
               viewMode={viewMode}
               onViewModeChange={setViewMode}
+              onRefreshAll={handleBatchRefreshAll}
+              isRefreshing={isBatchRefreshing}
               packages={packages}
             />
 
@@ -474,22 +537,20 @@ function DashboardContent() {
                 </h3>
                 <p className="text-xs text-slate-400 max-w-sm mb-6">
                   {searchQuery || selectedCarrier !== 'all' || activeTab !== 'all'
-                    ? (language === 'he' ? 'נסה לשנות את מילות החיפוש או לאפס את הסינונים.' : 'Try adjusting your search query or reset the filters.')
-                    : (language === 'he' ? 'אין כרגע חבילות במעקב. הוסף חבילה חדשה או ייבא מהודעת SMS!' : 'No packages being tracked yet. Add a new package or import from an SMS!')}
+                    ? (language === 'he' ? 'נסה לשנות את הסינון או מונחי החיפוש' : 'Try adjusting your search or active filters')
+                    : (language === 'he' ? 'אין עדיין חבילות במעקב. הוסף חבילה ראשונה!' : 'No packages tracked yet. Add your first delivery!')}
                 </p>
-                <div className="flex items-center gap-3">
-                  {(searchQuery || selectedCarrier !== 'all' || activeTab !== 'all') && (
-                    <button
-                      onClick={() => {
-                        setSearchQuery('');
-                        setSelectedCarrier('all');
-                        setActiveTab('all');
-                      }}
-                      className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors cursor-pointer min-h-[44px]"
-                    >
-                      {t('filters.clearFilters')}
-                    </button>
-                  )}
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  <button
+                    onClick={() => {
+                      setSearchQuery('');
+                      setSelectedCarrier('all');
+                      setActiveTab('all');
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-all cursor-pointer min-h-[44px]"
+                  >
+                    {t('filters.clearFilters')}
+                  </button>
                   <button
                     onClick={() => {
                       setEditPackage(null);
@@ -518,6 +579,7 @@ function DashboardContent() {
                     onTogglePin={handleTogglePin}
                     onToggleArchive={handleToggleArchive}
                     onStatusChange={handleStatusChange}
+                    onRefreshTracking={handleRefreshSinglePackage}
                     onShowToast={showToast}
                   />
                 ))}
@@ -595,6 +657,7 @@ function DashboardContent() {
           isOpen={!!selectedDetailPackage}
           onClose={() => setSelectedDetailPackage(null)}
           onUpdatePackage={handleAddOrUpdatePackage}
+          onRefreshTracking={handleRefreshSinglePackage}
           onShowToast={showToast}
         />
       </ErrorBoundary>

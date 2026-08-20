@@ -1,4 +1,4 @@
-const CACHE_NAME = 'deliveree-cache-v0.3.0-alpha';
+const CACHE_NAME = 'deliveree-cache-v0.3.1-alpha';
 
 const PRECACHE_ASSETS = [
   '/',
@@ -33,14 +33,14 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch Event - Stale-while-revalidate for assets, network-first for navigation
+// Fetch Event - Network-first with cache fallback for navigation, scripts, and assets
 self.addEventListener('fetch', (event) => {
   // Only intercept GET requests on same origin
   if (event.request.method !== 'GET' || !event.request.url.startsWith(self.location.origin)) {
     return;
   }
 
-  // Handle SPA navigation
+  // Handle SPA navigation: Network-first, fallback to /index.html cache
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() => {
@@ -50,19 +50,18 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Network-first with cache fallback for assets and scripts
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-        }
-        return networkResponse;
-      }).catch(() => cachedResponse);
-
-      return cachedResponse || fetchPromise;
+    fetch(event.request).then((networkResponse) => {
+      if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+        const responseToCache = networkResponse.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, responseToCache);
+        });
+      }
+      return networkResponse;
+    }).catch(() => {
+      return caches.match(event.request);
     })
   );
 });

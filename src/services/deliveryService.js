@@ -1,4 +1,5 @@
 import { validatePackageList } from '../utils/packageValidator';
+import { notificationService } from './notificationService';
 
 function getStorageKey(userId) {
   if (userId) {
@@ -29,10 +30,12 @@ export const TRANSITION_MATRIX = Object.freeze({
  * @returns {boolean} True if transition is valid
  */
 export function canTransition(fromStatus, toStatus) {
+  if (typeof fromStatus !== 'string' || typeof toStatus !== 'string') return false;
   if (!fromStatus || !toStatus) return false;
   if (fromStatus === toStatus) return true;
+  if (!Object.prototype.hasOwnProperty.call(TRANSITION_MATRIX, fromStatus)) return false;
   const allowed = TRANSITION_MATRIX[fromStatus];
-  if (!allowed) return false;
+  if (!Array.isArray(allowed)) return false;
   return allowed.includes(toStatus);
 }
 
@@ -156,5 +159,118 @@ export const deliveryService = {
     } catch (e) {
       return { success: false, error: e.message };
     }
+  },
+
+  /**
+   * Safely updates a package's status with state machine transition guard and validation.
+   *
+   * @param {import('../types/deliveree').Package[]} packages - Current package list
+   * @param {string} packageId - ID of package to update
+   * @param {import('../types/deliveree').DeliveryStageId} newStatus - New status
+   * @param {import('../types/deliveree').Checkpoint|null} [newCheckpoint=null] - Optional checkpoint to append
+   * @param {string|null} [userId=null] - Scoped user ID
+   * @returns {{ success: boolean, packages: import('../types/deliveree').Package[], error?: string, package?: import('../types/deliveree').Package }}
+   */
+  updatePackageStatus: (packages, packageId, newStatus, newCheckpoint = null, userId = null) => {
+    if (!Array.isArray(packages) || !packageId || !newStatus) {
+      return { success: false, packages: packages || [], error: 'Invalid arguments' };
+    }
+
+    const targetPkg = packages.find(p => p.id === packageId);
+    if (!targetPkg) {
+      return { success: false, packages, error: 'Package not found' };
+    }
+
+    if (!canTransition(targetPkg.status, newStatus)) {
+      return {
+        success: false,
+        packages,
+        error: `Cannot transition from ${targetPkg.status} to ${newStatus}`
+      };
+    }
+
+    const updatedCheckpoints = newCheckpoint
+      ? [newCheckpoint, ...(targetPkg.checkpoints || [])]
+      : (targetPkg.checkpoints || []);
+
+    const updatedPkg = {
+      ...targetPkg,
+      status: newStatus,
+      checkpoints: updatedCheckpoints,
+      updatedAt: new Date().toISOString()
+    };
+
+    const updatedList = packages.map(p => (p.id === packageId ? updatedPkg : p));
+    const saved = deliveryService.savePackages(updatedList, userId);
+    const savedPkg = saved.find(p => p.id === packageId);
+
+    if (targetPkg.status !== newStatus) {
+      notificationService.notifyStatusChange(savedPkg || updatedPkg, targetPkg.status, newStatus);
+    }
+
+    return {
+      success: true,
+      packages: saved,
+      package: savedPkg
+    };
+  },
+
+  /**
+   * Refreshes tracking checkpoints & status for a package using trackingService.
+   *
+   * @param {import('../types/deliveree').Package} pkg - Package entity
+   * @param {string|null} [userId=null] - Scoped user ID
+   * @param {boolean} [bypassRateLimit=false] - Force fetch
+   * @returns {Promise<{ success: boolean, updatedPackage?: import('../types/deliveree').Package, error?: string, rateLimited?: boolean }>}
+   */
+  refreshPackageTracking: async (pkg, userId = null, bypassRateLimit = false) => {
+    if (!pkg || !pkg.trackingNumber) {
+      return { success: false, error: 'Invalid package data' };
+    }
+
+    const { trackingService } = await import('./trackingService');
+    const res = await trackingService.fetchTrackingUpdates(pkg.trackingNumber, pkg.carrier, bypassRateLimit);
+
+    if (!res.success) {
+      return {
+        success: false,
+        rateLimited: res.rateLimited,
+        error: res.error || 'Failed to refresh tracking'
+      };
+    }
+
+    const existingIds = new Set((pkg.checkpoints || []).map(cp => cp.id));
+    const newCheckpoints = (res.checkpoints || []).filter(cp => !existingIds.has(cp.id));
+    const mergedCheckpoints = [...newCheckpoints, ...(pkg.checkpoints || [])];
+
+    let targetStatus = pkg.status;
+    if (res.status && canTransition(pkg.status, res.status)) {
+      targetStatus = res.status;
+    }
+
+    const updated = {
+      ...pkg,
+      status: targetStatus,
+      checkpoints: mergedCheckpoints,
+      expectedDeliveryDate: res.expectedDeliveryDate || pkg.expectedDeliveryDate,
+      updatedAt: new Date().toISOString()
+    };
+
+    const currentList = deliveryService.getPackages(userId);
+    const updatedList = currentList.some(p => p.id === pkg.id)
+      ? currentList.map(p => (p.id === pkg.id ? updated : p))
+      : [updated, ...currentList];
+
+    const saved = deliveryService.savePackages(updatedList, userId);
+    const savedPkg = saved.find(p => p.id === pkg.id) || updated;
+
+    if (pkg.status !== targetStatus) {
+      notificationService.notifyStatusChange(savedPkg, pkg.status, targetStatus);
+    }
+
+    return {
+      success: true,
+      updatedPackage: savedPkg
+    };
   }
 };

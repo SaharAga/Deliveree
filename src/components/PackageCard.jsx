@@ -1,15 +1,17 @@
 import React, { useState, useRef } from 'react';
 import { 
   Copy, Check, MoreVertical, Pin, Archive, Trash2, Edit3, 
-  MapPin, Calendar, CheckCircle, ArrowUpRight, ChevronRight
+  MapPin, Calendar, CheckCircle, ArrowUpRight, ChevronRight, RefreshCw, Loader2
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { CARRIERS } from '../types/carriers';
+import { copyToClipboard } from '../utils/clipboard';
 import { CATEGORIES } from '../types/stages';
 import { QuickTimeline } from './QuickTimeline';
 import { useLanguage } from '../context/LanguageContext';
 import { formatDate, getDaysRemaining } from '../utils/dateUtils';
 import { triggerHapticFeedback } from '../utils/haptics';
+import { checkRateLimit } from '../services/trackingService';
 
 export function PackageCard({
   pkg,
@@ -19,11 +21,13 @@ export function PackageCard({
   onTogglePin,
   onToggleArchive,
   onStatusChange,
+  onRefreshTracking,
   onShowToast
 }) {
   const { t, language, isRTL } = useLanguage();
   const [copied, setCopied] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Mobile Swipe Gesture State
   const [swipeOffset, setSwipeOffset] = useState(0);
@@ -86,14 +90,46 @@ export function PackageCard({
     setIsSwiping(false);
   };
 
-  const handleCopy = (e) => {
+  const handleCopy = async (e) => {
     e.stopPropagation();
-    if (navigator?.clipboard?.writeText) {
-      navigator.clipboard.writeText(pkg.trackingNumber).catch(() => {});
+    const success = await copyToClipboard(pkg.trackingNumber);
+    if (success) {
+      setCopied(true);
+      if (onShowToast) onShowToast(t('card.copied'), 'success');
+      setTimeout(() => setCopied(false), 2000);
+    } else if (onShowToast) {
+      onShowToast(language === 'he' ? 'ההעתקה ללוח נכשלה' : 'Failed to copy to clipboard', 'error');
     }
-    setCopied(true);
-    if (onShowToast) onShowToast(t('card.copied'), 'success');
-    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleRefresh = async (e) => {
+    e.stopPropagation();
+    if (isRefreshing) return;
+
+    const rateCheck = checkRateLimit(pkg.trackingNumber);
+    if (rateCheck.isLimited) {
+      const waitSec = Math.ceil(rateCheck.remainingMs / 1000);
+      if (onShowToast) {
+        onShowToast(
+          language === 'he'
+            ? `נא להמתין ${waitSec} שניות לפני רענון נוסף`
+            : `Please wait ${waitSec}s before refreshing again`,
+          'info'
+        );
+      }
+      return;
+    }
+
+    setIsRefreshing(true);
+    triggerHapticFeedback(15);
+
+    try {
+      if (onRefreshTracking) {
+        await onRefreshTracking(pkg);
+      }
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const handleMarkDelivered = (e) => {
@@ -265,10 +301,26 @@ export function PackageCard({
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
             title={t('card.viewCarrier')}
+            aria-label={t('card.viewCarrier')}
             className="p-2 rounded-lg text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center"
           >
             <ArrowUpRight className="w-3.5 h-3.5" />
           </a>
+
+          {/* Refresh Tracking Status button */}
+          {onRefreshTracking && (
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              title={t('card.refreshStatus')}
+              aria-label={t('card.refreshStatus')}
+              className={`p-2 rounded-lg text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center ${
+                isRefreshing ? 'animate-spin text-emerald-400' : ''
+              }`}
+            >
+              {isRefreshing ? <Loader2 className="w-3.5 h-3.5" /> : <RefreshCw className="w-3.5 h-3.5" />}
+            </button>
+          )}
         </div>
 
         {/* Route / Origin & Destination */}

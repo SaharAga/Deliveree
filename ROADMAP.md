@@ -14,20 +14,21 @@ gantt
     section Sprint 1: Security & Architecture
     TASK-101 Data Integrity & Zod Schema Validation :done, 2026-08-01, 2026-08-08
     TASK-102 Multi-tier Auth & Cloud Firestore Adapter :done, 2026-08-08, 2026-08-15
-    section Sprint 2: Tracking & Ingestion
-    Carrier Webhook Ingestion & 17TRACK Integration :active, 2026-08-16, 2026-08-30
-    Local Courier Automated Web Scraper / API Poller : 2026-08-23, 2026-09-06
+    section Sprint 2: Tracking & State Transitions
+    TASK-201 Multi-Carrier Resolver & Rate Limiter :done, 2026-08-16, 2026-08-19
+    TASK-202 Israeli Couriers Direct Parsers :done, 2026-08-16, 2026-08-19
+    TASK-203 State Machine Transition Pipeline :done, 2026-08-16, 2026-08-19
     section Sprint 3: Notifications & Offline
-    Web Push Notifications & Telegram Bot Integration : 2026-09-07, 2026-09-20
-    PWA Background Sync & IndexedDB Offline Queue : 2026-09-14, 2026-09-27
+    Web Push Notifications & Telegram Bot Bridge :active, 2026-08-20, 2026-09-02
+    IndexedDB Storage Migration & Background Sync : 2026-08-25, 2026-09-09
     section Sprint 4: AI & Omnichannel
-    AI Smart Ingestion (Gemini Free-Text & SMS Extractor) : 2026-09-28, 2026-10-12
-    Gmail & WhatsApp Ingestion Hooks : 2026-10-05, 2026-10-19
+    AI Smart Ingestion (Gemini Free-Text & SMS Extractor) : 2026-09-10, 2026-09-24
+    Gmail & WhatsApp Ingestion Hooks : 2026-09-17, 2026-10-01
 ```
 
 ---
 
-### Sprint 1: Architecture & Security Hardening (Completed)
+### Sprint 1: Architecture & Security Hardening (Completed — v0.2.1)
 - [x] **TASK-101: Data Integrity & Schema Validation Layer**
   - Implemented runtime Zod validation schemas (`checkpointSchema`, `packageSchema`, `packageListSchema`) in [`src/schemas/packageSchema.js`](file:///home/sahar/Deliveree/src/schemas/packageSchema.js).
   - Sanitized untrusted inputs, stripped unknown properties, and mitigated prototype pollution attacks (`__proto__`, `constructor`, `prototype`).
@@ -39,25 +40,26 @@ gantt
 
 ---
 
-### Sprint 2: Multi-Carrier Auto-Tracking & Webhook Ingestion
-- [ ] **Automated Multi-Carrier Polling Service**
-  - Integrate unified tracking APIs (17TRACK / Ship24 / Cainiao Global API) for real-time checkpoint updates.
-  - Periodic background polling for active packages in `in_transit`, `customs`, and `out_for_delivery` states.
-- [ ] **Israeli Couriers Direct Parsers**
-  - Add specialized scrapers and direct API clients for Israel Post, Cheetah Delivery, HFD, and BoxIt locker status.
-- [ ] **Inbound Webhook Hub**
-  - Firebase Cloud Functions / Serverless webhook endpoint receiving real-time carrier status pushes.
-  - Atomic upserts into Firestore `users/{uid}/packages` triggering real-time UI synchronization.
+### Sprint 2: Multi-Carrier Auto-Tracking & State Transitions (Completed — v0.2.2)
+- [x] **TASK-201: Multi-Carrier Resolution Engine & Rate-Limiting Cache**
+  - Built [`src/services/trackingService.js`](file:///home/sahar/Deliveree/src/services/trackingService.js) with normalized checkpoint mapping conforming to [`checkpointSchema`](file:///home/sahar/Deliveree/src/schemas/packageSchema.js#L23).
+  - Implemented 60-second cooldown rate-limiting per package with memory-bounded LRU eviction cache (`MAX_COOLDOWN_MAP_SIZE = 1000`).
+  - Implemented concurrency-throttled batch refresh (`batchRefreshTracking`) with progress tracking and toast alerts.
+- [x] **TASK-202: Israeli & Global Couriers Direct Parsers**
+  - Added specialized parsers and checkpoint normalization for Israeli couriers (Israel Post, Cheetah Delivery, HFD, BoxIt) and Global shipping networks (AliExpress Cainiao, YunExpress, 4PX, DHL, FedEx, UPS, USPS, Royal Mail, Aramex, Yanwen).
+- [x] **TASK-203: State Machine Transition Pipeline & UI Controls**
+  - Implemented transition matrix enforcement in [`src/services/deliveryService.js`](file:///home/sahar/Deliveree/src/services/deliveryService.js#L13) rejecting invalid state regressions.
+  - Added individual and batch refresh actions in [`PackageCard.jsx`](file:///home/sahar/Deliveree/src/components/PackageCard.jsx), [`PackageDetailModal.jsx`](file:///home/sahar/Deliveree/src/components/PackageDetailModal.jsx), and [`FilterBar.jsx`](file:///home/sahar/Deliveree/src/components/FilterBar.jsx) with loading indicators and manual override selector.
 
 ---
 
-### Sprint 3: Smart Notification & PWA Offline Optimization
-- [ ] **Multi-Channel Push Notifications**
-  - Web Push Notifications API via Service Worker for checkpoint changes (e.g., "Out for delivery", "Arrived at customs").
-  - Optional Telegram Bot notification bridge connecting user accounts to Instant Messenger updates.
-- [ ] **Advanced PWA Offline Storage**
-  - Migrate local storage mirror to IndexedDB using Dexie.js / idb-keyval for unbounded package history and checkpoint caching.
-  - Service Worker background sync for mutations performed while offline.
+### Sprint 3: Smart Notifications & PWA Offline Optimization (Next Up)
+- [ ] **Multi-Channel Push Notifications & User Alerts**
+  - Web Push Notifications API via Service Worker for checkpoint status updates (e.g. "Out for delivery", "Arrived at customs").
+  - User Telegram Notification Bridge connecting user accounts to real-time status alerts via Telegram Bot.
+- [ ] **Advanced PWA Offline Storage (IndexedDB Migration)**
+  - Migrate LocalStorage mirror to IndexedDB (`idb-keyval` / `Dexie.js`) for unbounded checkpoint history and fast query indexing.
+  - Service Worker Background Sync API for queuing package creation and checkpoint updates while offline.
 
 ---
 

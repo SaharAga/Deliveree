@@ -5,8 +5,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { sanitizeString } from '../utils/packageValidator';
-import { APP_VERSION, BUILD_CHANNEL } from '../constants/version';
+import { submitFeedback } from '../services/feedbackService';
 
 export function FeedbackModal({
   isOpen,
@@ -23,10 +22,9 @@ export function FeedbackModal({
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const cleanMsg = sanitizeString(message, 1000).trim();
-    if (!cleanMsg) {
+    if (!message.trim()) {
       if (onShowToast) onShowToast(
         language === 'he' ? 'נא לכתוב תוכן למשוב' : 'Please enter feedback text',
         'error'
@@ -36,64 +34,46 @@ export function FeedbackModal({
 
     setIsSubmitting(true);
 
-    const feedbackPayload = {
-      id: `fb-${Date.now()}`,
-      status: 'pending',
-      type: feedbackType,
-      message: cleanMsg,
-      rating,
-      appVersion: APP_VERSION,
-      buildChannel: BUILD_CHANNEL,
-      user: user ? { id: user.id, name: user.name, email: user.email } : 'Anonymous Tester',
-      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
-      screenWidth: typeof window !== 'undefined' ? window.innerWidth : 0,
-      screenHeight: typeof window !== 'undefined' ? window.innerHeight : 0,
-      timestamp: new Date().toISOString()
-    };
-
-    // Store in Cloud Firestore /feedback collection if available
-    const saveToFirestore = async () => {
-      try {
-        const { isFirebaseConfigured, db } = await import('../services/firebase');
-        if (isFirebaseConfigured && db) {
-          const { collection, addDoc } = await import('firebase/firestore');
-          await addDoc(collection(db, 'feedback'), feedbackPayload);
-        }
-      } catch (err) {
-        console.warn('[FeedbackModal] Firestore submission error, falling back locally:', err);
-      }
-    };
-
-    // Store in local feedback buffer as fallback
     try {
-      const existing = JSON.parse(localStorage.getItem('deliveree_tester_feedback') || '[]');
-      existing.push(feedbackPayload);
-      localStorage.setItem('deliveree_tester_feedback', JSON.stringify(existing));
-    } catch {
-      // Ignored
-    }
+      const result = await submitFeedback({
+        type: feedbackType,
+        message,
+        rating,
+        user: user ? { id: user.id, name: user.name, email: user.email } : 'Anonymous Tester'
+      });
 
-    // Direct Telegram Bot Relay to Ping Your Phone in Real-Time
-    const relayToTelegram = async () => {
-      try {
-        const { sendTelegramFeedbackRelay } = await import('../constants/telegram');
-        await sendTelegramFeedbackRelay(feedbackPayload);
-      } catch (tgErr) {
-        console.warn('[FeedbackModal] Direct Telegram dispatch error:', tgErr);
+      if (onShowToast) {
+        if (result.syncedToCloud) {
+          onShowToast(
+            language === 'he'
+              ? 'תודה רבה! המשוב שלך נשלח בהצלחה לצוות הפיתוח ❤️'
+              : 'Thank you! Your feedback has been synced to the team ❤️',
+            'success'
+          );
+        } else {
+          onShowToast(
+            language === 'he'
+              ? 'המשוב נשמר במכשיר ויסונכרן אוטומטית כשתחזור הרשת 📡'
+              : 'Feedback saved locally and will auto-sync once online 📡',
+            'info'
+          );
+        }
       }
-    };
 
-    Promise.allSettled([saveToFirestore(), relayToTelegram()]).finally(() => {
-      setIsSubmitting(false);
-      if (onShowToast) onShowToast(
-        language === 'he' ? 'תודה רבה! המשוב שלך נשלח בהצלחה לצוות הפיתוח ❤️' : 'Thank you! Your feedback has been sent to the team ❤️',
-        'success'
-      );
       setMessage('');
       onClose();
-    });
+    } catch (err) {
+      console.warn('[FeedbackModal] Submission error:', err);
+      if (onShowToast) {
+        onShowToast(
+          language === 'he' ? 'שגיאה בשליחת המשוב. נסה שוב.' : 'Error sending feedback. Please try again.',
+          'error'
+        );
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
-
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in overflow-y-auto" role="dialog" aria-modal="true">
@@ -207,7 +187,7 @@ export function FeedbackModal({
                   ? 'ספרו לנו מה אהבתם, מה היה מסורבל, או איזה כפתור לא הגיב כמצופה...'
                   : 'Tell us what felt smooth, what was confusing, or what bug you encountered...'
               }
-              className="w-full bg-slate-950 border border-slate-800 text-xs text-slate-100 rounded-xl p-3 focus:border-indigo-500 focus:outline-none resize-none leading-relaxed"
+              className="w-full bg-slate-950 border border-slate-800 text-base sm:text-sm text-slate-100 rounded-xl p-3 focus:border-indigo-500 focus:outline-none resize-none leading-relaxed"
             />
           </div>
 

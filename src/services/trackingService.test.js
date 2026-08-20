@@ -1,0 +1,272 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import {
+  trackingService,
+  RATE_LIMIT_COOLDOWN_MS,
+  resetTrackingCooldown,
+  checkRateLimit,
+  recordTrackingFetch,
+  normalizeCheckpoints,
+  simulateCarrierTracking,
+  fetchTrackingUpdates,
+  batchRefreshTracking,
+  debounce
+} from './trackingService';
+
+describe('Multi-Carrier Tracking Service', () => {
+  beforeEach(() => {
+    resetTrackingCooldown();
+    vi.restoreAllMocks();
+  });
+
+  describe('trackingService Object', () => {
+    it('exports all expected API methods on trackingService default object', () => {
+      expect(trackingService.fetchTrackingUpdates).toBeDefined();
+      expect(trackingService.batchRefreshTracking).toBeDefined();
+      expect(trackingService.checkRateLimit).toBeDefined();
+      expect(trackingService.simulateCarrierTracking).toBeDefined();
+    });
+  });
+
+  describe('Rate Limiting', () => {
+    it('allows initial fetch and enforces 60-second cooldown afterwards', () => {
+      const trackingNum = 'RS123456789IL';
+      expect(checkRateLimit(trackingNum).isLimited).toBe(false);
+
+      recordTrackingFetch(trackingNum);
+
+      const rateCheck = checkRateLimit(trackingNum);
+      expect(rateCheck.isLimited).toBe(true);
+      expect(rateCheck.remainingMs).toBeGreaterThan(0);
+      expect(rateCheck.remainingMs).toBeLessThanOrEqual(RATE_LIMIT_COOLDOWN_MS);
+    });
+
+    it('clears specific cooldown via resetTrackingCooldown', () => {
+      const trackingNum = 'CH12345678';
+      recordTrackingFetch(trackingNum);
+      expect(checkRateLimit(trackingNum).isLimited).toBe(true);
+
+      resetTrackingCooldown(trackingNum);
+      expect(checkRateLimit(trackingNum).isLimited).toBe(false);
+    });
+
+    it('clears all cooldowns when resetTrackingCooldown called without arguments', () => {
+      recordTrackingFetch('TRK1');
+      recordTrackingFetch('TRK2');
+      expect(checkRateLimit('TRK1').isLimited).toBe(true);
+      expect(checkRateLimit('TRK2').isLimited).toBe(true);
+
+      resetTrackingCooldown();
+      expect(checkRateLimit('TRK1').isLimited).toBe(false);
+      expect(checkRateLimit('TRK2').isLimited).toBe(false);
+    });
+
+    it('handles empty or non-string tracking numbers safely in rate limiter', () => {
+      expect(checkRateLimit(null).isLimited).toBe(false);
+      expect(checkRateLimit('').isLimited).toBe(false);
+      expect(checkRateLimit(undefined).isLimited).toBe(false);
+    });
+  });
+
+  describe('Checkpoint Normalization', () => {
+    it('normalizes raw checkpoint objects with all required schema fields', () => {
+      const raw = [
+        {
+          title: 'Customs Cleared',
+          titleHe: 'עבר שחרור מכס',
+          details: 'Released from customs',
+          location: 'Tel Aviv',
+          time: '2026-08-19T10:00:00Z'
+        }
+      ];
+
+      const normalized = normalizeCheckpoints(raw, 'TEST123');
+      expect(normalized.length).toBe(1);
+      expect(normalized[0].id).toBeDefined();
+      expect(normalized[0].title).toBe('Customs Cleared');
+      expect(normalized[0].titleHe).toBe('עבר שחרור מכס');
+      expect(normalized[0].description).toBe('Released from customs');
+      expect(normalized[0].location).toBe('Tel Aviv');
+      expect(normalized[0].timestamp).toBe('2026-08-19T10:00:00Z');
+      expect(normalized[0].isCompleted).toBe(true);
+    });
+
+    it('handles empty or non-array checkpoint inputs gracefully', () => {
+      expect(normalizeCheckpoints(null)).toEqual([]);
+      expect(normalizeCheckpoints(undefined)).toEqual([]);
+      expect(normalizeCheckpoints('not-array')).toEqual([]);
+    });
+  });
+
+  describe('Carrier Resolvers & Simulation', () => {
+    it('resolves Israel Post tracking with domestic checkpoints', async () => {
+      const res = await simulateCarrierTracking('RS948219481IL', 'israel-post');
+      expect(res.checkpoints.length).toBeGreaterThan(0);
+      expect(res.status).toBeDefined();
+      expect(res.checkpoints[0].title).toBeDefined();
+      expect(res.estimatedDelivery).toBeDefined();
+    });
+
+    it('resolves Cheetah (Chita) tracking', async () => {
+      const res = await simulateCarrierTracking('CH10849201', 'chita');
+      expect(res.checkpoints.length).toBeGreaterThan(0);
+      expect(['in_transit', 'out_for_delivery']).toContain(res.status);
+    });
+
+    it('resolves HFD Delivery tracking', async () => {
+      const res = await simulateCarrierTracking('HFD90481029', 'hfd');
+      expect(res.checkpoints.length).toBeGreaterThan(0);
+      expect(['in_transit', 'out_for_delivery']).toContain(res.status);
+    });
+
+    it('resolves BoxIt locker delivery tracking', async () => {
+      const res = await simulateCarrierTracking('BOX920194', 'boxit');
+      expect(res.checkpoints.length).toBeGreaterThan(0);
+      expect(res.status).toBe('out_for_delivery');
+      expect(res.checkpoints.some(cp => cp.title.includes('BoxIt') || cp.titleHe?.includes('BoxIt'))).toBe(true);
+    });
+
+    it('resolves global Cainiao / AliExpress tracking with customs stages', async () => {
+      const res = await simulateCarrierTracking('LP00582910482CN', 'cainiao');
+      expect(res.checkpoints.length).toBeGreaterThan(0);
+      expect(['in_transit', 'customs']).toContain(res.status);
+    });
+
+    it('resolves DHL Express tracking with courier stages', async () => {
+      const res = await simulateCarrierTracking('4829104821', 'dhl');
+      expect(res.checkpoints.length).toBeGreaterThan(0);
+      expect(['in_transit', 'out_for_delivery', 'delivered']).toContain(res.status);
+    });
+
+    it('resolves FedEx, UPS, and USPS tracking', async () => {
+      const fedexRes = await simulateCarrierTracking('794820194821', 'fedex');
+      const upsRes = await simulateCarrierTracking('1Z999AA10123456784', 'ups');
+      const uspsRes = await simulateCarrierTracking('9400100000000000000000', 'usps');
+
+      expect(fedexRes.checkpoints.length).toBeGreaterThan(0);
+      expect(upsRes.checkpoints.length).toBeGreaterThan(0);
+      expect(uspsRes.checkpoints.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('fetchTrackingUpdates', () => {
+    it('returns error for invalid tracking number', async () => {
+      const res = await fetchTrackingUpdates('', 'israel-post');
+      expect(res.success).toBe(false);
+      expect(res.error).toBe('Invalid tracking number');
+    });
+
+    it('successfully fetches and normalizes tracking updates', async () => {
+      const res = await fetchTrackingUpdates('RS948219481IL', 'israel-post');
+      expect(res.success).toBe(true);
+      expect(res.carrier).toBe('israel-post');
+      expect(res.status).toBeDefined();
+      expect(res.checkpoints.length).toBeGreaterThan(0);
+    });
+
+    it('rejects subsequent fetch within cooldown period', async () => {
+      const tracking = 'RS888888888IL';
+      const first = await fetchTrackingUpdates(tracking, 'israel-post');
+      expect(first.success).toBe(true);
+
+      const second = await fetchTrackingUpdates(tracking, 'israel-post');
+      expect(second.success).toBe(false);
+      expect(second.rateLimited).toBe(true);
+      expect(second.remainingCooldownMs).toBeGreaterThan(0);
+    });
+
+    it('allows bypassing cooldown when bypassRateLimit is true', async () => {
+      const tracking = 'RS777777777IL';
+      await fetchTrackingUpdates(tracking, 'israel-post');
+      const second = await fetchTrackingUpdates(tracking, 'israel-post', true);
+      expect(second.success).toBe(true);
+    });
+  });
+
+  describe('batchRefreshTracking', () => {
+    it('returns empty result for empty packages array', async () => {
+      const res = await batchRefreshTracking([]);
+      expect(res.updatedPackages).toEqual([]);
+      expect(res.refreshedCount).toBe(0);
+    });
+
+    it('refreshes multiple active packages with progress updates', async () => {
+      const packages = [
+        {
+          id: 'pkg-1',
+          title: 'Pkg 1',
+          trackingNumber: 'RS111111111IL',
+          carrier: 'israel-post',
+          status: 'in_transit',
+          category: 'other',
+          isPinned: false,
+          isArchived: false,
+          checkpoints: []
+        },
+        {
+          id: 'pkg-2',
+          title: 'Pkg 2',
+          trackingNumber: 'CH22222222',
+          carrier: 'chita',
+          status: 'in_transit',
+          category: 'other',
+          isPinned: false,
+          isArchived: false,
+          checkpoints: []
+        }
+      ];
+
+      const progressSteps = [];
+      const res = await batchRefreshTracking(packages, (p) => progressSteps.push(p));
+
+      expect(res.refreshedCount).toBe(2);
+      expect(res.updatedPackages.length).toBe(2);
+      expect(res.updatedPackages[0].checkpoints.length).toBeGreaterThan(0);
+      expect(progressSteps.length).toBeGreaterThan(0);
+    });
+
+    it('skips delivered or archived packages in batch refresh', async () => {
+      const packages = [
+        {
+          id: 'pkg-delivered',
+          title: 'Delivered Item',
+          trackingNumber: 'RS333333333IL',
+          carrier: 'israel-post',
+          status: 'delivered',
+          isPinned: false,
+          isArchived: false,
+          checkpoints: []
+        },
+        {
+          id: 'pkg-archived',
+          title: 'Archived Item',
+          trackingNumber: 'RS444444444IL',
+          carrier: 'israel-post',
+          status: 'in_transit',
+          isPinned: false,
+          isArchived: true,
+          checkpoints: []
+        }
+      ];
+
+      const res = await batchRefreshTracking(packages);
+      expect(res.refreshedCount).toBe(0);
+    });
+  });
+
+  describe('Debounce helper', () => {
+    it('debounces rapid calls into a single execution', async () => {
+      vi.useFakeTimers();
+      const fn = vi.fn();
+      const debounced = debounce(fn, 100);
+
+      debounced();
+      debounced();
+      debounced();
+      expect(fn).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(150);
+      expect(fn).toHaveBeenCalledTimes(1);
+      vi.useRealTimers();
+    });
+  });
+});
