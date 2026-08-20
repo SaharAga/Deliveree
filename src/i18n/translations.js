@@ -48,12 +48,24 @@ export const translations = {
       archive: 'Archive',
       unarchive: 'Unarchive',
       addCheckpoint: 'Add Checkpoint',
+      refreshStatus: 'Refresh Status',
+      rateLimited: 'Rate limited (wait cooldown)',
       viewDetails: 'View Details',
       expectedOn: 'Expected:',
       orderedOn: 'Ordered:',
       route: 'Route:',
       notes: 'Notes:',
       daysAgo: 'days ago'
+    },
+    tracking: {
+      refreshAll: 'Refresh All Packages',
+      refreshingAll: 'Refreshing tracking for packages...',
+      refreshedSuccess: 'Tracking updated for {count} packages!',
+      refreshSuccessSingle: 'Tracking updated successfully!',
+      statusTransitioned: 'Package status updated to {status}',
+      invalidTransition: 'Invalid transition from {from} to {to}',
+      overrideStatus: 'Change Status',
+      overrideStatusPrompt: 'Override package status:'
     },
     modal: {
       addNew: 'Add New Package',
@@ -129,6 +141,30 @@ export const translations = {
       activeCount: 'Active Parcels',
       fastestCarrier: 'Fastest Carrier',
       customsAlert: 'Packages currently in customs inspection'
+    },
+    notifications: {
+      title: 'Notifications & Alerts',
+      subtitle: 'Configure real-time push and Telegram delivery alerts',
+      webPush: 'Browser Push Notifications',
+      webPushDesc: 'Receive instant system notifications on package status transitions',
+      permissionDefault: 'Enable Browser Alerts',
+      permissionGranted: 'Notifications Active',
+      permissionDenied: 'Notifications Blocked in Browser',
+      requestPermission: 'Enable Push Notifications',
+      telegramAlerts: 'Telegram Bot Alerts',
+      telegramAlertsDesc: 'Receive automated status alerts directly in your Telegram inbox',
+      telegramChatId: 'Telegram Chat ID',
+      telegramChatIdPlaceholder: 'e.g. 726522010',
+      telegramHelp: 'Find your Chat ID via @userinfobot on Telegram',
+      sendTestNotification: 'Send Test Alert',
+      testSentSuccess: 'Test Telegram notification sent successfully!',
+      testSentFailed: 'Failed to send test notification. Please verify your Chat ID.',
+      alertEventsTitle: 'Notification Events',
+      notifyOnAll: 'Notify on all status changes',
+      notifyOnDelivered: 'Notify when delivered',
+      notifyOnCustoms: 'Notify on customs inspection / clearance',
+      notifyOnException: 'Notify on delivery delay / exception',
+      preferencesSaved: 'Notification preferences saved'
     }
   },
   he: {
@@ -180,12 +216,24 @@ export const translations = {
       archive: 'העבר לארכיון',
       unarchive: 'החזר מארכיון',
       addCheckpoint: 'הוסף עדכון שלב',
+      refreshStatus: 'רענן סטטוס',
+      rateLimited: 'ממתין להפוגה בין בדיקות',
       viewDetails: 'פרטים וציר זמן',
       expectedOn: 'הגעה משוערת:',
       orderedOn: 'הוזמן בתאריך:',
       route: 'מסלול:',
       notes: 'הערות:',
       daysAgo: 'ימים'
+    },
+    tracking: {
+      refreshAll: 'רענן הכל',
+      refreshingAll: 'מרענן מעקב עבור החבילות...',
+      refreshedSuccess: 'עודכן מעקב עבור {count} חבילות!',
+      refreshSuccessSingle: 'פרטי המעקב עודכנו בהצלחה!',
+      statusTransitioned: 'סטטוס החבילה שונה ל-{status}',
+      invalidTransition: 'מעבר סטטוס לא חוקי מ-{from} אל {to}',
+      overrideStatus: 'שינוי סטטוס ידני',
+      overrideStatusPrompt: 'בחר סטטוס חדש עבור החבילה:'
     },
     modal: {
       addNew: 'הוספת חבילה חדשה למעקב',
@@ -261,6 +309,30 @@ export const translations = {
       activeCount: 'משלוחים פעילים',
       fastestCarrier: 'חברת השילוח המהירה ביותר',
       customsAlert: 'חבילות הנמצאות כעת בבדיקת מכס'
+    },
+    notifications: {
+      title: 'התראות ועדכונים חיים',
+      subtitle: 'הגדרת התראות דפדפן ועדכוני טלגרם בזמן אמת על משלוחים',
+      webPush: 'התראות דפדפן (Web Push)',
+      webPushDesc: 'קבלת התראות מערכת מיידיות על שינויי סטטוס ומעבר שלבים',
+      permissionDefault: 'הפעל התראות דפדפן',
+      permissionGranted: 'התראות דפדפן פעילות',
+      permissionDenied: 'התראות חסומות בהגדרות הדפדפן',
+      requestPermission: 'בקש הרשאת התראות',
+      telegramAlerts: 'התראות בוט טלגרם',
+      telegramAlertsDesc: 'קבלת הודעות ישירות לחשבון הטלגרם שלך בכל עדכון משלוח',
+      telegramChatId: 'מזהה צ׳אט טלגרם (Chat ID)',
+      telegramChatIdPlaceholder: 'לדוגמה: 726522010',
+      telegramHelp: 'ניתן למצוא את המזהה דרך הבוט @userinfobot בטלגרם',
+      sendTestNotification: 'שלח התראת בדיקה',
+      testSentSuccess: 'התראת בדיקה נשלחה בהצלחה לטלגרם!',
+      testSentFailed: 'שליחת התראת בדיקה נכשלה. נא לבדוק את ה-Chat ID.',
+      alertEventsTitle: 'אירועים להתראה',
+      notifyOnAll: 'התראה על כל שינוי סטטוס',
+      notifyOnDelivered: 'התראה בעת מסירת החבילה',
+      notifyOnCustoms: 'התראה בעת הגעה למכס / שחרור',
+      notifyOnException: 'התראה על עיכובים וחריגות במשלוח',
+      preferencesSaved: 'הגדרות ההתראות נשמרו בהצלחה'
     }
   }
 };

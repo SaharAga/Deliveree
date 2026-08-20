@@ -301,4 +301,86 @@ describe('Delivery Service and Storage Persistence', () => {
       expect(canTransition('ordered', 'unknown_stage')).toBe(false);
     });
   });
+
+  describe('updatePackageStatus & refreshPackageTracking', () => {
+    it('updates package status when valid transition occurs and adds optional checkpoint', () => {
+      const initialPackages = [{
+        id: 'pkg-update-1',
+        title: 'Status Update Test',
+        trackingNumber: 'RS123456789IL',
+        carrier: 'israel-post',
+        status: 'in_transit',
+        checkpoints: []
+      }];
+
+      const newCheckpoint = {
+        id: 'cp-new-1',
+        title: 'Out for Delivery',
+        timestamp: new Date().toISOString(),
+        isCompleted: true
+      };
+
+      const result = deliveryService.updatePackageStatus(
+        initialPackages,
+        'pkg-update-1',
+        'out_for_delivery',
+        newCheckpoint
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.package.status).toBe('out_for_delivery');
+      expect(result.package.checkpoints.length).toBe(1);
+      expect(result.package.checkpoints[0].id).toBe('cp-new-1');
+    });
+
+    it('rejects invalid status transitions in updatePackageStatus', () => {
+      const initialPackages = [{
+        id: 'pkg-delivered-1',
+        title: 'Delivered Item',
+        trackingNumber: 'RS123456789IL',
+        carrier: 'israel-post',
+        status: 'delivered',
+        checkpoints: []
+      }];
+
+      const result = deliveryService.updatePackageStatus(
+        initialPackages,
+        'pkg-delivered-1',
+        'in_transit'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Cannot transition');
+    });
+
+    it('returns error when package ID is not found in updatePackageStatus', () => {
+      const result = deliveryService.updatePackageStatus([], 'non-existent', 'delivered');
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Package not found');
+    });
+
+    it('refreshes tracking safely for a package via refreshPackageTracking', async () => {
+      const testPkg = {
+        id: 'pkg-refresh-1',
+        title: 'Refresh Test',
+        trackingNumber: 'CH98765432',
+        carrier: 'chita',
+        status: 'in_transit',
+        checkpoints: []
+      };
+
+      deliveryService.savePackages([testPkg]);
+
+      const res = await deliveryService.refreshPackageTracking(testPkg, null, true);
+      expect(res.success).toBe(true);
+      expect(res.updatedPackage).toBeDefined();
+      expect(res.updatedPackage.checkpoints.length).toBeGreaterThan(0);
+    });
+
+    it('returns error if package is invalid in refreshPackageTracking', async () => {
+      const res = await deliveryService.refreshPackageTracking(null);
+      expect(res.success).toBe(false);
+      expect(res.error).toBe('Invalid package data');
+    });
+  });
 });

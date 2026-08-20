@@ -4,8 +4,8 @@ import { APP_VERSION, RELEASE_DATE, BUILD_CHANNEL } from '../constants/version';
 
 describe('AboutModal Logic & Specifications', () => {
   it('exposes correct version constants and metadata', () => {
-    expect(APP_VERSION).toBe('0.2.1-alpha');
-    expect(RELEASE_DATE).toBe('2026-08-19');
+    expect(APP_VERSION).toBe('0.3.1-alpha');
+    expect(RELEASE_DATE).toBe('2026-08-20');
     expect(BUILD_CHANNEL).toBe('alpha');
   });
 
@@ -71,8 +71,8 @@ describe('AboutModal Logic & Specifications', () => {
 
     const diagnostics = runAllBistDiagnostics({ storage: mockStorage });
     expect(diagnostics.status).toBe('PASS');
-    expect(diagnostics.summary.passed).toBe(3);
+    expect(diagnostics.summary.passed).toBe(5);
     expect(diagnostics.summary.failed).toBe(0);
-    expect(diagnostics.checks.length).toBe(3);
+    expect(diagnostics.checks.length).toBe(5);
   });
 });

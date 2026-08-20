@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
+import { copyToClipboard } from '../utils/clipboard';
 
 export function IngestionGuideModal({
   isOpen,
@@ -23,12 +24,14 @@ export function IngestionGuideModal({
   const qrCodeImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(appOrigin)}`;
   const ingestionEmail = user?.ingestionEmail || 'your-id.pkg@in.deliveree.app';
 
-  const handleCopyEmail = () => {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(ingestionEmail);
+  const handleCopyEmail = async () => {
+    const success = await copyToClipboard(ingestionEmail);
+    if (success) {
       setCopiedEmail(true);
       if (onShowToast) onShowToast(language === 'he' ? 'כתובת האימייל הועתקה ללוח' : 'Email copied to clipboard', 'success');
       setTimeout(() => setCopiedEmail(false), 2500);
+    } else if (onShowToast) {
+      onShowToast(language === 'he' ? 'ההעתקה ללוח נכשלה' : 'Failed to copy to clipboard', 'error');
     }
   };
 

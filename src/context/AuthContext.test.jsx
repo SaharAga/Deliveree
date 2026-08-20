@@ -140,4 +140,21 @@ describe('AuthContext - validateUserProfile', () => {
     expect(validated.preferences.theme).toBe('light');
     expect(validated.preferences.dateFormat).toBe('YYYY-MM-DD');
   });
+
+  it('retains valid user session across cold start storage deserialization', () => {
+    const cachedProfile = {
+      id: 'usr-persisted-77',
+      name: 'Persisted User',
+      email: 'persisted@deliveree.app',
+      plan: 'Cloud Synced Account',
+      devicesCount: 2,
+      createdAt: '2026-08-20'
+    };
+
+    const deserialized = validateUserProfile(cachedProfile);
+    expect(deserialized).not.toBeNull();
+    expect(deserialized.id).toBe('usr-persisted-77');
+    expect(deserialized.name).toBe('Persisted User');
+    expect(deserialized.email).toBe('persisted@deliveree.app');
+  });
 });

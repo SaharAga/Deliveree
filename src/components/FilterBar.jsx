@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Search, X, LayoutGrid, List, Archive } from 'lucide-react';
+import { Search, X, LayoutGrid, List, Archive, RefreshCw, Loader2 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { CARRIER_LIST } from '../types/carriers';
 
@@ -14,6 +14,8 @@ export function FilterBar({
   onSortChange,
   viewMode,
   onViewModeChange,
+  onRefreshAll,
+  isRefreshing = false,
   packages = []
 }) {
   const { t, language, isRTL } = useLanguage();
@@ -79,7 +81,7 @@ export function FilterBar({
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={t('searchPlaceholder')}
-            className={`w-full bg-slate-950/80 border border-slate-800 text-slate-100 placeholder-slate-500 text-xs sm:text-sm rounded-xl py-2.5 transition-all focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-h-[44px] ${
+            className={`w-full bg-slate-950/80 border border-slate-800 text-slate-100 placeholder-slate-500 text-base sm:text-sm rounded-xl py-2.5 transition-all focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-h-[44px] ${
               isRTL ? 'pr-9 pl-9' : 'pl-9 pr-9'
             }`}
           />
@@ -100,7 +102,7 @@ export function FilterBar({
           <select
             value={selectedCarrier}
             onChange={(e) => onCarrierChange(e.target.value)}
-            className="w-full sm:w-auto bg-slate-950/80 border border-slate-800 text-slate-200 text-xs sm:text-sm rounded-xl px-2.5 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer min-h-[44px]"
+            className="w-full sm:w-auto bg-slate-950/80 border border-slate-800 text-slate-200 text-base sm:text-sm rounded-xl px-2.5 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer min-h-[44px]"
           >
             <option value="all">{t('filters.allCarriers')}</option>
             {CARRIER_LIST.map((carrier) => (
@@ -114,7 +116,7 @@ export function FilterBar({
           <select
             value={sortBy}
             onChange={(e) => onSortChange(e.target.value)}
-            className="w-full sm:w-auto bg-slate-950/80 border border-slate-800 text-slate-200 text-xs sm:text-sm rounded-xl px-2.5 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer min-h-[44px]"
+            className="w-full sm:w-auto bg-slate-950/80 border border-slate-800 text-slate-200 text-base sm:text-sm rounded-xl px-2.5 py-2.5 focus:outline-none focus:border-blue-500 cursor-pointer min-h-[44px]"
           >
             <option value="newest">{t('filters.newest')}</option>
             <option value="expected">{t('filters.expectedDate')}</option>
@@ -122,11 +124,28 @@ export function FilterBar({
             <option value="status">{t('filters.status')}</option>
           </select>
 
+          {/* Refresh All Action Button */}
+          {onRefreshAll && (
+            <button
+              onClick={onRefreshAll}
+              disabled={isRefreshing}
+              title={t('tracking.refreshAll')}
+              aria-label={t('tracking.refreshAll')}
+              className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-950/80 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-emerald-400 text-xs font-bold transition-all min-h-[44px] ${
+                isRefreshing ? 'text-emerald-400' : ''
+              }`}
+            >
+              {isRefreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              <span className="hidden md:inline">{isRefreshing ? (language === 'he' ? 'מרענן...' : 'Refreshing...') : t('tracking.refreshAll')}</span>
+            </button>
+          )}
+
           {/* View Mode Switcher (Hidden on small phones to save space) */}
           <div className="hidden sm:flex items-center bg-slate-950/80 p-1 rounded-xl border border-slate-800 shrink-0 min-h-[44px]">
             <button
               onClick={() => onViewModeChange('grid')}
               title={t('filters.gridView')}
+              aria-label={t('filters.gridView')}
               className={`p-2 rounded-lg transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center ${
                 viewMode === 'grid' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
               }`}
@@ -136,6 +155,7 @@ export function FilterBar({
             <button
               onClick={() => onViewModeChange('table')}
               title={t('filters.tableView')}
+              aria-label={t('filters.tableView')}
               className={`p-2 rounded-lg transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center ${
                 viewMode === 'table' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
               }`}

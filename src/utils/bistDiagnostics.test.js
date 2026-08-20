@@ -3,6 +3,8 @@ import {
   runStorageSelfTest,
   runCarrierRegexSelfTest,
   runMemoryBoundsSelfTest,
+  runStateTransitionSelfTest,
+  runTrackingCooldownSelfTest,
   runAllBistDiagnostics,
   GOLD_STANDARD_CARRIER_SAMPLES,
   MAX_PACKAGE_MEMORY_BOUND
@@ -162,25 +164,91 @@ describe('Built-in Self-Test (BIST) Diagnostics Engine', () => {
     });
   });
 
-  describe('4. Aggregate BIST Diagnostics (runAllBistDiagnostics)', () => {
-    it('aggregates all probes into a 100% PASS structured report with global or custom storage', () => {
+  describe('4. State Transition Matrix Self Test (runStateTransitionSelfTest)', () => {
+    it('passes standard state transition matrix verification', () => {
+      const result = runStateTransitionSelfTest();
+      expect(result.id).toBe('state-transition-self-test');
+      expect(result.status).toBe('PASS');
+      expect(result.message).toContain('verified');
+      expect(result.details.stages).toBe(8);
+    });
+
+    it('fails when transition matrix is missing core status keys', () => {
+      const incompleteMatrix = {
+        ordered: ['ordered'],
+        shipped: ['shipped']
+      };
+      const result = runStateTransitionSelfTest(incompleteMatrix);
+      expect(result.status).toBe('FAIL');
+      expect(result.message).toContain('Missing transition definitions');
+      expect(result.details.missingKeys).toContain('delivered');
+    });
+
+    it('fails when a state is not reflexive (cannot transition to itself)', () => {
+      const nonReflexiveMatrix = {
+        ordered: ['shipped'], // Missing 'ordered'
+        shipped: ['shipped'],
+        in_transit: ['in_transit'],
+        customs: ['customs'],
+        out_for_delivery: ['out_for_delivery'],
+        delivered: ['delivered'],
+        exception: ['exception'],
+        archived: ['archived']
+      };
+      const result = runStateTransitionSelfTest(nonReflexiveMatrix);
+      expect(result.status).toBe('FAIL');
+      expect(result.message).toContain('Non-reflexive');
+    });
+  });
+
+  describe('5. Tracking Cooldown Self Test (runTrackingCooldownSelfTest)', () => {
+    it('passes default tracking cooldown probe verification', () => {
+      const result = runTrackingCooldownSelfTest();
+      expect(result.id).toBe('tracking-cooldown-self-test');
+      expect(result.status).toBe('PASS');
+      expect(result.message).toContain('verified successfully');
+    });
+
+    it('verifies against active trackingService lifecycle', async () => {
+      const { trackingService } = await import('../services/trackingService');
+      const result = runTrackingCooldownSelfTest(trackingService);
+      expect(result.status).toBe('PASS');
+      expect(result.details.verified).toBe(true);
+    });
+
+    it('fails when cooldown check fails to block after record', () => {
+      const brokenService = {
+        resetTrackingCooldown: () => {},
+        checkRateLimit: () => ({ isLimited: false, remainingMs: 0 }),
+        recordTrackingFetch: () => {}
+      };
+      const result = runTrackingCooldownSelfTest(brokenService);
+      expect(result.status).toBe('FAIL');
+      expect(result.message).toContain('failed to trigger rate-limiting');
+    });
+  });
+
+  describe('6. Aggregate BIST Diagnostics (runAllBistDiagnostics)', () => {
+    it('aggregates all 5 probes into a 100% PASS structured report with global or custom storage', () => {
       const storage = createMockStorage();
       const report = runAllBistDiagnostics({ storage });
 
       expect(report).toHaveProperty('status', 'PASS');
       expect(report).toHaveProperty('timestamp');
       expect(report.summary).toEqual({
-        total: 3,
-        passed: 3,
+        total: 5,
+        passed: 5,
         failed: 0,
         warnings: 0
       });
-      expect(report.checks).toHaveLength(3);
+      expect(report.checks).toHaveLength(5);
 
       const checkIds = report.checks.map(c => c.id);
       expect(checkIds).toContain('storage-self-test');
       expect(checkIds).toContain('carrier-regex-self-test');
       expect(checkIds).toContain('memory-bounds-self-test');
+      expect(checkIds).toContain('state-transition-self-test');
+      expect(checkIds).toContain('tracking-cooldown-self-test');
       
       report.checks.forEach(check => {
         expect(check.status).toBe('PASS');
@@ -197,8 +265,8 @@ describe('Built-in Self-Test (BIST) Diagnostics Engine', () => {
       const report = runAllBistDiagnostics({ storage: failingStorage });
 
       expect(report.status).toBe('FAIL');
-      expect(report.summary.total).toBe(3);
-      expect(report.summary.passed).toBe(2);
+      expect(report.summary.total).toBe(5);
+      expect(report.summary.passed).toBe(4);
       expect(report.summary.failed).toBe(1);
 
       const failedCheck = report.checks.find(c => c.id === 'storage-self-test');

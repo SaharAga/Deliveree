@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { DEFAULT_NOTIFICATION_PREFS } from '../services/notificationService';
 
 describe('AccountModal Component Logic & Schema', () => {
   it('validates account deletion keyword requirements ("DELETE" or "מחק")', () => {
@@ -55,5 +56,19 @@ describe('AccountModal Component Logic & Schema', () => {
     expect(rows[0][0]).toBe('"pkg-1"');
     expect(rows[0][1]).toBe('"Sneakers ""Air"""');
     expect(rows[0][9]).toBe('"Special ""Priority"" delivery"');
+  });
+
+  it('verifies notification toggle updates structure matching schema', () => {
+    const updated = {
+      ...DEFAULT_NOTIFICATION_PREFS,
+      telegramEnabled: true,
+      telegramChatId: '987654321',
+      notifyOnException: false
+    };
+
+    expect(updated.telegramEnabled).toBe(true);
+    expect(updated.telegramChatId).toBe('987654321');
+    expect(updated.notifyOnException).toBe(false);
+    expect(updated.notifyOnStatusChange).toBe(true);
   });
 });

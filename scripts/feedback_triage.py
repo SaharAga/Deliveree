@@ -27,12 +27,33 @@ except ImportError:
     get_config = lambda: {}
 
 
+def mask_email(email: str) -> str:
+    """Masks email address for privacy (e.g., s***r@domain.com or s***@domain.com)."""
+    if not email or not isinstance(email, str) or "@" not in email:
+        return ""
+    parts = email.strip().split("@")
+    if len(parts) != 2:
+        return "***"
+    local, domain = parts
+    if not local or not domain:
+        return "***"
+    if len(local) <= 1:
+        return f"*@{domain}"
+    elif len(local) == 2:
+        return f"{local[0]}*@{domain}"
+    elif len(local) == 3:
+        return f"{local[0]}*{local[2]}@{domain}"
+    else:
+        return f"{local[0]}***{local[-1]}@{domain}"
+
+
 def parse_feedback_item(item: dict) -> dict:
     """Analyze feedback text, environment and metadata to determine priority and root cause."""
     msg = item.get("message", "").lower()
     fb_type = item.get("type", "bug").lower()
     rating = item.get("rating", 5)
     user_agent = item.get("userAgent", "")
+    is_anon = item.get("isAnonymous", False)
     
     # Classification rules
     is_crash = any(w in msg for w in ["crash", "freeze", "blank", "white screen", "error", "exception", "failed", "נתקע", "קורס", "שגיאה", "מסך שחור"])
@@ -83,6 +104,19 @@ def parse_feedback_item(item: dict) -> dict:
         action_items.append(f"Evaluate feedback in `{suggested_files[0]}`")
         action_items.append("Update product roadmap backlog")
 
+    # Format user display safely with email masking
+    if is_anon:
+        user_display = "Anonymous Tester (Private)"
+    else:
+        raw_user = item.get("user", "Anonymous")
+        if isinstance(raw_user, dict):
+            name = raw_user.get("name", "User")
+            email = raw_user.get("email")
+            masked = f" ({mask_email(email)})" if email else ""
+            user_display = f"{name}{masked}"
+        else:
+            user_display = str(raw_user)
+
     return {
         "id": item.get("id", f"fb-{int(datetime.now().timestamp())}"),
         "raw": item,
@@ -93,7 +127,8 @@ def parse_feedback_item(item: dict) -> dict:
         "suggested_files": suggested_files,
         "action_items": action_items,
         "timestamp": item.get("timestamp", datetime.now().isoformat()),
-        "user": item.get("user", "Anonymous"),
+        "isAnonymous": is_anon,
+        "user": user_display,
         "message": item.get("message", ""),
         "rating": rating,
         "appVersion": item.get("appVersion", "0.2.0-alpha"),
@@ -145,12 +180,7 @@ def update_backlog(triaged_items: list):
     for item in triaged_items:
         files_md = ", ".join([f"`{f}`" for f in item["suggested_files"]])
         checklist_md = "\n".join([f"- [ ] {task}" for task in item["action_items"]])
-        
-        user_info = item["user"]
-        if isinstance(user_info, dict):
-            user_str = f"{user_info.get('name', 'User')} ({user_info.get('email', 'N/A')})"
-        else:
-            user_str = str(user_info)
+        user_str = item["user"]
 
         entry = f"""
 ### {item['urgency_emoji']} [{item['priority']}] {item['domain']}: {item['message'][:60]}...

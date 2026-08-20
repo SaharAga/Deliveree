@@ -48,6 +48,7 @@
   html {
     overflow-x: hidden;
     scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
   }
 
   body {
@@ -55,7 +56,14 @@
     overflow-y: auto;
     min-height: 100vh;
     -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  @media (max-width: 640px) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
   }
 }
 

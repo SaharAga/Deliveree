@@ -4,7 +4,22 @@ import { sanitizeString, validatePackage, validatePackageList } from './packageV
 import { parseSmartText, extractTrackingCandidates } from './smartParser';
 import { CARRIER_LIST } from '../types/carriers';
 import { GOLD_STANDARD_CARRIER_SAMPLES } from './bistDiagnostics';
+import { deliveryService, TRANSITION_MATRIX, canTransition } from '../services/deliveryService';
+import { trackingService } from '../services/trackingService';
 
+const mockStore = {};
+if (typeof globalThis.localStorage === 'undefined' || !globalThis.localStorage.setItem) {
+  globalThis.localStorage = {
+    getItem: (key) => (Object.prototype.hasOwnProperty.call(mockStore, key) ? mockStore[key] : null),
+    setItem: (key, value) => { mockStore[key] = String(value); },
+    removeItem: (key) => { delete mockStore[key]; },
+    clear: () => {
+      for (const k of Object.keys(mockStore)) {
+        delete mockStore[k];
+      }
+    }
+  };
+}
 
 const VALID_STATUSES = ['ordered', 'shipped', 'in_transit', 'out_for_delivery', 'delivered', 'exception', 'customs'];
 const VALID_CARRIERS = CARRIER_LIST.map(c => c.id);
@@ -165,6 +180,171 @@ describe('High-Assurance Property-Based Verification (fast-check)', () => {
           expect(validated.length).toBeLessThanOrEqual(1000);
         }),
         { numRuns: 200 }
+      );
+    });
+  });
+
+  describe('Formal State Transition Invariants (deliveryService & TRANSITION_MATRIX)', () => {
+    const ALL_STATUSES = ['ordered', 'shipped', 'in_transit', 'customs', 'out_for_delivery', 'delivered', 'exception', 'archived'];
+
+    it('Safety: For any initial status and any sequence of status updates, updatePackageStatus NEVER allows transitions outside TRANSITION_MATRIX', () => {
+      fc.assert(
+        fc.property(
+          fc.constantFrom(...ALL_STATUSES),
+          fc.array(fc.constantFrom(...ALL_STATUSES, 'invalid_status_xyz', 'unknown', ''), { minLength: 1, maxLength: 20 }),
+          (initialStatus, statusSequence) => {
+            let currentPackages = [{
+              id: 'pkg-inv-test-1',
+              title: 'Invariant Test Package',
+              trackingNumber: 'RR123456789IL',
+              carrier: 'israel-post',
+              status: initialStatus,
+              checkpoints: []
+            }];
+
+            let currentStatus = initialStatus;
+
+            for (const targetStatus of statusSequence) {
+              const res = deliveryService.updatePackageStatus(currentPackages, 'pkg-inv-test-1', targetStatus);
+              const allowed = TRANSITION_MATRIX[currentStatus] || [];
+              const isValidTransition = allowed.includes(targetStatus);
+
+              if (isValidTransition) {
+                expect(res.success).toBe(true);
+                expect(res.package.status).toBe(targetStatus);
+                currentStatus = targetStatus;
+                currentPackages = res.packages;
+              } else {
+                expect(res.success).toBe(false);
+                expect(res.error).toBeDefined();
+                expect(currentPackages[0].status).toBe(currentStatus);
+              }
+            }
+          }
+        ),
+        { numRuns: 500 }
+      );
+    });
+
+    it('Reflexivity: canTransition(s, s) is true for all valid statuses', () => {
+      fc.assert(
+        fc.property(fc.constantFrom(...ALL_STATUSES), (status) => {
+          expect(canTransition(status, status)).toBe(true);
+        }),
+        { numRuns: 100 }
+      );
+    });
+  });
+
+  describe('Checkpoint Monotonicity & Deduplication Invariants Under Concurrent/Repeated Refresh', () => {
+    it('Monotonicity & ID Uniqueness: Checkpoint timestamps and IDs remain unique and schema-compliant after multiple mock refreshes', async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          fc.record({
+            trackingNumber: fc.constantFrom('RS948219481IL', '1Z9999999999999999', 'LP00582910482CN', 'CHITA982141', 'HFD772183'),
+            carrier: fc.constantFrom('israel-post', 'ups', 'cainiao', 'chita', 'hfd')
+          }),
+          fc.integer({ min: 1, max: 5 }),
+          async (pkgMeta, refreshRounds) => {
+            const initialCheckpoints = [
+              {
+                id: 'cp-initial-1',
+                title: 'Order Placed',
+                timestamp: new Date(Date.now() - 86400000 * 10).toISOString(),
+                isCompleted: true
+              }
+            ];
+
+            let pkg = {
+              id: 'pkg-concurrency-test',
+              title: 'Concurrency Test Package',
+              trackingNumber: pkgMeta.trackingNumber,
+              carrier: pkgMeta.carrier,
+              status: 'ordered',
+              checkpoints: initialCheckpoints
+            };
+
+            for (let round = 0; round < refreshRounds; round++) {
+              const res = await trackingService.fetchTrackingUpdates(pkg.trackingNumber, pkg.carrier, true);
+              expect(res.success).toBe(true);
+
+              const existingIds = new Set((pkg.checkpoints || []).map(cp => cp.id));
+              const newCheckpoints = (res.checkpoints || []).filter(cp => !existingIds.has(cp.id));
+              const mergedCheckpoints = [...newCheckpoints, ...(pkg.checkpoints || [])];
+
+              let nextStatus = pkg.status;
+              if (res.status && canTransition(pkg.status, res.status)) {
+                nextStatus = res.status;
+              }
+
+              pkg = {
+                ...pkg,
+                status: nextStatus,
+                checkpoints: mergedCheckpoints
+              };
+
+              // Verify Checkpoint ID uniqueness invariant
+              const checkpointIds = pkg.checkpoints.map(cp => cp.id);
+              const uniqueIds = new Set(checkpointIds);
+              expect(uniqueIds.size).toBe(checkpointIds.length);
+
+              // Verify each checkpoint complies with schema
+              pkg.checkpoints.forEach(cp => {
+                expect(typeof cp.id).toBe('string');
+                expect(cp.id.length).toBeGreaterThan(0);
+                expect(typeof cp.title).toBe('string');
+                expect(typeof cp.timestamp).toBe('string');
+                expect(isNaN(new Date(cp.timestamp).getTime())).toBe(false);
+              });
+            }
+          }
+        ),
+        { numRuns: 100 }
+      );
+    });
+  });
+
+  describe('Batch Refresh Idempotence & Bounded State Verification', () => {
+    it('Idempotence: Batch refreshing package list multiple times produces bounded states without memory exhaustion or duplicate IDs', async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          fc.array(
+            fc.record({
+              id: fc.uuid(),
+              title: fc.stringMatching(/^[A-Za-z0-9 _-]{1,30}$/).filter(s => s.trim().length > 0),
+              trackingNumber: fc.constantFrom('RS948219481IL', '1Z9999999999999999', 'LP00582910482CN', 'CHITA982141', 'HFD772183'),
+              carrier: fc.constantFrom('israel-post', 'ups', 'cainiao', 'chita', 'hfd'),
+              status: fc.constantFrom('ordered', 'in_transit', 'shipped')
+            }),
+            { minLength: 1, maxLength: 8 }
+          ),
+          async (packages) => {
+            // Reset cooldowns to ensure deterministic behavior
+            trackingService.resetTrackingCooldown();
+
+            const pass1 = await trackingService.batchRefreshTracking(packages);
+            expect(pass1.updatedPackages.length).toBe(packages.length);
+
+            // Verify each package has unique checkpoint IDs
+            pass1.updatedPackages.forEach(p => {
+              const ids = (p.checkpoints || []).map(cp => cp.id);
+              expect(new Set(ids).size).toBe(ids.length);
+              expect(ids.length).toBeLessThanOrEqual(50);
+            });
+
+            // Second pass (with cooldown bypassed for each item or standard)
+            trackingService.resetTrackingCooldown();
+            const pass2 = await trackingService.batchRefreshTracking(pass1.updatedPackages);
+            expect(pass2.updatedPackages.length).toBe(pass1.updatedPackages.length);
+
+            // Verify checkpoint list length did not grow unboundedly with duplicate checkpoints
+            pass2.updatedPackages.forEach((p2, idx) => {
+              const p1 = pass1.updatedPackages[idx];
+              expect((p2.checkpoints || []).length).toBe((p1.checkpoints || []).length);
+            });
+          }
+        ),
+        { numRuns: 50 }
       );
     });
   });

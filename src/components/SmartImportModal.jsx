@@ -202,7 +202,7 @@ export function SmartImportModal({
                 value={rawText}
                 onChange={(e) => setRawText(e.target.value)}
                 placeholder={t('smartModal.pastePlaceholder')}
-                className="w-full bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 rounded-2xl p-4 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all leading-relaxed"
+                className="w-full bg-slate-950 border border-slate-800 text-base sm:text-sm text-slate-100 placeholder-slate-500 rounded-2xl p-4 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all leading-relaxed"
               />
               <div className="flex justify-end">
                 <button

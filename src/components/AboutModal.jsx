@@ -16,6 +16,8 @@ export function AboutModal({
 }) {
   const { language, t } = useLanguage();
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [isUpdateReady, setIsUpdateReady] = useState(false);
+  const [isForceRefreshing, setIsForceRefreshing] = useState(false);
   const [bistResult, setBistResult] = useState(null);
   const [isRunningBist, setIsRunningBist] = useState(false);
 
@@ -26,6 +28,15 @@ export function AboutModal({
         setBistResult(initialReport);
       } catch (err) {
         console.warn('[AboutModal] Initial BIST diagnostics failed:', err);
+      }
+
+      // Check if service worker is already waiting
+      if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistration().then((reg) => {
+          if (reg && (reg.waiting || reg.installing)) {
+            setIsUpdateReady(true);
+          }
+        }).catch(() => {});
       }
     }
   }, [isOpen]);
@@ -66,20 +77,32 @@ export function AboutModal({
         const registration = await navigator.serviceWorker.getRegistration();
         if (registration) {
           await registration.update();
-          if (onShowToast) {
-            onShowToast(
-              language === 'he'
-                ? 'נבדקו עדכוני PWA. האפליקציה בגרסה העדכנית ביותר!'
-                : 'Checked for PWA updates. App is running the latest build!',
-              'success'
-            );
+          if (registration.waiting || registration.installing) {
+            setIsUpdateReady(true);
+            if (onShowToast) {
+              onShowToast(
+                language === 'he'
+                  ? 'גרסה חדשה של Deliveree זמינה! לחץ לרענון והחלת העדכון'
+                  : 'New Deliveree update ready! Reload to apply.',
+                'info'
+              );
+            }
+          } else {
+            if (onShowToast) {
+              onShowToast(
+                language === 'he'
+                  ? `נבדקו עדכוני PWA. האפליקציה בגרסה העדכנית ביותר (v${APP_VERSION})!`
+                  : `Checked for PWA updates. App is running the latest build (v${APP_VERSION})!`,
+                'success'
+              );
+            }
           }
         } else {
           if (onShowToast) {
             onShowToast(
               language === 'he'
-                ? `המערכת מעודכנת לגרסה האחרונה (${APP_VERSION})`
-                : `System is up to date (${APP_VERSION})`,
+                ? `המערכת מעודכנת לגרסה האחרונה (v${APP_VERSION})`
+                : `System is up to date (v${APP_VERSION})`,
               'info'
             );
           }
@@ -88,8 +111,8 @@ export function AboutModal({
         if (onShowToast) {
           onShowToast(
             language === 'he'
-              ? 'המערכת מעודכנת לגרסה האחרונה'
-              : 'System is up to date',
+              ? `המערכת מעודכנת לגרסה האחרונה (v${APP_VERSION})`
+              : `System is up to date (v${APP_VERSION})`,
             'info'
           );
         }
@@ -103,6 +126,28 @@ export function AboutModal({
       }
     } finally {
       setIsCheckingUpdate(false);
+    }
+  };
+
+  const handleClearCacheAndForceRefresh = async () => {
+    setIsForceRefreshing(true);
+    try {
+      if (typeof window !== 'undefined') {
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+        }
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map(r => r.unregister()));
+        }
+        window.location.reload();
+      }
+    } catch (err) {
+      console.warn('[AboutModal] Force refresh error:', err);
+      if (typeof window !== 'undefined') {
+        window.location.reload();
+      }
     }
   };
 
@@ -173,19 +218,59 @@ export function AboutModal({
               </p>
             </div>
 
-            <button
-              onClick={handleCheckForUpdates}
-              disabled={isCheckingUpdate}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-xs transition-all shadow-md shadow-blue-600/20 cursor-pointer min-h-[48px] shrink-0 w-full sm:w-auto"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isCheckingUpdate ? 'animate-spin' : ''}`} />
-              <span>
-                {isCheckingUpdate
-                  ? (language === 'he' ? 'בודק עדכונים...' : 'Checking...')
-                  : (language === 'he' ? 'בדוק עדכונים 🔄' : 'Check for Updates 🔄')}
-              </span>
-            </button>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={handleCheckForUpdates}
+                disabled={isCheckingUpdate}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-xs transition-all shadow-md shadow-blue-600/20 cursor-pointer min-h-[48px] shrink-0"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isCheckingUpdate ? 'animate-spin' : ''}`} />
+                <span>
+                  {isCheckingUpdate
+                    ? (language === 'he' ? 'בודק עדכונים...' : 'Checking...')
+                    : (language === 'he' ? 'בדוק עדכונים 🔄' : 'Check for Updates 🔄')}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleClearCacheAndForceRefresh}
+                disabled={isForceRefreshing}
+                title={language === 'he' ? 'נקה מטמון ורענן אפליקציה' : 'Clear Cache & Force Reload'}
+                className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-semibold text-xs border border-slate-700 transition-all cursor-pointer min-h-[48px] shrink-0"
+              >
+                <RefreshCw className={`w-3 h-3 ${isForceRefreshing ? 'animate-spin' : ''}`} />
+                <span>{language === 'he' ? 'איפוס מטמון 🧹' : 'Clear Cache 🧹'}</span>
+              </button>
+            </div>
           </div>
+
+          {/* Update Available Banner within AboutModal */}
+          {isUpdateReady && (
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-600/20 via-indigo-600/20 to-purple-600/20 border border-blue-500/40 flex items-center justify-between gap-3 animate-fade-in">
+              <div className="flex items-center gap-2.5">
+                <RefreshCw className="w-5 h-5 text-blue-400 animate-spin shrink-0" />
+                <div>
+                  <span className="font-bold text-slate-100 block text-xs">
+                    {language === 'he' ? 'גרסה חדשה מוכנה להתקנה!' : 'New Version Ready!'}
+                  </span>
+                  <span className="text-[11px] text-slate-300">
+                    {language === 'he' ? 'עדכון תוכנה זמין. רענן את האפליקציה להחלת השינויים.' : 'Software update available. Refresh app to apply changes.'}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window !== 'undefined') window.location.reload();
+                }}
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-all shadow-md cursor-pointer shrink-0 min-h-[44px]"
+              >
+                {language === 'he' ? 'רענן כעת' : 'Reload Now'}
+              </button>
+            </div>
+          )}
 
           {/* Section 2: Interactive System Health & BIST Diagnostics */}
           <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800/90 space-y-3">

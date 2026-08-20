@@ -84,9 +84,14 @@ export function AuthModal({
         onClose();
       } else {
         // Dynamic local user session
+        const randId = Math.floor(1000 + Math.random() * 9000);
+        const derivedEmail = emailInput.trim() || `tester_${randId}@deliveree.app`;
+        const emailPrefix = derivedEmail.split('@')[0];
+        const derivedName = nameInput.trim() || (emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1));
+        
         await loginWithGoogle({
-          name: nameInput.trim() || emailInput.split('@')[0] || (language === 'he' ? 'משתמש Deliveree' : 'Deliveree User'),
-          email: emailInput.trim() || 'user@deliveree.app',
+          name: derivedName,
+          email: derivedEmail,
           avatar: null
         });
         if (onShowToast) onShowToast(language === 'he' ? 'התחברת לפרופיל אישי מקומי!' : 'Signed into local profile!', 'info');
@@ -273,7 +278,7 @@ export function AuthModal({
                         value={nameInput}
                         onChange={(e) => setNameInput(e.target.value)}
                         placeholder="e.g. Alex Cohen"
-                        className={`w-full bg-slate-950 border border-slate-800 text-xs text-slate-100 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none min-h-[44px] ${isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'}`}
+                        className={`w-full bg-slate-950 border border-slate-800 text-base sm:text-sm text-slate-100 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none min-h-[44px] ${isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'}`}
                       />
                     </div>
                   </div>
@@ -291,7 +296,7 @@ export function AuthModal({
                       value={emailInput}
                       onChange={(e) => setEmailInput(e.target.value)}
                       placeholder="you@domain.com"
-                      className={`w-full bg-slate-950 border border-slate-800 text-xs text-slate-100 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none min-h-[44px] ${isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'}`}
+                      className={`w-full bg-slate-950 border border-slate-800 text-base sm:text-sm text-slate-100 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none min-h-[44px] ${isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'}`}
                     />
                   </div>
                 </div>
@@ -309,7 +314,7 @@ export function AuthModal({
                       value={passwordInput}
                       onChange={(e) => setPasswordInput(e.target.value)}
                       placeholder="••••••••"
-                      className={`w-full bg-slate-950 border border-slate-800 text-xs text-slate-100 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none min-h-[44px] ${isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'}`}
+                      className={`w-full bg-slate-950 border border-slate-800 text-base sm:text-sm text-slate-100 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none min-h-[44px] ${isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'}`}
                     />
                   </div>
                 </div>

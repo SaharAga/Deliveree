@@ -1,0 +1,302 @@
+import { TELEGRAM_FEEDBACK_BOT_TOKEN } from '../constants/telegram';
+import { CARRIERS } from '../types/carriers';
+
+export const NOTIFICATION_PREFS_KEY = 'deliveree_notification_prefs';
+
+/**
+ * Default notification preferences schema
+ */
+export const DEFAULT_NOTIFICATION_PREFS = Object.freeze({
+  pushEnabled: false,
+  telegramEnabled: false,
+  telegramChatId: '',
+  notifyOnStatusChange: true,
+  notifyOnException: true,
+  notifyOnDelivered: true,
+  notifyOnCustoms: true
+});
+
+/**
+ * Stage labels and bilingual descriptions for notifications
+ */
+export const STATUS_NOTIFICATION_INFO = {
+  ordered: {
+    emoji: '📝',
+    he: 'ההזמנה נקלטה',
+    en: 'Order Placed'
+  },
+  shipped: {
+    emoji: '📦',
+    he: 'נשלח מהמוכר',
+    en: 'Shipped from Seller'
+  },
+  in_transit: {
+    emoji: '✈️',
+    he: 'בדרך לישראל',
+    en: 'In Transit'
+  },
+  customs: {
+    emoji: '🛃',
+    he: 'בבדיקת מכס / דורש שחרור',
+    en: 'Customs Clearance Required'
+  },
+  out_for_delivery: {
+    emoji: '🚚',
+    he: 'נמסר לחלוקה / ממתין לאיסוף',
+    en: 'Out for Delivery / Ready for Pickup'
+  },
+  delivered: {
+    emoji: '✅',
+    he: 'החבילה נמסרה בהצלחה!',
+    en: 'Package Delivered Successfully!'
+  },
+  exception: {
+    emoji: '⚠️',
+    he: 'עיכוב או חריגה במשלוח',
+    en: 'Delivery Exception / Delay'
+  },
+  archived: {
+    emoji: '📁',
+    he: 'הועבר לארכיון',
+    en: 'Archived'
+  }
+};
+
+export const notificationService = {
+  /**
+   * Retrieves user notification preferences from localStorage
+   * @returns {typeof DEFAULT_NOTIFICATION_PREFS}
+   */
+  getPreferences: () => {
+    try {
+      if (typeof localStorage === 'undefined') return { ...DEFAULT_NOTIFICATION_PREFS };
+      const stored = localStorage.getItem(NOTIFICATION_PREFS_KEY);
+      if (stored) {
+        return {
+          ...DEFAULT_NOTIFICATION_PREFS,
+          ...JSON.parse(stored)
+        };
+      }
+    } catch (e) {
+      console.warn('[NotificationService] Failed to parse preferences from storage:', e);
+    }
+    return { ...DEFAULT_NOTIFICATION_PREFS };
+  },
+
+  /**
+   * Saves updated user notification preferences to localStorage
+   * @param {Partial<typeof DEFAULT_NOTIFICATION_PREFS>} prefs
+   * @returns {typeof DEFAULT_NOTIFICATION_PREFS}
+   */
+  savePreferences: (prefs) => {
+    try {
+      const current = notificationService.getPreferences();
+      const updated = { ...current, ...prefs };
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(NOTIFICATION_PREFS_KEY, JSON.stringify(updated));
+      }
+      return updated;
+    } catch (e) {
+      console.error('[NotificationService] Failed to save preferences to storage:', e);
+      return { ...DEFAULT_NOTIFICATION_PREFS, ...prefs };
+    }
+  },
+
+  /**
+   * Gets current Web Notification permission status
+   * @returns {'default' | 'granted' | 'denied' | 'unsupported'}
+   */
+  getNotificationPermission: () => {
+    const root = typeof window !== 'undefined' ? window : globalThis;
+    if (!root || !('Notification' in root) || typeof root.Notification === 'undefined') {
+      return 'unsupported';
+    }
+    return root.Notification.permission || 'unsupported';
+  },
+
+  /**
+   * Requests permission to send Web Notifications
+   * @returns {Promise<'default' | 'granted' | 'denied' | 'unsupported'>}
+   */
+  requestNotificationPermission: async () => {
+    const root = typeof window !== 'undefined' ? window : globalThis;
+    if (!root || !('Notification' in root) || typeof root.Notification === 'undefined') {
+      return 'unsupported';
+    }
+    try {
+      const permission = await root.Notification.requestPermission();
+      if (permission === 'granted') {
+        notificationService.savePreferences({ pushEnabled: true });
+      } else if (permission === 'denied') {
+        notificationService.savePreferences({ pushEnabled: false });
+      }
+      return permission;
+    } catch (e) {
+      console.error('[NotificationService] Permission request failed:', e);
+      return 'denied';
+    }
+  },
+
+  /**
+   * Sends a native Web Push/Browser Notification
+   * @param {string} title
+   * @param {NotificationOptions} [options]
+   * @returns {Notification|null}
+   */
+  sendWebNotification: (title, options = {}) => {
+    if (notificationService.getNotificationPermission() !== 'granted') {
+      return null;
+    }
+    try {
+      const root = typeof window !== 'undefined' ? window : globalThis;
+      const defaultOptions = {
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/icon-192x192.png',
+        vibrate: [200, 100, 200],
+        ...options
+      };
+      return new root.Notification(title, defaultOptions);
+    } catch (e) {
+      console.warn('[NotificationService] Failed to send web notification:', e);
+      return null;
+    }
+  },
+
+  /**
+   * Dispatches a Telegram package alert using Markdown formatting
+   * @param {string} chatId - Target Telegram chat or user ID
+   * @param {import('../types/deliveree').Package} pkg - Package object
+   * @param {{ fromStatus?: string, toStatus: string, message?: string }} [statusChange] - Status change details
+   * @returns {Promise<boolean>}
+   */
+  sendTelegramPackageAlert: async (chatId, pkg, statusChange) => {
+    if (!chatId || !pkg) return false;
+
+    const botToken = TELEGRAM_FEEDBACK_BOT_TOKEN
+      || (typeof process !== 'undefined' && process.env?.TELEGRAM_FEEDBACK_BOT_TOKEN)
+      || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TELEGRAM_FEEDBACK_BOT_TOKEN)
+      || '';
+
+    if (!botToken) {
+      // Direct client Telegram dispatch is disabled when no token is provided.
+      // Notification relays are delegated to server/daemon or Firestore listeners.
+      return false;
+    }
+
+    const toStatus = statusChange?.toStatus || pkg.status || 'in_transit';
+    const statusMeta = STATUS_NOTIFICATION_INFO[toStatus] || {
+      emoji: '📦',
+      he: toStatus,
+      en: toStatus
+    };
+
+    const carrierObj = CARRIERS[pkg.carrier];
+    const carrierName = carrierObj ? `${carrierObj.name} (${carrierObj.hebrewName || ''})` : (pkg.carrier || 'Unknown');
+    const pkgTitle = pkg.title || pkg.titleHe || 'Package';
+    const trackingNum = pkg.trackingNumber || 'N/A';
+
+    const text = [
+      `${statusMeta.emoji} *Deliveree Status Update* | עדכון משלוח`,
+      `━━━━━━━━━━━━━━━━━━`,
+      `📦 *Item:* ${pkgTitle}`,
+      `🏷️ *Status:* ${statusMeta.en} | ${statusMeta.he}`,
+      `🚚 *Carrier:* ${carrierName}`,
+      `🔍 *Tracking:* \`${trackingNum}\``,
+      pkg.expectedDeliveryDate ? `📅 *Expected Delivery:* ${pkg.expectedDeliveryDate}` : '',
+      pkg.destination ? `📍 *Destination:* ${pkg.destination}` : '',
+      statusChange?.message ? `\n💬 *Note:* ${statusChange.message}` : ''
+    ].filter(Boolean).join('\n');
+
+    try {
+      const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text,
+          parse_mode: 'Markdown'
+        })
+      });
+
+      return response.ok;
+    } catch (err) {
+      console.warn('[NotificationService] Failed to send Telegram package alert:', err);
+      return false;
+    }
+  },
+
+  /**
+   * Triggers notifications across configured channels based on user preferences and status change
+   * @param {import('../types/deliveree').Package} pkg
+   * @param {string} previousStatus
+   * @param {string} newStatus
+   * @param {string} [language='he']
+   * @returns {Promise<{ pushSent: boolean, telegramSent: boolean }>}
+   */
+  notifyStatusChange: async (pkg, previousStatus, newStatus, language = 'he') => {
+    if (!pkg || !newStatus || previousStatus === newStatus) {
+      return { pushSent: false, telegramSent: false };
+    }
+
+    const prefs = notificationService.getPreferences();
+
+    // Check if notification is enabled for this type of event
+    if (!prefs.notifyOnStatusChange) {
+      return { pushSent: false, telegramSent: false };
+    }
+
+    if (newStatus === 'exception' && prefs.notifyOnException === false) {
+      return { pushSent: false, telegramSent: false };
+    }
+
+    if (newStatus === 'delivered' && prefs.notifyOnDelivered === false) {
+      return { pushSent: false, telegramSent: false };
+    }
+
+    if (newStatus === 'customs' && prefs.notifyOnCustoms === false) {
+      return { pushSent: false, telegramSent: false };
+    }
+
+    const meta = STATUS_NOTIFICATION_INFO[newStatus] || {
+      emoji: '📦',
+      he: newStatus,
+      en: newStatus
+    };
+
+    const pkgTitle = pkg.title || pkg.titleHe || (language === 'he' ? 'חבילה' : 'Package');
+    
+    // Construct bilingual notification content
+    const title = language === 'he' 
+      ? `${meta.emoji} עדכון סטטוס: ${pkgTitle}`
+      : `${meta.emoji} Status Update: ${pkgTitle}`;
+    
+    const body = language === 'he'
+      ? `החבילה שלך (${pkg.trackingNumber || ''}) עברה לסטטוס: ${meta.he}`
+      : `Your package (${pkg.trackingNumber || ''}) is now: ${meta.en}`;
+
+    let pushSent = false;
+    let telegramSent = false;
+
+    // Send Browser Web Notification
+    if (prefs.pushEnabled && notificationService.getNotificationPermission() === 'granted') {
+      const notif = notificationService.sendWebNotification(title, {
+        body,
+        tag: `pkg-${pkg.id || pkg.trackingNumber}`,
+        data: { packageId: pkg.id, trackingNumber: pkg.trackingNumber }
+      });
+      pushSent = !!notif;
+    }
+
+    // Send Telegram Notification
+    if (prefs.telegramEnabled && prefs.telegramChatId) {
+      telegramSent = await notificationService.sendTelegramPackageAlert(prefs.telegramChatId, pkg, {
+        fromStatus: previousStatus,
+        toStatus: newStatus
+      });
+    }
+
+    return { pushSent, telegramSent };
+  }
+};
