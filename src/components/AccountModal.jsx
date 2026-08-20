@@ -17,6 +17,7 @@ export function AccountModal({
   onClose,
   packages = [],
   onExportData,
+  onOpenExport,
   onShowToast
 }) {
   const { language, setLanguage, t } = useLanguage();
@@ -644,26 +645,32 @@ export function AccountModal({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={onExportData}
-                  className="p-4 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-start transition-all cursor-pointer flex flex-col gap-2 min-h-[44px]"
+                  onClick={() => {
+                    if (onOpenExport) {
+                      onOpenExport();
+                    } else if (onExportData) {
+                      onExportData();
+                    }
+                  }}
+                  className="p-4 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-start transition-all cursor-pointer flex flex-col gap-2 min-h-[48px]"
                 >
                   <div className="flex items-center gap-2 text-blue-400 font-bold">
                     <Download className="w-4 h-4" />
-                    <span>{language === 'he' ? 'ייצוא גיבוי מלא (JSON)' : 'Full JSON Data Export'}</span>
+                    <span>{language === 'he' ? 'מרכז ייצוא וגיבוי מלא' : 'Export Center & Backup'}</span>
                   </div>
                   <p className="text-[11px] text-slate-400 leading-relaxed">
-                    {language === 'he' ? 'הורד קובץ גיבוי מקיף כולל כל הנתונים, ההיסטוריה והמעקב.' : 'Download complete package schema including timelines and metadata.'}
+                    {language === 'he' ? 'פתח את מרכז הייצוא הייעודי לבחירת פורמטים (CSV/JSON/PDF) וסינונים.' : 'Open dedicated export dialog with format and scope selection.'}
                   </p>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleExportCSV}
-                  className="p-4 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-start transition-all cursor-pointer flex flex-col gap-2 min-h-[44px]"
+                  className="p-4 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-start transition-all cursor-pointer flex flex-col gap-2 min-h-[48px]"
                 >
                   <div className="flex items-center gap-2 text-emerald-400 font-bold">
                     <Database className="w-4 h-4" />
-                    <span>{language === 'he' ? 'ייצוא לאקסל / CSV' : 'Export Table to CSV'}</span>
+                    <span>{language === 'he' ? 'ייצוא ישיר לאקסל / CSV' : 'Quick Export to CSV'}</span>
                   </div>
                   <p className="text-[11px] text-slate-400 leading-relaxed">
                     {language === 'he' ? 'ייצא את טבלת המעקב לקובץ פשוט לפתיחה ב-Excel או Google Sheets.' : 'Export shipment records into an Excel / Sheets-ready spreadsheet.'}

@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { 
   Package, Plus, Sparkles, Globe, Sun, Moon, Download, Upload, RotateCcw, 
-  BarChart3, User, ChevronDown, Link2, Menu, X, LogIn, Info, MessageSquare, 
-  ClipboardCheck, Edit3, ShieldCheck
+  BarChart3, ChevronDown, Link2, Menu, X, LogIn, Info, MessageSquare, 
+  ClipboardCheck, Edit3
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
-import { APP_VERSION } from '../constants/version';
+import { SideNavDrawer } from './SideNavDrawer';
 
 export function Navbar({
   isDemoMode,
@@ -19,6 +19,7 @@ export function Navbar({
   onOpenAbout,
   onOpenFeedback,
   onOpenAdminFeedback,
+  onOpenExport,
   onExportData,
   onImportData,
   onResetData,
@@ -26,7 +27,7 @@ export function Navbar({
 }) {
   const { language, toggleLanguage, isRTL, t } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   const [backupMenuOpen, setBackupMenuOpen] = useState(false);
   const [isSideDrawerOpen, setIsSideDrawerOpen] = useState(false);
@@ -106,7 +107,7 @@ export function Navbar({
           <button
             onClick={onOpenConnectModal}
             title={language === 'he' ? 'מדריך קליטת חבילות אוטומטית' : 'Automatic Ingestion Guide'}
-            className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-blue-400 transition-colors flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
+            className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-blue-400 transition-colors flex items-center gap-1.5 text-xs font-semibold cursor-pointer min-h-[48px]"
           >
             <Link2 className="w-4 h-4 text-blue-400" />
             <span>{language === 'he' ? 'קליטה אוטומטית' : 'Auto Ingestion'}</span>
@@ -116,7 +117,7 @@ export function Navbar({
           <button
             onClick={onOpenAnalytics}
             title={t('insights.title')}
-            className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
+            className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer min-h-[48px] min-w-[48px] flex items-center justify-center"
           >
             <BarChart3 className="w-4 h-4" />
           </button>
@@ -125,16 +126,29 @@ export function Navbar({
           <button
             onClick={onOpenFeedback}
             title={language === 'he' ? 'שלח משוב אלפא' : 'Send Alpha Feedback'}
-            className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-emerald-400 transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
+            className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-emerald-400 transition-colors cursor-pointer min-h-[48px] min-w-[48px] flex items-center justify-center"
           >
             <MessageSquare className="w-4 h-4" />
+          </button>
+
+          {/* Export Center Button */}
+          <button
+            onClick={() => {
+              if (onOpenExport) onOpenExport();
+              else if (onExportData) onExportData();
+            }}
+            title={language === 'he' ? 'מרכז ייצוא ודוחות' : 'Export Center & Reports'}
+            className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-blue-400 transition-colors flex items-center gap-1.5 text-xs font-semibold cursor-pointer min-h-[48px]"
+          >
+            <Download className="w-4 h-4 text-blue-400" />
+            <span>{language === 'he' ? 'ייצוא' : 'Export'}</span>
           </button>
 
           {/* Info / About Button */}
           <button
             onClick={onOpenAbout}
             title={language === 'he' ? 'אודות ופרטי מערכת' : 'About & System Info'}
-            className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-blue-400 transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
+            className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-blue-400 transition-colors cursor-pointer min-h-[48px] min-w-[48px] flex items-center justify-center"
             aria-label={language === 'he' ? 'אודות ופרטי מערכת' : 'About & System Info'}
           >
             <Info className="w-4 h-4" />
@@ -144,7 +158,7 @@ export function Navbar({
           <div className="relative">
             <button
               onClick={() => setBackupMenuOpen(!backupMenuOpen)}
-              className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-1 cursor-pointer"
+              className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-1 cursor-pointer min-h-[48px]"
               title="Data & Backup"
             >
               <Download className="w-4 h-4" />
@@ -158,15 +172,16 @@ export function Navbar({
                   <button
                     onClick={() => {
                       setBackupMenuOpen(false);
-                      onExportData();
+                      if (onOpenExport) onOpenExport();
+                      else onExportData();
                     }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer"
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer min-h-[44px]"
                   >
                     <Download className="w-4 h-4 text-blue-400" />
                     <span>{t('backup.exportData')}</span>
                   </button>
 
-                  <label className="w-full flex items-center gap-2.5 px-3.5 py-2 text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer">
+                  <label className="w-full flex items-center gap-2.5 px-3.5 py-2 text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer min-h-[44px]">
                     <Upload className="w-4 h-4 text-emerald-400" />
                     <span>{t('backup.importData')}</span>
                     <input
@@ -188,7 +203,7 @@ export function Navbar({
                         setBackupMenuOpen(false);
                         onResetData();
                       }}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 cursor-pointer"
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 cursor-pointer min-h-[44px]"
                     >
                       <RotateCcw className="w-4 h-4 text-amber-400" />
                       <span>{t('backup.resetData')}</span>
@@ -199,7 +214,7 @@ export function Navbar({
                         setBackupMenuOpen(false);
                         onResetData();
                       }}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 font-semibold cursor-pointer"
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 cursor-pointer min-h-[44px]"
                     >
                       <RotateCcw className="w-4 h-4 text-rose-400" />
                       <span>{t('backup.clearAllDeliveries')}</span>
@@ -210,93 +225,78 @@ export function Navbar({
             )}
           </div>
 
-          {/* User Account / Sign-In Button */}
-          <button
-            onClick={onOpenAuth}
-            className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-slate-200 transition-all hover:border-slate-700 cursor-pointer"
-            title={user ? `${user.name} (${user.email})` : 'Log In / Sign Up'}
-          >
-            {user ? (
-              <>
-                {user.avatar ? (
-                  <img src={user.avatar} alt={user.name} className="w-5 h-5 rounded-full object-cover border border-blue-400/40 shrink-0" />
-                ) : (
-                  <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-[10px] shrink-0">
-                    {user.name.charAt(0)}
-                  </div>
-                )}
-                <div className="flex items-center gap-1.5">
-                  <span className="font-bold truncate max-w-[80px]">{user.name}</span>
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-emerald-400/20" title="Active" />
-                </div>
-              </>
-            ) : (
-              <>
-                <LogIn className="w-3.5 h-3.5 text-blue-400" />
-                <span className="font-bold text-blue-400">{language === 'he' ? 'התחברות' : 'Sign In'}</span>
-              </>
-            )}
-          </button>
+          <div className="h-4 w-px bg-slate-800 mx-1" />
 
-          {/* Language Switcher Button (EN / עברית) */}
-          <button
-            onClick={toggleLanguage}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-bold text-slate-200 transition-all hover:border-slate-700 cursor-pointer"
-            title={language === 'he' ? 'Switch to English' : 'עבור לעברית'}
-          >
-            <Globe className="w-3.5 h-3.5 text-blue-400" />
-            <span>{language === 'he' ? 'עברית' : 'EN'}</span>
-          </button>
-
-          {/* Dark / Light Toggle */}
+          {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-amber-400 transition-colors cursor-pointer"
-            title={isDark ? 'Light Mode' : 'Dark Mode'}
+            className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-amber-400 transition-colors cursor-pointer min-h-[48px] min-w-[48px] flex items-center justify-center"
+            title={isDark ? (language === 'he' ? 'מצב יום' : 'Light Mode') : (language === 'he' ? 'מצב לילה' : 'Dark Mode')}
           >
             {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
 
-          {/* Smart Import Button */}
+          {/* Language Toggle */}
+          <button
+            onClick={toggleLanguage}
+            className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer min-h-[48px]"
+            title="Toggle Hebrew / English"
+          >
+            <Globe className="w-3.5 h-3.5 text-blue-400" />
+            <span>{language === 'he' ? 'EN' : 'עב'}</span>
+          </button>
+
+          {/* User Account / Profile */}
+          <button
+            onClick={onOpenAuth}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition-colors cursor-pointer min-h-[48px]"
+          >
+            {user ? (
+              <>
+                <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-[10px] font-bold">
+                  {user.name?.charAt(0) || 'U'}
+                </div>
+                <span className="text-xs font-medium max-w-[100px] truncate">{user.name}</span>
+              </>
+            ) : (
+              <>
+                <LogIn className="w-3.5 h-3.5 text-blue-400" />
+                <span className="text-xs font-bold text-blue-400">{language === 'he' ? 'התחבר' : 'Login'}</span>
+              </>
+            )}
+          </button>
+
+          {/* Smart Paste (SMS/Email Auto Detection) */}
           <button
             onClick={onOpenSmartImport}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-900/40 hover:bg-indigo-900/70 border border-indigo-500/30 text-indigo-200 hover:text-white text-xs font-bold transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600/20 to-indigo-600/20 hover:from-blue-600/30 hover:to-indigo-600/30 border border-blue-500/30 text-blue-300 text-xs font-bold transition-all shadow-sm cursor-pointer min-h-[48px]"
+            title={t('smartPaste')}
           >
-            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+            <Sparkles className="w-3.5 h-3.5 text-blue-400 animate-pulse" />
             <span>{t('smartPaste')}</span>
           </button>
 
-          {/* Add Package Button */}
+          {/* Primary Add Package Modal Trigger */}
           <button
             onClick={onOpenAddModal}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold transition-all shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer min-h-[48px]"
           >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <Plus className="w-4 h-4 stroke-[3]" />
             <span>{t('addPackage')}</span>
           </button>
         </div>
 
-        {/* Mobile View Toolbar (Visible on Phone/Tablet) */}
-        <div className="flex lg:hidden items-center gap-1.5">
-          {/* Quick Language Toggle */}
-          <button
-            onClick={toggleLanguage}
-            className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-bold text-slate-300 cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
-          >
-            {language === 'he' ? 'EN' : 'עב'}
-          </button>
-
-          {/* User Sign In / Profile Avatar */}
+        {/* Mobile / Tablet Compact Action Bar */}
+        <div className="flex lg:hidden items-center gap-2">
+          {/* Quick User Account Avatar / LogIn Button */}
           <button
             onClick={onOpenAuth}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 cursor-pointer min-h-[44px] min-w-[44px] justify-center"
-            title={user ? user.name : 'Sign In / Account'}
+            className="flex items-center gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 cursor-pointer min-h-[48px]"
+            title={user ? user.name : 'Sign In'}
           >
-            {user?.avatar ? (
-              <img src={user.avatar} alt={user.name} className="w-5 h-5 rounded-full object-cover" />
-            ) : user ? (
-              <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-[10px]">
-                {user.name.charAt(0)}
+            {user ? (
+              <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-xs font-bold">
+                {user.name?.charAt(0) || 'U'}
               </div>
             ) : (
               <>
@@ -309,7 +309,7 @@ export function Navbar({
           {/* Primary Mobile Smart '+' Action Trigger */}
           <button
             onClick={() => setIsAddActionSheetOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-500/25 cursor-pointer min-h-[44px]"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-500/25 cursor-pointer min-h-[48px]"
             title={language === 'he' ? 'הוספת חבילה / הדבקה מהירה' : 'Add Shipment / Quick Paste'}
           >
             <Plus className="w-4 h-4 stroke-[3]" />
@@ -319,7 +319,7 @@ export function Navbar({
           {/* Mobile Side Drawer Toggle */}
           <button
             onClick={() => setIsSideDrawerOpen(true)}
-            className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
+            className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 cursor-pointer min-h-[48px] min-w-[48px] flex items-center justify-center"
             aria-label="Toggle Side Navigation Drawer"
           >
             <Menu className="w-5 h-5" />
@@ -339,7 +339,7 @@ export function Navbar({
               </h3>
               <button
                 onClick={() => setIsAddActionSheetOpen(false)}
-                className="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white"
+                className="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white min-h-[48px] min-w-[48px] flex items-center justify-center"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -393,200 +393,19 @@ export function Navbar({
       )}
 
       {/* NATIVE SIDE NAVIGATION DRAWER (RTL Right / LTR Left) */}
-      {isSideDrawerOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true">
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm transition-opacity duration-300 animate-fade-in"
-            onClick={() => setIsSideDrawerOpen(false)}
-          />
-
-          {/* Off-canvas Sheet */}
-          <div
-            className={`relative w-full max-w-xs sm:max-w-sm h-full bg-slate-900 border-s border-slate-800 shadow-2xl flex flex-col z-10 transition-transform duration-300 animate-slide-in-${isRTL ? 'right' : 'left'}`}
-            style={{
-              [isRTL ? 'marginRight' : 'marginLeft']: 'auto'
-            }}
-          >
-            {/* Drawer Header */}
-            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-center text-blue-400 font-bold">
-                  <Package className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-slate-100">Deliveree Pro</h3>
-                  <span className="text-[10px] text-slate-400 font-mono">v{APP_VERSION}</span>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setIsSideDrawerOpen(false)}
-                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
-                aria-label="Close Navigation Drawer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Drawer Menu Items */}
-            <div className="p-4 space-y-1.5 overflow-y-auto flex-1 text-xs">
-              {/* Profile / User Account */}
-              <button
-                onClick={() => {
-                  setIsSideDrawerOpen(false);
-                  onOpenAuth();
-                }}
-                className="w-full flex items-center gap-3 p-3 rounded-2xl bg-blue-950/30 border border-blue-500/20 text-blue-200 text-start cursor-pointer hover:bg-blue-950/50 transition-colors min-h-[44px]"
-              >
-                <User className="w-4 h-4 text-blue-400 shrink-0" />
-                <div className="truncate">
-                  <span className="font-bold block truncate">
-                    {user ? user.name : (language === 'he' ? 'התחברות לחשבון' : 'Sign In / Account')}
-                  </span>
-                  <span className="text-[10px] text-slate-400 truncate">
-                    {user ? user.email : (language === 'he' ? 'סנכרון ענן וגיבוי' : 'Cloud sync & backup')}
-                  </span>
-                </div>
-              </button>
-
-              {/* Smart Clipboard Ingestion */}
-              <button
-                onClick={() => {
-                  setIsSideDrawerOpen(false);
-                  onOpenSmartImport();
-                }}
-                className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-800 text-slate-200 text-start cursor-pointer transition-colors min-h-[44px]"
-              >
-                <Sparkles className="w-4 h-4 text-indigo-400 shrink-0" />
-                <span className="font-semibold">{t('smartPaste')}</span>
-              </button>
-
-              {/* Ingestion Guide */}
-              <button
-                onClick={() => {
-                  setIsSideDrawerOpen(false);
-                  onOpenConnectModal();
-                }}
-                className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-800 text-slate-200 text-start cursor-pointer transition-colors min-h-[44px]"
-              >
-                <Link2 className="w-4 h-4 text-blue-400 shrink-0" />
-                <span className="font-semibold">{language === 'he' ? 'מדריך קליטה אוטומטית' : 'Automatic Ingestion Guide'}</span>
-              </button>
-
-              {/* Insights */}
-              <button
-                onClick={() => {
-                  setIsSideDrawerOpen(false);
-                  onOpenAnalytics();
-                }}
-                className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-800 text-slate-200 text-start cursor-pointer transition-colors min-h-[44px]"
-              >
-                <BarChart3 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span className="font-semibold">{t('insights.title')}</span>
-              </button>
-
-              {/* Alpha Feedback */}
-              <button
-                onClick={() => {
-                  setIsSideDrawerOpen(false);
-                  if (onOpenFeedback) onOpenFeedback();
-                }}
-                className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-800 text-emerald-300 text-start cursor-pointer transition-colors min-h-[44px]"
-              >
-                <MessageSquare className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span className="font-semibold">{language === 'he' ? 'משוב ודיווח באגים (טלגרם)' : 'Alpha Feedback (Telegram)'}</span>
-              </button>
-
-              {/* Admin Feedback Inspector */}
-              {onOpenAdminFeedback && (
-                <button
-                  onClick={() => {
-                    setIsSideDrawerOpen(false);
-                    onOpenAdminFeedback();
-                  }}
-                  className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-800 text-indigo-300 text-start cursor-pointer transition-colors min-h-[44px]"
-                >
-                  <ShieldCheck className="w-4 h-4 text-indigo-400 shrink-0" />
-                  <span className="font-semibold">{language === 'he' ? 'יומן משובי אלפא (מנהל)' : 'Admin Feedback Inspector'}</span>
-                </button>
-              )}
-
-              {/* About & Info */}
-              <button
-                onClick={() => {
-                  setIsSideDrawerOpen(false);
-                  onOpenAbout();
-                }}
-                className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-800 text-slate-200 text-start cursor-pointer transition-colors min-h-[44px]"
-              >
-                <Info className="w-4 h-4 text-blue-400 shrink-0" />
-                <span className="font-semibold">{language === 'he' ? 'אודות ופרטי מערכת' : 'About & System Info'}</span>
-              </button>
-
-              {/* Backup & Export */}
-              <div className="pt-2 border-t border-slate-800 space-y-1">
-                <button
-                  onClick={() => {
-                    setIsSideDrawerOpen(false);
-                    onExportData();
-                  }}
-                  className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-800 text-slate-300 text-start cursor-pointer transition-colors min-h-[44px]"
-                >
-                  <Download className="w-4 h-4 text-blue-400 shrink-0" />
-                  <span className="font-semibold">{t('backup.exportData')}</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setIsSideDrawerOpen(false);
-                    onResetData();
-                  }}
-                  className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-rose-500/10 text-rose-400 text-start cursor-pointer transition-colors min-h-[44px]"
-                >
-                  <RotateCcw className="w-4 h-4 text-rose-400 shrink-0" />
-                  <span className="font-semibold">{t('backup.clearAllDeliveries')}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Drawer Footer with Theme Toggle & Sign Out */}
-            <div className="p-4 border-t border-slate-800 bg-slate-950/60 space-y-3">
-              <div className="flex items-center justify-between text-xs">
-                <button
-                  onClick={() => {
-                    toggleTheme();
-                  }}
-                  className="flex items-center gap-2 p-2 rounded-xl bg-slate-800/80 text-slate-200 font-semibold cursor-pointer min-h-[44px]"
-                >
-                  {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-400" />}
-                  <span>{isDark ? (language === 'he' ? 'מצב יום' : 'Light') : (language === 'he' ? 'מצב לילה' : 'Dark')}</span>
-                </button>
-
-                <button
-                  onClick={toggleLanguage}
-                  className="px-3 py-2 rounded-xl bg-slate-800/80 text-slate-200 font-bold text-xs cursor-pointer min-h-[44px]"
-                >
-                  {language === 'he' ? 'English (EN)' : 'עברית (HE)'}
-                </button>
-              </div>
-
-              {user && (
-                <button
-                  onClick={() => {
-                    logout();
-                    setIsSideDrawerOpen(false);
-                  }}
-                  className="w-full py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 font-bold text-xs transition-colors cursor-pointer min-h-[44px]"
-                >
-                  {language === 'he' ? 'התנתקות מהחשבון' : 'Sign Out'}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <SideNavDrawer
+        isOpen={isSideDrawerOpen}
+        onClose={() => setIsSideDrawerOpen(false)}
+        onOpenAuth={onOpenAuth}
+        onOpenSmartImport={onOpenSmartImport}
+        onOpenConnectModal={onOpenConnectModal}
+        onOpenAnalytics={onOpenAnalytics}
+        onOpenFeedback={onOpenFeedback}
+        onOpenAdminFeedback={onOpenAdminFeedback}
+        onOpenAbout={onOpenAbout}
+        onOpenExport={onOpenExport}
+        onResetData={onResetData}
+      />
     </header>
   );
 }
-

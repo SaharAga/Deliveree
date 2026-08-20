@@ -4,7 +4,7 @@
 
 | Attribute | Value |
 | :--- | :--- |
-| **Version** | `v0.3.1-alpha` |
+| **Version** | `v0.4.0-alpha` |
 | **Release Date** | 2026-08-20 |
 | **Release Channel** | `alpha` |
 | **Firebase Schema Version** | `1.0.0` |
@@ -50,16 +50,17 @@ To balance deep specialization with clean communication boundaries, agents are o
 | **Multi-Carrier Auto-Tracking & Ingestion Engine** | `LIVE` | v0.2.2 | Normalized checkpoint resolvers for Israeli & Global couriers, 60s cooldown rate-limiting with eviction bounded cache, and batch refresh. |
 | **State Machine Transition Pipeline** | `LIVE` | v0.2.2 | Formal transition matrix validation (`canTransition`), manual override selector restricted to legal transitions, and live tracking UI triggers. |
 | **User Privacy, PII Masking & Secret Hardening** | `LIVE` | v0.3.1 | Automated email masking (`maskEmail`), optional anonymous feedback submission toggle, token hardcoding purge, and dynamic local session generation. |
+| **Dedicated Export Center & Carrier Expansion** | `LIVE` | v0.4.0 | Dedicated export modal with scope filters (All / Active / Delivered), RFC 4180 CSV with UTF-8 BOM, indented JSON backup, printable bilingual PDF sheet, and enhanced realistic checkpoints for FedEx, UPS, Aramex, and BoxIt. |
 
 ---
 
 ## 3. Quality Gates & Verification Metrics
 
 ```
-[Quality Gate Pipeline — v0.3.1-alpha]
+[Quality Gate Pipeline — v0.4.0-alpha]
 ├─ 1. Static Linting & Syntax: 0 warnings, 0 errors (oxlint across 70+ files)
 ├─ 2. Type & Contract Verification: 100% compliant schemas (Zod + TypeScript)
-├─ 3. Automated Testbench Suite: 209 / 209 Tests Passing (23/23 Suites)
+├─ 3. Automated Testbench Suite: 226 / 226 Tests Passing (25/25 Suites)
 ├─ 4. Property-Based Invariants: 12 Formal Theorems Proven (fast-check)
 ├─ 5. Enterprise Security Audit: OWASP ASVS L3 Hardened (CVSS 0.0)
 └─ 6. Production Build: 0 errors (Vite 8 bundle generated in ~650ms)

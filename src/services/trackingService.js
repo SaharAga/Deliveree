@@ -118,7 +118,7 @@ export function normalizeCheckpoints(rawCheckpoints, trackingNumber = '') {
 /**
  * Carrier-specific mock tracking resolution engine.
  * Generates carrier-accurate realistic checkpoints and lifecycle status.
- * Supports Israeli carriers (Israel Post, Cheetah, HFD, BoxIt) & Global carriers.
+ * Supports Israeli carriers (Israel Post, Cheetah, HFD, BoxIt) & Global carriers (FedEx, UPS, Aramex, Cainiao, DHL, etc.).
  *
  * @param {string} trackingNumber
  * @param {string} carrierId
@@ -265,24 +265,234 @@ export async function simulateCarrierTracking(trackingNumber, carrierId) {
     }
 
     case 'boxit': {
-      const status = 'out_for_delivery';
+      const isCollected = cleanTrack.includes('DEL') || charSum % 5 === 0;
+      const status = isCollected ? 'delivered' : 'out_for_delivery';
+      const lockerCode = `BX-${(charSum % 9000) + 1000}`;
+      const lockerStationNum = (charSum % 80) + 101;
+
       const checkpoints = [
         {
           id: `cp-boxit-1-${cleanTrack}`,
-          title: 'Deposited into BoxIt Locker',
-          titleHe: 'החבילה הופקדה בלוקר BoxIt',
-          description: 'Ready for pickup. Pickup code sent via SMS.',
-          descriptionHe: 'החבילה ממתינה בלוקר BoxIt. קוד פתיחה נשלח ב-SMS.',
-          location: 'BoxIt Station 402',
-          timestamp: new Date(now.getTime() - 3600000 * 2).toISOString(),
+          title: 'Package Received at BoxIt Automated Sorting Facility',
+          titleHe: 'החבילה נקלטה במרכז המיון האוטומטי של BoxIt',
+          description: 'Package routed to neighborhood locker locker network',
+          descriptionHe: 'החבילה נותבה לרשת הלוקרים השכונתית',
+          location: 'BoxIt Central Hub Petah Tikva',
+          timestamp: new Date(now.getTime() - 86400000).toISOString(),
+          isCompleted: true
+        },
+        {
+          id: `cp-boxit-2-${cleanTrack}`,
+          title: `Deposited into BoxIt Locker #${lockerStationNum}`,
+          titleHe: `החבילה הופקדה בלוקר BoxIt #${lockerStationNum}`,
+          description: `Ready for pickup. Locker Unlock Code: ${lockerCode} (sent via SMS).`,
+          descriptionHe: `החבילה ממתינה לאיסוף בלוקר. קוד פתיחה סודי: ${lockerCode} נשלח ב-SMS.`,
+          location: `BoxIt Station #${lockerStationNum}`,
+          timestamp: new Date(now.getTime() - 3600000 * 4).toISOString(),
           isCompleted: true
         }
       ];
+
+      if (isCollected) {
+        checkpoints.unshift({
+          id: `cp-boxit-3-${cleanTrack}`,
+          title: 'Collected from Locker by Recipient',
+          titleHe: 'החבילה נאספה בהצלחה מהלוקר',
+          description: `Locker compartment opened using code ${lockerCode}`,
+          descriptionHe: `תא הלוקר נפתח ונאסף באמצעות קוד הזיהוי ${lockerCode}`,
+          location: `BoxIt Station #${lockerStationNum}`,
+          timestamp: new Date(now.getTime() - 1800000).toISOString(),
+          isCompleted: true
+        });
+      }
 
       return {
         checkpoints: normalizeCheckpoints(checkpoints, cleanTrack),
         status,
         estimatedDelivery: now.toISOString().slice(0, 10)
+      };
+    }
+
+    case 'fedex': {
+      const isDelivered = cleanTrack.includes('DEL') || charSum % 4 === 0;
+      const isOutForDelivery = !isDelivered && (charSum % 2 === 0);
+      const status = isDelivered ? 'delivered' : isOutForDelivery ? 'out_for_delivery' : 'in_transit';
+
+      const checkpoints = [
+        {
+          id: `cp-fdx-1-${cleanTrack}`,
+          title: 'FedEx International Shipment Picked Up',
+          titleHe: 'המשלוח נאסף ע״י FedEx במדינת המוצא',
+          description: 'Package scanned at origin FedEx World Service Center',
+          descriptionHe: 'החבילה נסרקה במרכז השילוח הבינלאומי של פדאקס',
+          location: 'FedEx SuperHub Memphis / Roissy CDG',
+          timestamp: new Date(now.getTime() - 86400000 * 4).toISOString(),
+          isCompleted: true
+        },
+        {
+          id: `cp-fdx-2-${cleanTrack}`,
+          title: 'International Flight Arrived & Customs Cleared',
+          titleHe: 'טיסת מטען בינלאומית נחתה ושחרור מכס הושלם',
+          description: 'Direct air express linehaul sorted at Ben Gurion Gateway',
+          descriptionHe: 'עבר שחרור מכס מהיר במסוף פדאקס בנתב״ג',
+          location: 'Ben Gurion FedEx Gateway, Israel',
+          timestamp: new Date(now.getTime() - 86400000).toISOString(),
+          isCompleted: true
+        }
+      ];
+
+      if (isOutForDelivery || isDelivered) {
+        checkpoints.unshift({
+          id: `cp-fdx-3-${cleanTrack}`,
+          title: 'On FedEx Vehicle for Delivery',
+          titleHe: 'ברכב השליחויות של FedEx לחלוקה היום',
+          description: 'Package loaded on delivery van for door-to-door delivery',
+          descriptionHe: 'החבילה בדרכה עם השליח לכתובת היעד',
+          location: 'Tel Aviv / Central Delivery Station',
+          timestamp: new Date(now.getTime() - 3600000 * 3).toISOString(),
+          isCompleted: true
+        });
+      }
+
+      if (isDelivered) {
+        checkpoints.unshift({
+          id: `cp-fdx-4-${cleanTrack}`,
+          title: 'Delivered - Direct Signature Received',
+          titleHe: 'נמסר בהצלחה - נחתם ישירות ע״י הנמען',
+          description: 'Delivered to front door / recipient',
+          descriptionHe: 'החבילה נמסרה ונחתמה בכתובת המבוקשת',
+          location: 'Recipient Address',
+          timestamp: new Date(now.getTime() - 1200000).toISOString(),
+          isCompleted: true
+        });
+      }
+
+      return {
+        checkpoints: normalizeCheckpoints(checkpoints, cleanTrack),
+        status,
+        estimatedDelivery: new Date(now.getTime() + 86400000).toISOString().slice(0, 10)
+      };
+    }
+
+    case 'ups': {
+      const isDelivered = cleanTrack.includes('DEL') || charSum % 4 === 0;
+      const isOutForDelivery = !isDelivered && (charSum % 2 === 0);
+      const status = isDelivered ? 'delivered' : isOutForDelivery ? 'out_for_delivery' : 'in_transit';
+
+      const checkpoints = [
+        {
+          id: `cp-ups-1-${cleanTrack}`,
+          title: 'Origin Scan at UPS Worldport Facility',
+          titleHe: 'סריקת מוצא במרכז העולמי של UPS',
+          description: 'Export scan processed at UPS sorting air hub',
+          descriptionHe: 'החבילה עברה סריקת יצוא במרכז ההפצה האווירי',
+          location: 'UPS Air Worldport Hub, Cologne / Louisville',
+          timestamp: new Date(now.getTime() - 86400000 * 3).toISOString(),
+          isCompleted: true
+        },
+        {
+          id: `cp-ups-2-${cleanTrack}`,
+          title: 'Import Scan & Customs Process Complete',
+          titleHe: 'סריקת יבוא והשלמת הליך המכס',
+          description: 'Transferred to UPS Israel regional depot',
+          descriptionHe: 'החבילה הועברה למרכז ההפצה האזורי של UPS ישראל',
+          location: 'UPS Israel Hub, Lod',
+          timestamp: new Date(now.getTime() - 86400000).toISOString(),
+          isCompleted: true
+        }
+      ];
+
+      if (isOutForDelivery || isDelivered) {
+        checkpoints.unshift({
+          id: `cp-ups-3-${cleanTrack}`,
+          title: 'Out for Delivery Today by UPS Courier',
+          titleHe: 'יצא לחלוקה היום עם שליח UPS',
+          description: 'Scheduled for delivery by end of day',
+          descriptionHe: 'השליח יצא לביצוע מסירה בכתובתך',
+          location: 'Local UPS Delivery Route',
+          timestamp: new Date(now.getTime() - 3600000 * 2).toISOString(),
+          isCompleted: true
+        });
+      }
+
+      if (isDelivered) {
+        checkpoints.unshift({
+          id: `cp-ups-4-${cleanTrack}`,
+          title: 'Delivered',
+          titleHe: 'נמסר בהצלחה לנמען',
+          description: 'Delivered and confirmed in UPS tracking system',
+          descriptionHe: 'נמסר בהצלחה ונחתם ע״י המקבל',
+          location: 'Destination Address',
+          timestamp: new Date(now.getTime() - 900000).toISOString(),
+          isCompleted: true
+        });
+      }
+
+      return {
+        checkpoints: normalizeCheckpoints(checkpoints, cleanTrack),
+        status,
+        estimatedDelivery: new Date(now.getTime() + 86400000).toISOString().slice(0, 10)
+      };
+    }
+
+    case 'aramex': {
+      const isDelivered = cleanTrack.includes('DEL') || charSum % 4 === 0;
+      const isOutForDelivery = !isDelivered && (charSum % 2 === 0);
+      const status = isDelivered ? 'delivered' : isOutForDelivery ? 'out_for_delivery' : 'in_transit';
+
+      const checkpoints = [
+        {
+          id: `cp-arx-1-${cleanTrack}`,
+          title: 'Shipment Created at Aramex Gateway',
+          titleHe: 'המשלוח נוצר ונקלט ברשת אראמקס',
+          description: 'Departed Aramex Middle East / Global Distribution Center',
+          descriptionHe: 'יצא ממרכז ההפצה והשילוח האזורי של אראמקס',
+          location: 'Aramex International Hub Dubai / Amman',
+          timestamp: new Date(now.getTime() - 86400000 * 3).toISOString(),
+          isCompleted: true
+        },
+        {
+          id: `cp-arx-2-${cleanTrack}`,
+          title: 'Arrived at Local Gateway & Customs Inspection Complete',
+          titleHe: 'הגיע למרכז ההפצה המקומי ועבר מכס',
+          description: 'Sorted for regional express distribution route',
+          descriptionHe: 'עבר בדיקת שחרור מכס והועבר למוקד החלוקה',
+          location: 'Aramex Israel Gateway',
+          timestamp: new Date(now.getTime() - 86400000).toISOString(),
+          isCompleted: true
+        }
+      ];
+
+      if (isOutForDelivery || isDelivered) {
+        checkpoints.unshift({
+          id: `cp-arx-3-${cleanTrack}`,
+          title: 'Out for Delivery with Aramex Driver',
+          titleHe: 'נמסר לשליח אראמקס לחלוקה היום',
+          description: 'Courier en route to final destination address',
+          descriptionHe: 'השליח יצא לחלוקה בכתובת היעד',
+          location: 'Regional Route',
+          timestamp: new Date(now.getTime() - 3600000 * 3).toISOString(),
+          isCompleted: true
+        });
+      }
+
+      if (isDelivered) {
+        checkpoints.unshift({
+          id: `cp-arx-4-${cleanTrack}`,
+          title: 'Delivered - Received by Customer',
+          titleHe: 'נמסר בהצלחה לידי הלקוח',
+          description: 'Proof of delivery signed and recorded',
+          descriptionHe: 'אישור מסירה חתום נקלט במערכת',
+          location: 'Delivery Address',
+          timestamp: new Date(now.getTime() - 1500000).toISOString(),
+          isCompleted: true
+        });
+      }
+
+      return {
+        checkpoints: normalizeCheckpoints(checkpoints, cleanTrack),
+        status,
+        estimatedDelivery: new Date(now.getTime() + 86400000 * 2).toISOString().slice(0, 10)
       };
     }
 
@@ -336,11 +546,8 @@ export async function simulateCarrierTracking(trackingNumber, carrierId) {
     }
 
     case 'dhl':
-    case 'fedex':
-    case 'ups':
     case 'usps':
     case 'royal-mail':
-    case 'aramex':
     default: {
       const isDelivered = charSum % 4 === 0;
       const isOutForDelivery = !isDelivered && (charSum % 2 === 0);

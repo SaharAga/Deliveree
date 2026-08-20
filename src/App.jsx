@@ -15,6 +15,7 @@ import { AccountModal } from './components/AccountModal';
 import { AboutModal } from './components/AboutModal';
 import { FeedbackModal } from './components/FeedbackModal';
 import { AdminFeedbackModal } from './components/AdminFeedbackModal';
+import { ExportModal } from './components/ExportModal';
 import { DeleteConfirmDialog } from './components/DeleteConfirmDialog';
 
 import { Toast } from './components/Toast';
@@ -98,6 +99,7 @@ function DashboardContent() {
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [isAdminFeedbackOpen, setIsAdminFeedbackOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
   const [deletePackageId, setDeletePackageId] = useState(null);
 
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
@@ -423,6 +425,7 @@ function DashboardContent() {
         onOpenAbout={() => setIsAboutOpen(true)}
         onOpenFeedback={() => setIsFeedbackOpen(true)}
         onOpenAdminFeedback={() => setIsAdminFeedbackOpen(true)}
+        onOpenExport={() => setIsExportOpen(true)}
         onExportData={handleExportData}
         onImportData={handleImportData}
         onResetData={handleResetData}
@@ -697,6 +700,17 @@ function DashboardContent() {
           onClose={() => setIsAccountOpen(false)}
           packages={packages}
           onExportData={handleExportData}
+          onOpenExport={() => setIsExportOpen(true)}
+          onShowToast={showToast}
+        />
+      </ErrorBoundary>
+
+      {/* Dedicated Export Center Modal */}
+      <ErrorBoundary compact componentName="ExportModal" onReset={() => setIsExportOpen(false)}>
+        <ExportModal
+          isOpen={isExportOpen}
+          onClose={() => setIsExportOpen(false)}
+          packages={packages}
           onShowToast={showToast}
         />
       </ErrorBoundary>

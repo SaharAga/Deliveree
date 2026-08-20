@@ -1,4 +1,4 @@
-export const APP_VERSION = '0.3.1-alpha';
+export const APP_VERSION = '0.4.0-alpha';
 export const RELEASE_DATE = '2026-08-20';
 export const BUILD_CHANNEL = 'alpha';
 
