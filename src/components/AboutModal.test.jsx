@@ -4,7 +4,7 @@ import { APP_VERSION, RELEASE_DATE, BUILD_CHANNEL } from '../constants/version';
 
 describe('AboutModal Logic & Specifications', () => {
   it('exposes correct version constants and metadata', () => {
-    expect(APP_VERSION).toBe('0.5.0-alpha');
+    expect(APP_VERSION).toBe('0.6.0-alpha');
     expect(RELEASE_DATE).toBe('2026-08-20');
     expect(BUILD_CHANNEL).toBe('alpha');
   });

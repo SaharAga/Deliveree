@@ -16,6 +16,7 @@ import { AboutModal } from './components/AboutModal';
 import { FeedbackModal } from './components/FeedbackModal';
 import { AdminFeedbackModal } from './components/AdminFeedbackModal';
 import { ExportModal } from './components/ExportModal';
+import { LockerMapModal } from './components/LockerMapModal';
 import { DeleteConfirmDialog } from './components/DeleteConfirmDialog';
 
 import { Toast } from './components/Toast';
@@ -100,6 +101,7 @@ function DashboardContent() {
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [isAdminFeedbackOpen, setIsAdminFeedbackOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isLockerMapOpen, setIsLockerMapOpen] = useState(false);
   const [deletePackageId, setDeletePackageId] = useState(null);
 
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
@@ -491,6 +493,7 @@ function DashboardContent() {
         onOpenFeedback={() => setIsFeedbackOpen(true)}
         onOpenAdminFeedback={() => setIsAdminFeedbackOpen(true)}
         onOpenExport={() => setIsExportOpen(true)}
+        onOpenLockerMap={() => setIsLockerMapOpen(true)}
         onExportData={handleExportData}
         onImportData={handleImportData}
         onResetData={handleResetData}
@@ -733,6 +736,7 @@ function DashboardContent() {
           onClose={() => setSelectedDetailPackage(null)}
           onUpdatePackage={handleAddOrUpdatePackage}
           onRefreshTracking={handleRefreshSinglePackage}
+          onOpenLockerMap={() => setIsLockerMapOpen(true)}
           onShowToast={showToast}
         />
       </ErrorBoundary>
@@ -784,6 +788,14 @@ function DashboardContent() {
           onClose={() => setIsExportOpen(false)}
           packages={packages}
           onShowToast={showToast}
+        />
+      </ErrorBoundary>
+
+      {/* Interactive Locker & Pickup Point Modal */}
+      <ErrorBoundary compact componentName="LockerMapModal" onReset={() => setIsLockerMapOpen(false)}>
+        <LockerMapModal
+          isOpen={isLockerMapOpen}
+          onClose={() => setIsLockerMapOpen(false)}
         />
       </ErrorBoundary>
 

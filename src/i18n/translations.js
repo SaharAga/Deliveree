@@ -185,6 +185,17 @@ export const translations = {
       notifyOnCustoms: 'Notify on customs inspection / clearance',
       notifyOnException: 'Notify on delivery delay / exception',
       preferencesSaved: 'Notification preferences saved'
+    },
+    lockerMap: {
+      title: 'Pickup Points & Locker Locator',
+      subtitle: '1-Click Waze & Google Maps navigation, hours & details',
+      searchPlaceholder: 'Search locker name, branch, city or carrier...',
+      driveWithWaze: 'Drive with Waze',
+      googleMaps: 'Google Maps',
+      verifiedPickup: 'Verified Pickup Partner',
+      noLocationsFound: 'No pickup locations match your search',
+      openHours: 'Hours',
+      phone: 'Phone'
     }
   },
   he: {
@@ -373,6 +384,17 @@ export const translations = {
       notifyOnCustoms: 'התראה בעת הגעה למכס / שחרור',
       notifyOnException: 'התראה על עיכובים וחריגות במשלוח',
       preferencesSaved: 'הגדרות ההתראות נשמרו בהצלחה'
+    },
+    lockerMap: {
+      title: 'איתור נקודות איסוף ולוקרים',
+      subtitle: 'ניווט בלחיצה אחת עם Waze ו-Google Maps, שעות פעילות ופרטי לוקרים',
+      searchPlaceholder: 'חיפוש סניף, קניון, לוקר או עיר...',
+      driveWithWaze: 'נווט עם Waze',
+      googleMaps: 'Google Maps',
+      verifiedPickup: 'נקודת איסוף מאומתת',
+      noLocationsFound: 'לא נמצאו נקודות איסוף תואמות',
+      openHours: 'שעות פעילות',
+      phone: 'טלפון'
     }
   }
 };

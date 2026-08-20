@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   Package, Plus, Sparkles, Globe, Sun, Moon, Download, Upload, RotateCcw, 
   BarChart3, ChevronDown, Link2, Menu, X, LogIn, Info, MessageSquare, 
-  ClipboardCheck, Edit3
+  ClipboardCheck, Edit3, MapPin
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
@@ -20,6 +20,7 @@ export function Navbar({
   onOpenFeedback,
   onOpenAdminFeedback,
   onOpenExport,
+  onOpenLockerMap,
   onExportData,
   onImportData,
   onResetData,
@@ -113,6 +114,15 @@ export function Navbar({
               >
                 <Link2 className="w-4 h-4 text-blue-400" />
                 <span>{language === 'he' ? 'קליטה אוטומטית' : 'Auto Ingestion'}</span>
+              </button>
+
+              {/* Locker & Pickup Point Map */}
+              <button
+                onClick={onOpenLockerMap}
+                title={language === 'he' ? 'איתור נקודת איסוף ולוקרים' : 'Locker & Pickup Points'}
+                className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-blue-400 transition-colors cursor-pointer min-h-[48px] min-w-[48px] flex items-center justify-center"
+              >
+                <MapPin className="w-4 h-4" />
               </button>
 
               {/* Analytics Button */}
@@ -421,6 +431,7 @@ export function Navbar({
         onOpenAdminFeedback={onOpenAdminFeedback}
         onOpenAbout={onOpenAbout}
         onOpenExport={onOpenExport}
+        onOpenLockerMap={onOpenLockerMap}
         onResetData={onResetData}
       />
     </header>

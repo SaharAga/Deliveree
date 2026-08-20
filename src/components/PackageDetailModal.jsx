@@ -19,6 +19,7 @@ export function PackageDetailModal({
   onClose,
   onUpdatePackage,
   onRefreshTracking,
+  onOpenLockerMap,
   onShowToast
 }) {
   const { t, language } = useLanguage();
@@ -246,6 +247,17 @@ export function PackageDetailModal({
                 >
                   <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-emerald-400' : ''}`} />
                   <span>{t('card.refreshStatus')}</span>
+                </button>
+              )}
+
+              {onOpenLockerMap && (
+                <button
+                  onClick={onOpenLockerMap}
+                  className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-blue-400 text-xs font-bold transition-all border border-slate-700/80 min-h-[44px]"
+                  title={language === 'he' ? 'איתור נקודת איסוף ולוקרים' : 'Find Pickup Locker'}
+                >
+                  <MapPin className="w-4 h-4 text-rose-400" />
+                  <span>{language === 'he' ? 'לוקר / איסוף' : 'Locker'}</span>
                 </button>
               )}
 

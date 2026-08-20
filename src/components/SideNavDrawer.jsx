@@ -2,7 +2,7 @@ import React from 'react';
 import {
   Package, Sparkles, Link2, BarChart3, MessageSquare,
   ShieldCheck, Info, Download, RotateCcw, Sun, Moon,
-  User, X
+  User, X, MapPin
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
@@ -21,6 +21,7 @@ export function SideNavDrawer({
   onOpenAdminFeedback,
   onOpenAbout,
   onOpenExport,
+  onOpenLockerMap,
   onResetData
 }) {
   const { language, toggleLanguage, isRTL, t } = useLanguage();
@@ -135,6 +136,20 @@ export function SideNavDrawer({
                 <Download className="w-4 h-4 text-blue-400 shrink-0" />
                 <span className="font-semibold">{language === 'he' ? 'מרכז ייצוא ודוחות (CSV/JSON/PDF)' : 'Export Center (CSV/JSON/PDF)'}</span>
               </button>
+
+              {/* Locker Map */}
+              {onOpenLockerMap && (
+                <button
+                  onClick={() => {
+                    onClose();
+                    onOpenLockerMap();
+                  }}
+                  className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-800 text-slate-200 text-start cursor-pointer transition-colors min-h-[48px]"
+                >
+                  <MapPin className="w-4 h-4 text-rose-400 shrink-0" />
+                  <span className="font-semibold">{language === 'he' ? 'איתור נקודות איסוף ולוקרים' : 'Pickup Points & Lockers'}</span>
+                </button>
+              )}
             </>
           )}
 
