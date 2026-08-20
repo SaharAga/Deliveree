@@ -84,9 +84,14 @@ export function AuthModal({
         onClose();
       } else {
         // Dynamic local user session
+        const randId = Math.floor(1000 + Math.random() * 9000);
+        const derivedEmail = emailInput.trim() || `tester_${randId}@deliveree.app`;
+        const emailPrefix = derivedEmail.split('@')[0];
+        const derivedName = nameInput.trim() || (emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1));
+        
         await loginWithGoogle({
-          name: nameInput.trim() || emailInput.split('@')[0] || (language === 'he' ? 'משתמש Deliveree' : 'Deliveree User'),
-          email: emailInput.trim() || 'user@deliveree.app',
+          name: derivedName,
+          email: derivedEmail,
           avatar: null
         });
         if (onShowToast) onShowToast(language === 'he' ? 'התחברת לפרופיל אישי מקומי!' : 'Signed into local profile!', 'info');

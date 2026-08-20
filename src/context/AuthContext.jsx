@@ -222,13 +222,15 @@ export function AuthProvider({ children }) {
     setAuthError(null);
     if (!isFirebaseConfigured || !auth) {
       // Dynamic local user generation for demo / offline mode
-      const email = customProfile?.email || 'user@example.com';
-      const cleanPrefix = (email || '').split('@')[0].replace(/[^a-zA-Z0-9]/g, '') || 'user';
-      const cleanName = customProfile?.name?.trim() || cleanPrefix;
+      const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+      const email = customProfile?.email || `user_${randomSuffix}@deliveree.app`;
+      const emailPrefix = (email || '').split('@')[0] || `user_${randomSuffix}`;
+      const cleanPrefix = emailPrefix.replace(/[^a-zA-Z0-9]/g, '') || `user${randomSuffix}`;
+      const cleanName = customProfile?.name?.trim() || emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
       const avatar = customProfile?.avatar || null;
 
       const newUser = validateUserProfile({
-        id: `usr-google-${Date.now()}`,
+        id: `usr-google-${Date.now()}-${randomSuffix}`,
         name: cleanName,
         email: email,
         avatar: avatar,
@@ -266,14 +268,16 @@ export function AuthProvider({ children }) {
     isExplicitLogoutRef.current = false;
     setAuthError(null);
     if (!isFirebaseConfigured || !auth) {
-      const cleanPrefix = (email || '').split('@')[0].replace(/[^a-zA-Z0-9]/g, '') || 'user';
-      const cleanName = name.trim() || cleanPrefix;
+      const emailPrefix = (email || '').split('@')[0] || 'user';
+      const cleanPrefix = emailPrefix.replace(/[^a-zA-Z0-9]/g, '') || 'user';
+      const cleanName = name.trim() || (emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1));
+      const randomSuffix = Math.floor(100 + Math.random() * 900);
       const newUser = validateUserProfile({
-        id: `usr-email-${Date.now()}`,
+        id: `usr-email-${Date.now()}-${randomSuffix}`,
         name: cleanName,
         email: email,
         avatar: null,
-        ingestionEmail: `${cleanPrefix}.del${Math.floor(100 + Math.random() * 900)}@in.deliveree.app`,
+        ingestionEmail: `${cleanPrefix.toLowerCase()}.del${randomSuffix}@in.deliveree.app`,
         plan: 'Local Profile',
         devicesCount: 1,
         createdAt: new Date().toISOString()
@@ -297,14 +301,16 @@ export function AuthProvider({ children }) {
     isExplicitLogoutRef.current = false;
     setAuthError(null);
     if (!isFirebaseConfigured || !auth) {
-      const cleanPrefix = (email || '').split('@')[0].replace(/[^a-zA-Z0-9]/g, '') || 'user';
-      const cleanName = name.trim() || cleanPrefix;
+      const emailPrefix = (email || '').split('@')[0] || 'user';
+      const cleanPrefix = emailPrefix.replace(/[^a-zA-Z0-9]/g, '') || 'user';
+      const cleanName = name.trim() || (emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1));
+      const randomSuffix = Math.floor(100 + Math.random() * 900);
       const newUser = validateUserProfile({
-        id: `usr-email-${Date.now()}`,
+        id: `usr-email-${Date.now()}-${randomSuffix}`,
         name: cleanName,
         email: email,
         avatar: null,
-        ingestionEmail: `${cleanPrefix}.del${Math.floor(100 + Math.random() * 900)}@in.deliveree.app`,
+        ingestionEmail: `${cleanPrefix.toLowerCase()}.del${randomSuffix}@in.deliveree.app`,
         plan: 'Local Profile',
         devicesCount: 1,
         createdAt: new Date().toISOString()

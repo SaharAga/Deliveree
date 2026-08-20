@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
+  maskEmail,
   validateAndSanitizeFeedback,
   submitFeedback,
   getOfflineFeedbackCount,
@@ -30,6 +31,19 @@ describe('FeedbackService Unit & Resilience Test Suite', () => {
     vi.restoreAllMocks();
   });
 
+  describe('maskEmail Utility', () => {
+    it('masks emails properly across varying string lengths and domains', () => {
+      expect(maskEmail('sahar@gmail.com')).toBe('s***r@gmail.com');
+      expect(maskEmail('john.doe@company.org')).toBe('j***e@company.org');
+      expect(maskEmail('a@domain.com')).toBe('*@domain.com');
+      expect(maskEmail('ab@domain.com')).toBe('a*@domain.com');
+      expect(maskEmail('abc@domain.com')).toBe('a*c@domain.com');
+      expect(maskEmail('')).toBe('');
+      expect(maskEmail(null)).toBe('');
+      expect(maskEmail('invalid-email')).toBe('***');
+    });
+  });
+
   describe('validateAndSanitizeFeedback', () => {
     it('throws error for invalid input types or empty message', () => {
       expect(() => validateAndSanitizeFeedback(null)).toThrow();
@@ -53,6 +67,21 @@ describe('FeedbackService Unit & Resilience Test Suite', () => {
       expect(result.user.name).toBe('Sahar');
       expect(result.type).toBe('bug');
       expect(result.rating).toBe(4);
+      expect(result.isAnonymous).toBe(false);
+    });
+
+    it('handles anonymous feedback correctly by setting user to Anonymous Tester', () => {
+      const anonymousPayload = {
+        type: 'feature',
+        message: 'Private suggestions without sharing email',
+        rating: 5,
+        isAnonymous: true,
+        user: { name: 'Secret User', email: 'secret@domain.com' }
+      };
+
+      const result = validateAndSanitizeFeedback(anonymousPayload);
+      expect(result.isAnonymous).toBe(true);
+      expect(result.user).toBe('Anonymous Tester');
     });
 
     it('clamps ratings between 1 and 5 and defaults valid feedback category', () => {

@@ -27,6 +27,31 @@ const MAX_LOCAL_HISTORY_ITEMS = 50;
  */
 
 /**
+ * Masks an email address for privacy and PII protection (e.g., s***@gmail.com or j***n@domain.com).
+ * @param {string} email
+ * @returns {string}
+ */
+export function maskEmail(email) {
+  if (!email || typeof email !== 'string') return '';
+  const trimmed = email.trim();
+  const parts = trimmed.split('@');
+  if (parts.length !== 2) return '***';
+  
+  const [local, domain] = parts;
+  if (!local || !domain) return '***';
+
+  if (local.length <= 1) {
+    return `*@${domain}`;
+  } else if (local.length === 2) {
+    return `${local[0]}*@${domain}`;
+  } else if (local.length === 3) {
+    return `${local[0]}*${local[2]}@${domain}`;
+  } else {
+    return `${local[0]}***${local[local.length - 1]}@${domain}`;
+  }
+}
+
+/**
  * Validates and normalizes raw feedback input according to ASVS Level 3 rules.
  * 
  * @param {any} input
@@ -49,15 +74,19 @@ export function validateAndSanitizeFeedback(input) {
   const rawRating = Number(input.rating);
   const rating = (!Number.isNaN(rawRating) && rawRating >= 1 && rawRating <= 5) ? Math.round(rawRating) : 5;
 
+  const isAnonymous = Boolean(input.isAnonymous);
+
   let user = 'Anonymous Tester';
-  if (input.user && typeof input.user === 'object' && !Array.isArray(input.user)) {
-    user = {
-      id: input.user.id ? sanitizeString(input.user.id, 128) : undefined,
-      name: input.user.name ? sanitizeString(input.user.name, 100) : 'Anonymous',
-      email: input.user.email ? sanitizeString(input.user.email, 150) : undefined
-    };
-  } else if (typeof input.user === 'string' && input.user.trim()) {
-    user = sanitizeString(input.user, 100);
+  if (!isAnonymous) {
+    if (input.user && typeof input.user === 'object' && !Array.isArray(input.user)) {
+      user = {
+        id: input.user.id ? sanitizeString(input.user.id, 128) : undefined,
+        name: input.user.name ? sanitizeString(input.user.name, 100) : 'Anonymous',
+        email: input.user.email ? sanitizeString(input.user.email, 150) : undefined
+      };
+    } else if (typeof input.user === 'string' && input.user.trim()) {
+      user = sanitizeString(input.user, 100);
+    }
   }
 
   const id = input.id && typeof input.id === 'string'
@@ -94,6 +123,7 @@ export function validateAndSanitizeFeedback(input) {
     type,
     message,
     rating,
+    isAnonymous,
     appVersion,
     buildChannel,
     user,

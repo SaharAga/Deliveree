@@ -12,6 +12,8 @@ export const TELEGRAM_FEEDBACK_CHAT_ID = (typeof process !== 'undefined' && proc
   || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TELEGRAM_FEEDBACK_CHAT_ID)
   || '726522010';
 
+import { maskEmail } from '../services/feedbackService';
+
 /**
  * Dispatches an HTML formatted feedback payload directly to Telegram Bot API if a token is configured.
  * Otherwise gracefully returns false without error, delegating relay to server/daemon.
@@ -32,15 +34,24 @@ export async function sendTelegramFeedbackRelay(feedback) {
   try {
     const typeEmoji = feedback.type === 'bug' ? '🚨' : feedback.type === 'feature' ? '💡' : '❤️';
     const ratingStars = '⭐'.repeat(Math.max(1, Math.min(5, Number(feedback.rating) || 5)));
-    const userName = typeof feedback.user === 'object' && feedback.user !== null ? (feedback.user.name || 'Anonymous') : (feedback.user || 'Anonymous Tester');
-    const userEmail = typeof feedback.user === 'object' && feedback.user !== null && feedback.user.email ? ` (${feedback.user.email})` : '';
+    
+    let userDisplay = 'Anonymous Tester (Private)';
+    if (!feedback.isAnonymous && feedback.user) {
+      if (typeof feedback.user === 'object' && feedback.user !== null) {
+        const userName = feedback.user.name || 'Anonymous';
+        const maskedEmail = feedback.user.email ? ` (${maskEmail(feedback.user.email)})` : '';
+        userDisplay = `${userName}${maskedEmail}`;
+      } else if (typeof feedback.user === 'string' && feedback.user.trim()) {
+        userDisplay = feedback.user;
+      }
+    }
 
     const text = [
       `<b>${typeEmoji} New Alpha Tester Feedback</b>`,
       `━━━━━━━━━━━━━━━━━━`,
       `<b>⭐ Rating:</b> ${ratingStars} (${feedback.rating || 5}/5)`,
       `<b>🏷️ Category:</b> ${feedback.type || 'general'}`,
-      `<b>👤 User:</b> ${userName}${userEmail}`,
+      `<b>👤 User:</b> ${userDisplay}`,
       `<b>📱 Device:</b> ${feedback.screenWidth}x${feedback.screenHeight}`,
       `<b>📦 App Version:</b> v${feedback.appVersion || '0.2.0-alpha'} (${feedback.buildChannel || 'alpha'})`,
       `━━━━━━━━━━━━━━━━━━`,
