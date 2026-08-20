@@ -11,6 +11,7 @@ import { APP_VERSION } from '../constants/version';
 
 export function SideNavDrawer({
   isOpen,
+  isDemoMode,
   onClose,
   onOpenAuth,
   onOpenSmartImport,
@@ -85,53 +86,57 @@ export function SideNavDrawer({
             </div>
           </button>
 
-          {/* Smart Clipboard Ingestion */}
-          <button
-            onClick={() => {
-              onClose();
-              onOpenSmartImport();
-            }}
-            className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-800 text-slate-200 text-start cursor-pointer transition-colors min-h-[48px]"
-          >
-            <Sparkles className="w-4 h-4 text-indigo-400 shrink-0" />
-            <span className="font-semibold">{t('smartPaste')}</span>
-          </button>
+          {(user || isDemoMode) && (
+            <>
+              {/* Smart Clipboard Ingestion */}
+              <button
+                onClick={() => {
+                  onClose();
+                  onOpenSmartImport();
+                }}
+                className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-800 text-slate-200 text-start cursor-pointer transition-colors min-h-[48px]"
+              >
+                <Sparkles className="w-4 h-4 text-indigo-400 shrink-0" />
+                <span className="font-semibold">{t('smartPaste')}</span>
+              </button>
 
-          {/* Ingestion Guide */}
-          <button
-            onClick={() => {
-              onClose();
-              onOpenConnectModal();
-            }}
-            className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-800 text-slate-200 text-start cursor-pointer transition-colors min-h-[48px]"
-          >
-            <Link2 className="w-4 h-4 text-blue-400 shrink-0" />
-            <span className="font-semibold">{language === 'he' ? 'מדריך קליטה אוטומטית' : 'Automatic Ingestion Guide'}</span>
-          </button>
+              {/* Ingestion Guide */}
+              <button
+                onClick={() => {
+                  onClose();
+                  onOpenConnectModal();
+                }}
+                className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-800 text-slate-200 text-start cursor-pointer transition-colors min-h-[48px]"
+              >
+                <Link2 className="w-4 h-4 text-blue-400 shrink-0" />
+                <span className="font-semibold">{language === 'he' ? 'מדריך קליטה אוטומטית' : 'Automatic Ingestion Guide'}</span>
+              </button>
 
-          {/* Insights */}
-          <button
-            onClick={() => {
-              onClose();
-              onOpenAnalytics();
-            }}
-            className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-800 text-slate-200 text-start cursor-pointer transition-colors min-h-[48px]"
-          >
-            <BarChart3 className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span className="font-semibold">{t('insights.title')}</span>
-          </button>
+              {/* Insights */}
+              <button
+                onClick={() => {
+                  onClose();
+                  onOpenAnalytics();
+                }}
+                className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-800 text-slate-200 text-start cursor-pointer transition-colors min-h-[48px]"
+              >
+                <BarChart3 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span className="font-semibold">{t('insights.title')}</span>
+              </button>
 
-          {/* Export Center */}
-          <button
-            onClick={() => {
-              onClose();
-              if (onOpenExport) onOpenExport();
-            }}
-            className="w-full flex items-center gap-3 p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 text-blue-300 text-start cursor-pointer transition-colors min-h-[48px]"
-          >
-            <Download className="w-4 h-4 text-blue-400 shrink-0" />
-            <span className="font-semibold">{language === 'he' ? 'מרכז ייצוא ודוחות (CSV/JSON/PDF)' : 'Export Center (CSV/JSON/PDF)'}</span>
-          </button>
+              {/* Export Center */}
+              <button
+                onClick={() => {
+                  onClose();
+                  if (onOpenExport) onOpenExport();
+                }}
+                className="w-full flex items-center gap-3 p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 text-blue-300 text-start cursor-pointer transition-colors min-h-[48px]"
+              >
+                <Download className="w-4 h-4 text-blue-400 shrink-0" />
+                <span className="font-semibold">{language === 'he' ? 'מרכז ייצוא ודוחות (CSV/JSON/PDF)' : 'Export Center (CSV/JSON/PDF)'}</span>
+              </button>
+            </>
+          )}
 
           {/* Alpha Feedback */}
           <button
@@ -171,19 +176,21 @@ export function SideNavDrawer({
             <span className="font-semibold">{language === 'he' ? 'אודות ופרטי מערכת' : 'About & System Info'}</span>
           </button>
 
-          {/* Reset / Clear Data */}
-          <div className="pt-2 border-t border-slate-800 space-y-1">
-            <button
-              onClick={() => {
-                onClose();
-                onResetData();
-              }}
-              className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-rose-500/10 text-rose-400 text-start cursor-pointer transition-colors min-h-[48px]"
-            >
-              <RotateCcw className="w-4 h-4 text-rose-400 shrink-0" />
-              <span className="font-semibold">{t('backup.clearAllDeliveries')}</span>
-            </button>
-          </div>
+          {(user || isDemoMode) && (
+            /* Reset / Clear Data */
+            <div className="pt-2 border-t border-slate-800 space-y-1">
+              <button
+                onClick={() => {
+                  onClose();
+                  onResetData();
+                }}
+                className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-rose-500/10 text-rose-400 text-start cursor-pointer transition-colors min-h-[48px]"
+              >
+                <RotateCcw className="w-4 h-4 text-rose-400 shrink-0" />
+                <span className="font-semibold">{t('backup.clearAllDeliveries')}</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Drawer Footer with Theme Toggle & Sign Out */}

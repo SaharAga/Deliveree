@@ -103,24 +103,28 @@ export function Navbar({
 
         {/* Desktop Toolbar (Hidden on Mobile) */}
         <div className="hidden lg:flex items-center gap-2 sm:gap-2.5">
-          {/* 1-Click Ingestion Guide */}
-          <button
-            onClick={onOpenConnectModal}
-            title={language === 'he' ? 'מדריך קליטת חבילות אוטומטית' : 'Automatic Ingestion Guide'}
-            className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-blue-400 transition-colors flex items-center gap-1.5 text-xs font-semibold cursor-pointer min-h-[48px]"
-          >
-            <Link2 className="w-4 h-4 text-blue-400" />
-            <span>{language === 'he' ? 'קליטה אוטומטית' : 'Auto Ingestion'}</span>
-          </button>
+          {(user || isDemoMode) && (
+            <>
+              {/* 1-Click Ingestion Guide */}
+              <button
+                onClick={onOpenConnectModal}
+                title={language === 'he' ? 'מדריך קליטת חבילות אוטומטית' : 'Automatic Ingestion Guide'}
+                className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-blue-400 transition-colors flex items-center gap-1.5 text-xs font-semibold cursor-pointer min-h-[48px]"
+              >
+                <Link2 className="w-4 h-4 text-blue-400" />
+                <span>{language === 'he' ? 'קליטה אוטומטית' : 'Auto Ingestion'}</span>
+              </button>
 
-          {/* Analytics Button */}
-          <button
-            onClick={onOpenAnalytics}
-            title={t('insights.title')}
-            className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer min-h-[48px] min-w-[48px] flex items-center justify-center"
-          >
-            <BarChart3 className="w-4 h-4" />
-          </button>
+              {/* Analytics Button */}
+              <button
+                onClick={onOpenAnalytics}
+                title={t('insights.title')}
+                className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer min-h-[48px] min-w-[48px] flex items-center justify-center"
+              >
+                <BarChart3 className="w-4 h-4" />
+              </button>
+            </>
+          )}
 
           {/* Feedback Button */}
           <button
@@ -131,18 +135,22 @@ export function Navbar({
             <MessageSquare className="w-4 h-4" />
           </button>
 
-          {/* Export Center Button */}
-          <button
-            onClick={() => {
-              if (onOpenExport) onOpenExport();
-              else if (onExportData) onExportData();
-            }}
-            title={language === 'he' ? 'מרכז ייצוא ודוחות' : 'Export Center & Reports'}
-            className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-blue-400 transition-colors flex items-center gap-1.5 text-xs font-semibold cursor-pointer min-h-[48px]"
-          >
-            <Download className="w-4 h-4 text-blue-400" />
-            <span>{language === 'he' ? 'ייצוא' : 'Export'}</span>
-          </button>
+          {(user || isDemoMode) && (
+            <>
+              {/* Export Center Button */}
+              <button
+                onClick={() => {
+                  if (onOpenExport) onOpenExport();
+                  else if (onExportData) onExportData();
+                }}
+                title={language === 'he' ? 'מרכז ייצוא ודוחות' : 'Export Center & Reports'}
+                className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-blue-400 transition-colors flex items-center gap-1.5 text-xs font-semibold cursor-pointer min-h-[48px]"
+              >
+                <Download className="w-4 h-4 text-blue-400" />
+                <span>{language === 'he' ? 'ייצוא' : 'Export'}</span>
+              </button>
+            </>
+          )}
 
           {/* Info / About Button */}
           <button
@@ -154,76 +162,78 @@ export function Navbar({
             <Info className="w-4 h-4" />
           </button>
 
-          {/* Backup / Data Management Menu */}
-          <div className="relative">
-            <button
-              onClick={() => setBackupMenuOpen(!backupMenuOpen)}
-              className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-1 cursor-pointer min-h-[48px]"
-              title="Data & Backup"
-            >
-              <Download className="w-4 h-4" />
-              <ChevronDown className="w-3 h-3 text-slate-500" />
-            </button>
+          {(user || isDemoMode) && (
+            /* Backup / Data Management Menu */
+            <div className="relative">
+              <button
+                onClick={() => setBackupMenuOpen(!backupMenuOpen)}
+                className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-1 cursor-pointer min-h-[48px]"
+                title="Data & Backup"
+              >
+                <Download className="w-4 h-4" />
+                <ChevronDown className="w-3 h-3 text-slate-500" />
+              </button>
 
-            {backupMenuOpen && (
-              <>
-                <div className="fixed inset-0 z-30" onClick={() => setBackupMenuOpen(false)} />
-                <div className={`absolute z-40 top-full mt-2 w-48 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl py-1.5 backdrop-blur-2xl text-xs ${isRTL ? 'left-0' : 'right-0'}`}>
-                  <button
-                    onClick={() => {
-                      setBackupMenuOpen(false);
-                      if (onOpenExport) onOpenExport();
-                      else onExportData();
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer min-h-[44px]"
-                  >
-                    <Download className="w-4 h-4 text-blue-400" />
-                    <span>{t('backup.exportData')}</span>
-                  </button>
-
-                  <label className="w-full flex items-center gap-2.5 px-3.5 py-2 text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer min-h-[44px]">
-                    <Upload className="w-4 h-4 text-emerald-400" />
-                    <span>{t('backup.importData')}</span>
-                    <input
-                      type="file"
-                      accept=".json"
-                      onChange={(e) => {
-                        setBackupMenuOpen(false);
-                        handleFileInput(e);
-                      }}
-                      className="hidden"
-                    />
-                  </label>
-
-                  <div className="my-1 border-t border-slate-800" />
-
-                  {isDemoMode ? (
+              {backupMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setBackupMenuOpen(false)} />
+                  <div className={`absolute z-40 top-full mt-2 w-48 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl py-1.5 backdrop-blur-2xl text-xs ${isRTL ? 'left-0' : 'right-0'}`}>
                     <button
                       onClick={() => {
                         setBackupMenuOpen(false);
-                        onResetData();
+                        if (onOpenExport) onOpenExport();
+                        else onExportData();
                       }}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 cursor-pointer min-h-[44px]"
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer min-h-[44px]"
                     >
-                      <RotateCcw className="w-4 h-4 text-amber-400" />
-                      <span>{t('backup.resetData')}</span>
+                      <Download className="w-4 h-4 text-blue-400" />
+                      <span>{t('backup.exportData')}</span>
                     </button>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        setBackupMenuOpen(false);
-                        onResetData();
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 cursor-pointer min-h-[44px]"
-                    >
-                      <RotateCcw className="w-4 h-4 text-rose-400" />
-                      <span>{t('backup.clearAllDeliveries')}</span>
-                    </button>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
+
+                    <label className="w-full flex items-center gap-2.5 px-3.5 py-2 text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer min-h-[44px]">
+                      <Upload className="w-4 h-4 text-emerald-400" />
+                      <span>{t('backup.importData')}</span>
+                      <input
+                        type="file"
+                        accept=".json"
+                        onChange={(e) => {
+                          setBackupMenuOpen(false);
+                          handleFileInput(e);
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+
+                    <div className="my-1 border-t border-slate-800" />
+
+                    {isDemoMode ? (
+                      <button
+                        onClick={() => {
+                          setBackupMenuOpen(false);
+                          onResetData();
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 cursor-pointer min-h-[44px]"
+                      >
+                        <RotateCcw className="w-4 h-4 text-amber-400" />
+                        <span>{t('backup.resetData')}</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setBackupMenuOpen(false);
+                          onResetData();
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 cursor-pointer min-h-[44px]"
+                      >
+                        <RotateCcw className="w-4 h-4 text-rose-400" />
+                        <span>{t('backup.clearAllDeliveries')}</span>
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
           <div className="h-4 w-px bg-slate-800 mx-1" />
 
@@ -266,24 +276,28 @@ export function Navbar({
             )}
           </button>
 
-          {/* Smart Paste (SMS/Email Auto Detection) */}
-          <button
-            onClick={onOpenSmartImport}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600/20 to-indigo-600/20 hover:from-blue-600/30 hover:to-indigo-600/30 border border-blue-500/30 text-blue-300 text-xs font-bold transition-all shadow-sm cursor-pointer min-h-[48px]"
-            title={t('smartPaste')}
-          >
-            <Sparkles className="w-3.5 h-3.5 text-blue-400 animate-pulse" />
-            <span>{t('smartPaste')}</span>
-          </button>
+          {(user || isDemoMode) && (
+            <>
+              {/* Smart Paste (SMS/Email Auto Detection) */}
+              <button
+                onClick={onOpenSmartImport}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600/20 to-indigo-600/20 hover:from-blue-600/30 hover:to-indigo-600/30 border border-blue-500/30 text-blue-300 text-xs font-bold transition-all shadow-sm cursor-pointer min-h-[48px]"
+                title={t('smartPaste')}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-blue-400 animate-pulse" />
+                <span>{t('smartPaste')}</span>
+              </button>
 
-          {/* Primary Add Package Modal Trigger */}
-          <button
-            onClick={onOpenAddModal}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer min-h-[48px]"
-          >
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span>{t('addPackage')}</span>
-          </button>
+              {/* Primary Add Package Modal Trigger */}
+              <button
+                onClick={onOpenAddModal}
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer min-h-[48px]"
+              >
+                <Plus className="w-4 h-4 stroke-[3]" />
+                <span>{t('addPackage')}</span>
+              </button>
+            </>
+          )}
         </div>
 
         {/* Mobile / Tablet Compact Action Bar */}
@@ -306,15 +320,17 @@ export function Navbar({
             )}
           </button>
 
-          {/* Primary Mobile Smart '+' Action Trigger */}
-          <button
-            onClick={() => setIsAddActionSheetOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-500/25 cursor-pointer min-h-[48px]"
-            title={language === 'he' ? 'הוספת חבילה / הדבקה מהירה' : 'Add Shipment / Quick Paste'}
-          >
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span className="hidden sm:inline">{t('addPackage')}</span>
-          </button>
+          {(user || isDemoMode) && (
+            /* Primary Mobile Smart '+' Action Trigger */
+            <button
+              onClick={() => setIsAddActionSheetOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-500/25 cursor-pointer min-h-[48px]"
+              title={language === 'he' ? 'הוספת חבילה / הדבקה מהירה' : 'Add Shipment / Quick Paste'}
+            >
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span className="hidden sm:inline">{t('addPackage')}</span>
+            </button>
+          )}
 
           {/* Mobile Side Drawer Toggle */}
           <button
@@ -395,6 +411,7 @@ export function Navbar({
       {/* NATIVE SIDE NAVIGATION DRAWER (RTL Right / LTR Left) */}
       <SideNavDrawer
         isOpen={isSideDrawerOpen}
+        isDemoMode={isDemoMode}
         onClose={() => setIsSideDrawerOpen(false)}
         onOpenAuth={onOpenAuth}
         onOpenSmartImport={onOpenSmartImport}

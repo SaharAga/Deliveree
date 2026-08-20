@@ -1,4 +1,4 @@
-const CACHE_NAME = 'deliveree-cache-v0.4.0-alpha';
+const CACHE_NAME = 'deliveree-cache-v0.4.1-alpha';
 
 const PRECACHE_ASSETS = [
   '/',
