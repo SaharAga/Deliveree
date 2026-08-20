@@ -7,14 +7,70 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged
 } from 'firebase/auth';
-import { auth, googleProvider, isFirebaseConfigured } from '../services/firebase';
+import { auth, googleProvider, isFirebaseConfigured, db } from '../services/firebase';
 import { cloudAdapter } from '../services/cloudStorageAdapter';
+import { deliveryService } from '../services/deliveryService';
 import { sanitizeString } from '../utils/packageValidator';
 
 const AuthContext = createContext();
 
 const STORAGE_AUTH_KEY = 'deliveree_auth_user_v1';
 const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+/**
+ * Migrates isolated guest packages (deliveree_packages_guest) to an authenticated user's
+ * permanent storage partition (deliveree_packages_${targetUserId}) and cloud Firestore.
+ * Performs union by trackingNumber and id to guarantee zero duplicate creation.
+ *
+ * @param {string} targetUserId - Target authenticated user ID
+ * @returns {Promise<Array<object>>} Merged package list
+ */
+export async function migrateGuestDataToUser(targetUserId) {
+  if (!targetUserId || typeof targetUserId !== 'string') return [];
+  try {
+    const guestStored = localStorage.getItem('deliveree_packages_guest');
+    if (!guestStored) return [];
+
+    const guestPackages = deliveryService.getPackages(null);
+    if (!Array.isArray(guestPackages) || guestPackages.length === 0) {
+      localStorage.removeItem('deliveree_packages_guest');
+      return [];
+    }
+
+    const userPackages = deliveryService.getPackages(targetUserId) || [];
+    const existingTracking = new Set(userPackages.map((p) => p.trackingNumber).filter(Boolean));
+    const existingIds = new Set(userPackages.map((p) => p.id).filter(Boolean));
+
+    const packagesToAdd = [];
+    for (const gPkg of guestPackages) {
+      if (!gPkg) continue;
+      const isDuplicate =
+        (gPkg.trackingNumber && existingTracking.has(gPkg.trackingNumber)) ||
+        (gPkg.id && existingIds.has(gPkg.id));
+      if (!isDuplicate) {
+        packagesToAdd.push({
+          ...gPkg,
+          userId: targetUserId
+        });
+        if (gPkg.trackingNumber) existingTracking.add(gPkg.trackingNumber);
+        if (gPkg.id) existingIds.add(gPkg.id);
+      }
+    }
+
+    const merged = [...packagesToAdd, ...userPackages];
+    deliveryService.savePackages(merged, targetUserId);
+
+    if (cloudAdapter.isFirestoreActive?.()) {
+      await cloudAdapter.savePackages(merged);
+    }
+
+    localStorage.removeItem('deliveree_packages_guest');
+    return merged;
+  } catch (err) {
+    console.warn('[AuthContext] Guest data migration error:', err);
+    return [];
+  }
+}
 
 /**
  * Sanitizes authentication errors to prevent raw error code / stack leakage (CWE-209).
@@ -47,10 +103,22 @@ export function sanitizeAuthError(err) {
       return 'This sign-in method is currently disabled.';
     default: {
       const rawMessage = typeof err === 'object' && err !== null && err.message ? String(err.message) : String(err);
+      if (/network-request-failed/i.test(rawMessage)) {
+        return 'Network connection failed. Please check your internet connection.';
+      }
+      if (/user-not-found|wrong-password|invalid-credential/i.test(rawMessage)) {
+        return 'Invalid email or password. Please check your credentials and try again.';
+      }
+      if (/too-many-requests/i.test(rawMessage)) {
+        return 'Too many unsuccessful attempts. Access temporarily disabled. Try again later.';
+      }
       const clean = sanitizeString(rawMessage, 200)
         .replace(/auth\/[a-z0-9-]+/gi, '')
         .replace(/Firebase:\s*/gi, '')
         .replace(/\(Error\s*[^)]*\)/gi, '')
+        .replace(/\bat\s+(?:line\s+)?\d+.*$/gim, '')
+        .replace(/\bat\s+[^()\n]+\([^)]+\)/gi, '')
+        .replace(/\bline\s+\d+(?::\d+)?/gi, '')
         .trim();
       return clean || 'Authentication failed. Please try again.';
     }
@@ -170,7 +238,7 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         const cleanUser = validateUserProfile({
           id: firebaseUser.uid,
@@ -182,6 +250,7 @@ export function AuthProvider({ children }) {
           devicesCount: 1,
           createdAt: firebaseUser.metadata?.creationTime || new Date().toISOString()
         });
+        await migrateGuestDataToUser(firebaseUser.uid);
         setUser(cleanUser);
       } else {
         // Only wipe user if an explicit logout action was initiated.
@@ -239,13 +308,17 @@ export function AuthProvider({ children }) {
         devicesCount: 1,
         createdAt: new Date().toISOString()
       });
+      await migrateGuestDataToUser(newUser.id);
       setUser(newUser);
       triggerCloudSync();
       return;
     }
 
     try {
-      await signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+      if (result?.user?.uid) {
+        await migrateGuestDataToUser(result.user.uid);
+      }
       triggerCloudSync();
     } catch (err) {
       if (err.code === 'auth/popup-blocked' || err.code === 'auth/popup-closed-by-user') {
@@ -282,13 +355,17 @@ export function AuthProvider({ children }) {
         devicesCount: 1,
         createdAt: new Date().toISOString()
       });
+      await migrateGuestDataToUser(newUser.id);
       setUser(newUser);
       triggerCloudSync();
       return;
     }
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      if (result?.user?.uid) {
+        await migrateGuestDataToUser(result.user.uid);
+      }
       triggerCloudSync();
     } catch (err) {
       const cleanErr = sanitizeAuthError(err);
@@ -315,13 +392,17 @@ export function AuthProvider({ children }) {
         devicesCount: 1,
         createdAt: new Date().toISOString()
       });
+      await migrateGuestDataToUser(newUser.id);
       setUser(newUser);
       triggerCloudSync();
       return;
     }
 
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      if (result?.user?.uid) {
+        await migrateGuestDataToUser(result.user.uid);
+      }
       triggerCloudSync();
     } catch (err) {
       const cleanErr = sanitizeAuthError(err);
@@ -417,13 +498,17 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  const isGuestMode = !user;
+
   const contextValue = useMemo(() => ({
     user,
+    isGuestMode,
     loading,
     authError,
     loginWithGoogle,
     loginWithEmail,
     registerWithEmail,
+    migrateGuestDataToUser,
     updateUserPreferences,
     deleteUserAccountAndData,
     logout,
@@ -432,6 +517,7 @@ export function AuthProvider({ children }) {
     triggerCloudSync
   }), [
     user,
+    isGuestMode,
     loading,
     authError,
     loginWithGoogle,

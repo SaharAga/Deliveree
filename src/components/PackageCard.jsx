@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { CARRIERS } from '../types/carriers';
+import { detectStore } from '../utils/storeDetector';
 import { copyToClipboard } from '../utils/clipboard';
 import { CATEGORIES } from '../types/stages';
 import { QuickTimeline } from './QuickTimeline';
@@ -37,6 +38,7 @@ export function PackageCard({
   const hapticTriggeredRef = useRef(false);
 
   const carrier = CARRIERS[pkg.carrier] || CARRIERS['other'];
+  const store = detectStore(pkg);
   const category = CATEGORIES.find(c => c.id === pkg.category) || CATEGORIES[CATEGORIES.length - 1];
   const daysInfo = getDaysRemaining(pkg.expectedDeliveryDate, language);
 
@@ -184,7 +186,14 @@ export function PackageCard({
       {/* Top Header: Carrier Badge, Category, Pin, Menu */}
       <div>
         <div className="flex items-center justify-between gap-2 mb-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {/* Store Pill (if detected) */}
+            {store && (
+              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold border shadow-xs ${store.badgeBg} ${store.borderColor} ${store.textColor}`}>
+                <span>{language === 'he' ? store.hebrewName : store.name}</span>
+              </span>
+            )}
+
             {/* Carrier Pill */}
             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold border shadow-xs ${carrier.badgeBg}`}>
               <span className="w-2 h-2 rounded-full bg-current" />

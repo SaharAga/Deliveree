@@ -1,24 +1,7 @@
 import { detectCarrier } from './carrierDetector';
+import { detectStore } from './storeDetector';
 import { CARRIERS } from '../types/carriers';
 import { sanitizeString } from './packageValidator';
-
-/**
- * Common online store and merchant signatures
- */
-const MERCHANT_PATTERNS = [
-  { name: 'AliExpress', regex: /aliexpress/i, defaultCategory: 'clothing' },
-  { name: 'Amazon', regex: /amazon/i, defaultCategory: 'electronics' },
-  { name: 'eBay', regex: /ebay/i, defaultCategory: 'other' },
-  { name: 'ASOS', regex: /asos/i, defaultCategory: 'clothing' },
-  { name: 'SHEIN', regex: /shein/i, defaultCategory: 'clothing' },
-  { name: 'iHerb', regex: /iherb/i, defaultCategory: 'other' },
-  { name: 'Zara', regex: /zara/i, defaultCategory: 'clothing' },
-  { name: 'Next', regex: /\bnext\b/i, defaultCategory: 'clothing' },
-  { name: 'KSP', regex: /\bksp\b|קיי\.?אס\.?פי/i, defaultCategory: 'electronics' },
-  { name: 'Ivory', regex: /ivory|אייבורי/i, defaultCategory: 'electronics' },
-  { name: 'Super-Pharm', regex: /super-?pharm|סופר-?פארם/i, defaultCategory: 'other' },
-  { name: 'Terminal X', regex: /terminal\s*x|טרמינל\s*איקס/i, defaultCategory: 'clothing' }
-];
 
 /**
  * Extracts potential tracking numbers from unstructured text.
@@ -97,13 +80,20 @@ export function parseSmartText(rawText) {
   }
 
   // Detect merchant / store
+  const storeInfo = detectStore(cleanText);
   let detectedStore = '';
+  let detectedStoreHe = '';
   let category = 'other';
-  for (const m of MERCHANT_PATTERNS) {
-    if (m.regex.test(cleanText)) {
-      detectedStore = m.name;
-      category = m.defaultCategory;
-      break;
+
+  if (storeInfo) {
+    detectedStore = storeInfo.name;
+    detectedStoreHe = storeInfo.hebrewName;
+    if (['shein', 'asos', 'zara', 'next', 'terminalx'].includes(storeInfo.id)) {
+      category = 'clothing';
+    } else if (['amazon', 'ksp', 'ivory', 'apple'].includes(storeInfo.id)) {
+      category = 'electronics';
+    } else if (storeInfo.id === 'aliexpress') {
+      category = 'clothing';
     }
   }
 
@@ -112,7 +102,7 @@ export function parseSmartText(rawText) {
   let titleHe = '';
   if (detectedStore) {
     title = `${detectedStore} Order`;
-    titleHe = `הזמנה מ-${detectedStore}`;
+    titleHe = `הזמנה מ-${detectedStoreHe || detectedStore}`;
   } else if (bestTracking) {
     title = `Package ${bestTracking.slice(0, 8)}...`;
     titleHe = `חבילה ${bestTracking.slice(0, 8)}...`;

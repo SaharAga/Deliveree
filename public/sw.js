@@ -1,4 +1,4 @@
-const CACHE_NAME = 'deliveree-cache-v0.4.1-alpha';
+const CACHE_NAME = 'deliveree-cache-v0.5.0-alpha';
 
 const PRECACHE_ASSETS = [
   '/',
@@ -62,6 +62,70 @@ self.addEventListener('fetch', (event) => {
       return networkResponse;
     }).catch(() => {
       return caches.match(event.request);
+    })
+  );
+});
+
+// Push Event - Direct Web Push Notifications with custom payload decoding
+self.addEventListener('push', (event) => {
+  let data = {};
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch {
+      data = { body: event.data.text() };
+    }
+  }
+
+  const title = data.title || 'Deliveree Update | עדכון משלוח';
+  const options = {
+    body: data.body || 'New status update available for your package.',
+    icon: data.icon || '/icons/icon-192.png',
+    badge: data.badge || '/icons/icon-192.png',
+    tag: data.tag || (data.packageId ? `pkg-${data.packageId}` : 'deliveree-general'),
+    data: {
+      url: data.url || (data.packageId ? `/?packageId=${data.packageId}` : '/'),
+      packageId: data.packageId || null,
+      ...data.data
+    },
+    actions: data.actions || [
+      { action: 'view', title: 'View Tracking | צפה במשלוח' },
+      { action: 'dismiss', title: 'Dismiss | סגור' }
+    ]
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+  );
+});
+
+// Notification Click Event - Client focus and URL routing
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  if (event.action === 'dismiss') {
+    return;
+  }
+
+  const targetUrl = (event.notification.data && event.notification.data.url)
+    ? new URL(event.notification.data.url, self.location.origin).href
+    : self.location.origin;
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      // If a tab is already open, focus it and navigate
+      for (const client of windowClients) {
+        if (client.url.startsWith(self.location.origin) && 'focus' in client) {
+          if ('navigate' in client) {
+            client.navigate(targetUrl);
+          }
+          return client.focus();
+        }
+      }
+      // Otherwise open a new window
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
     })
   );
 });

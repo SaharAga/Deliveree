@@ -1,11 +1,109 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   X, Cloud, ShieldCheck, Smartphone, Laptop, 
-  ArrowRight, Mail, User, Lock
+  ArrowRight, Mail, User, Lock, Check, UserCheck
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { isFirebaseConfigured } from '../services/firebase';
+
+/**
+ * Evaluates password strength criteria and calculates password entropy / security score.
+ * 
+ * @param {string} password
+ * @returns {{
+ *   score: number, // 0: empty, 1: Weak, 2: Fair, 3: Strong, 4: Secure
+ *   level: 'none' | 'weak' | 'fair' | 'strong' | 'secure',
+ *   labelHe: string,
+ *   labelEn: string,
+ *   colorClass: string,
+ *   textClass: string,
+ *   criteria: {
+ *     length: boolean,
+ *     lowercase: boolean,
+ *     uppercase: boolean,
+ *     number: boolean,
+ *     symbol: boolean
+ *   }
+ * }}
+ */
+export function calculatePasswordStrength(password) {
+  const str = typeof password === 'string' ? password : '';
+  const criteria = {
+    length: str.length >= 8,
+    lowercase: /[a-zא-ת]/.test(str),
+    uppercase: /[A-Z]/.test(str),
+    number: /[0-9]/.test(str),
+    symbol: /[^A-Za-z0-9א-ת]/.test(str)
+  };
+
+  if (!str) {
+    return {
+      score: 0,
+      level: 'none',
+      labelHe: '',
+      labelEn: '',
+      colorClass: 'bg-slate-800',
+      textClass: 'text-slate-500',
+      criteria
+    };
+  }
+
+  const charVariety = [
+    criteria.lowercase,
+    criteria.uppercase,
+    criteria.number,
+    criteria.symbol
+  ].filter(Boolean).length;
+
+  if (str.length < 6 || charVariety <= 1) {
+    return {
+      score: 1,
+      level: 'weak',
+      labelHe: 'חלשה',
+      labelEn: 'Weak',
+      colorClass: 'bg-rose-500',
+      textClass: 'text-rose-400',
+      criteria
+    };
+  }
+
+  if (charVariety === 2 || str.length < 8) {
+    return {
+      score: 2,
+      level: 'fair',
+      labelHe: 'בינונית',
+      labelEn: 'Fair',
+      colorClass: 'bg-amber-500',
+      textClass: 'text-amber-400',
+      criteria
+    };
+  }
+
+  const isSecure = str.length >= 8 && (charVariety >= 4 || (charVariety >= 3 && criteria.symbol && str.length >= 10));
+
+  if (isSecure) {
+    return {
+      score: 4,
+      level: 'secure',
+      labelHe: 'מאובטחת',
+      labelEn: 'Secure',
+      colorClass: 'bg-emerald-500',
+      textClass: 'text-emerald-400',
+      criteria
+    };
+  }
+
+  return {
+    score: 3,
+    level: 'strong',
+    labelHe: 'חזקה',
+    labelEn: 'Strong',
+    colorClass: 'bg-blue-500',
+    textClass: 'text-blue-400',
+    criteria
+  };
+}
 
 export function AuthModal({
   isOpen,
@@ -22,6 +120,10 @@ export function AuthModal({
   const [formError, setFormError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  const passwordStrength = useMemo(() => {
+    return calculatePasswordStrength(passwordInput);
+  }, [passwordInput]);
 
   if (!isOpen) return null;
 
@@ -104,7 +206,6 @@ export function AuthModal({
     }
   };
 
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in overflow-y-auto" role="dialog" aria-modal="true">
       <div className="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden my-8">
@@ -125,7 +226,7 @@ export function AuthModal({
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer min-h-[48px] min-w-[48px] flex items-center justify-center"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
@@ -176,7 +277,7 @@ export function AuthModal({
                     logout();
                     if (onShowToast) onShowToast(language === 'he' ? 'התנתקת מהחשבון' : 'Logged out', 'info');
                   }}
-                  className="text-rose-400 hover:text-rose-300 font-semibold text-xs cursor-pointer p-2"
+                  className="text-rose-400 hover:text-rose-300 font-semibold text-xs cursor-pointer min-h-[48px] px-3 py-2 flex items-center"
                 >
                   {language === 'he' ? 'התנתק' : 'Log Out'}
                 </button>
@@ -232,7 +333,7 @@ export function AuthModal({
                     setActiveTab('signin');
                     setFormError('');
                   }}
-                  className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer min-h-[40px] ${
+                  className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer min-h-[48px] ${
                     activeTab === 'signin'
                       ? 'bg-blue-600 text-white shadow-md'
                       : 'text-slate-400 hover:text-slate-200'
@@ -246,7 +347,7 @@ export function AuthModal({
                     setActiveTab('register');
                     setFormError('');
                   }}
-                  className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer min-h-[40px] ${
+                  className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer min-h-[48px] ${
                     activeTab === 'register'
                       ? 'bg-blue-600 text-white shadow-md'
                       : 'text-slate-400 hover:text-slate-200'
@@ -278,7 +379,7 @@ export function AuthModal({
                         value={nameInput}
                         onChange={(e) => setNameInput(e.target.value)}
                         placeholder="e.g. Alex Cohen"
-                        className={`w-full bg-slate-950 border border-slate-800 text-base sm:text-sm text-slate-100 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none min-h-[44px] ${isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'}`}
+                        className={`w-full bg-slate-950 border border-slate-800 text-base sm:text-sm text-slate-100 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none min-h-[48px] ${isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'}`}
                       />
                     </div>
                   </div>
@@ -296,7 +397,7 @@ export function AuthModal({
                       value={emailInput}
                       onChange={(e) => setEmailInput(e.target.value)}
                       placeholder="you@domain.com"
-                      className={`w-full bg-slate-950 border border-slate-800 text-base sm:text-sm text-slate-100 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none min-h-[44px] ${isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'}`}
+                      className={`w-full bg-slate-950 border border-slate-800 text-base sm:text-sm text-slate-100 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none min-h-[48px] ${isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'}`}
                     />
                   </div>
                 </div>
@@ -314,9 +415,61 @@ export function AuthModal({
                       value={passwordInput}
                       onChange={(e) => setPasswordInput(e.target.value)}
                       placeholder="••••••••"
-                      className={`w-full bg-slate-950 border border-slate-800 text-base sm:text-sm text-slate-100 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none min-h-[44px] ${isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'}`}
+                      className={`w-full bg-slate-950 border border-slate-800 text-base sm:text-sm text-slate-100 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none min-h-[48px] ${isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'}`}
                     />
                   </div>
+
+                  {/* Password Entropy & Strength Meter */}
+                  {passwordInput.length > 0 && (
+                    <div className="space-y-2 mt-2.5 p-3 rounded-2xl bg-slate-950/90 border border-slate-800 animate-fade-in" aria-live="polite">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-400 font-medium">
+                          {language === 'he' ? 'חוזק סיסמה:' : 'Password strength:'}
+                        </span>
+                        <span className={`font-bold ${passwordStrength.textClass}`}>
+                          {language === 'he' ? passwordStrength.labelHe : passwordStrength.labelEn}
+                        </span>
+                      </div>
+
+                      {/* 4 Segment Visual Progress Bar */}
+                      <div className="grid grid-cols-4 gap-1.5 h-1.5 w-full bg-slate-900 rounded-full overflow-hidden">
+                        {[1, 2, 3, 4].map((step) => (
+                          <div
+                            key={step}
+                            className={`h-full rounded-full transition-all duration-300 ${
+                              passwordStrength.score >= step
+                                ? passwordStrength.colorClass
+                                : 'bg-slate-800'
+                            }`}
+                          />
+                        ))}
+                      </div>
+
+                      {/* Criteria Indicators */}
+                      <div className="grid grid-cols-2 gap-1.5 pt-1 text-[10px]">
+                        <div className={`flex items-center gap-1.5 ${passwordStrength.criteria.length ? 'text-emerald-400 font-medium' : 'text-slate-500'}`}>
+                          <Check className="w-3 h-3 shrink-0" />
+                          <span>{language === 'he' ? '8+ תווים' : '8+ characters'}</span>
+                        </div>
+                        <div className={`flex items-center gap-1.5 ${passwordStrength.criteria.lowercase ? 'text-emerald-400 font-medium' : 'text-slate-500'}`}>
+                          <Check className="w-3 h-3 shrink-0" />
+                          <span>{language === 'he' ? 'אות קטנה' : 'Lowercase (a-z)'}</span>
+                        </div>
+                        <div className={`flex items-center gap-1.5 ${passwordStrength.criteria.uppercase ? 'text-emerald-400 font-medium' : 'text-slate-500'}`}>
+                          <Check className="w-3 h-3 shrink-0" />
+                          <span>{language === 'he' ? 'אות גדולה' : 'Uppercase (A-Z)'}</span>
+                        </div>
+                        <div className={`flex items-center gap-1.5 ${passwordStrength.criteria.number ? 'text-emerald-400 font-medium' : 'text-slate-500'}`}>
+                          <Check className="w-3 h-3 shrink-0" />
+                          <span>{language === 'he' ? 'ספרה (0-9)' : 'Number (0-9)'}</span>
+                        </div>
+                        <div className={`flex items-center gap-1.5 col-span-2 ${passwordStrength.criteria.symbol ? 'text-emerald-400 font-medium' : 'text-slate-500'}`}>
+                          <Check className="w-3 h-3 shrink-0" />
+                          <span>{language === 'he' ? 'תו מיוחד (!@#$)' : 'Special symbol (!@#$)'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <button
@@ -334,6 +487,30 @@ export function AuthModal({
                   <ArrowRight className={`w-4 h-4 ${isRTL ? 'rotate-180' : ''}`} />
                 </button>
               </form>
+
+              {/* Continue as Guest CTA Button */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    if (onShowToast) {
+                      onShowToast(
+                        language === 'he'
+                          ? 'ממשיך במצב אורח - החבילות יישמרו מקומית'
+                          : 'Continuing as guest - packages saved locally',
+                        'info'
+                      );
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2.5 p-3 rounded-2xl bg-slate-950/90 hover:bg-slate-850 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white font-semibold text-xs transition-all cursor-pointer min-h-[48px]"
+                >
+                  <UserCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>
+                    {language === 'he' ? 'המשך כאורח / ללא התחברות' : 'Continue as Guest / No Login'}
+                  </span>
+                </button>
+              </div>
             </>
           )}
         </div>
@@ -342,7 +519,7 @@ export function AuthModal({
         <div className="p-4 border-t border-slate-800 bg-slate-950/80 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold cursor-pointer min-h-[44px]"
+            className="px-5 py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold cursor-pointer min-h-[48px]"
           >
             {language === 'he' ? 'סגור' : 'Close'}
           </button>

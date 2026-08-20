@@ -1,8 +1,17 @@
-import React from 'react';
-import { X, BarChart3, PieChart, TrendingUp } from 'lucide-react';
+import React, { useMemo } from 'react';
+import {
+  X, BarChart3, PieChart, TrendingUp,
+  Award, Coins, CheckCircle2,
+  Clock
+} from 'lucide-react';
 import { CARRIERS } from '../types/carriers';
 import { STAGES } from '../types/stages';
 import { useLanguage } from '../context/LanguageContext';
+import {
+  calculateCarrierTurnaroundLeaderboard,
+  calculateMultiCurrencyBreakdown,
+  calculateDeliveryMetrics
+} from '../utils/analyticsUtils';
 
 export function AnalyticsModal({
   isOpen,
@@ -11,117 +20,344 @@ export function AnalyticsModal({
 }) {
   const { t, language } = useLanguage();
 
+  const metrics = useMemo(() => calculateDeliveryMetrics(packages), [packages]);
+  const leaderboard = useMemo(() => calculateCarrierTurnaroundLeaderboard(packages), [packages]);
+  const currencyBreakdown = useMemo(() => calculateMultiCurrencyBreakdown(packages), [packages]);
+
   if (!isOpen) return null;
 
-  // Calculate carrier distribution
-  const carrierCounts = {};
-  packages.forEach(p => {
-    carrierCounts[p.carrier] = (carrierCounts[p.carrier] || 0) + 1;
-  });
+  // Fastest carrier from turnaround leaderboard
+  const fastestCarrier = leaderboard.find(c => c.avgDays > 0);
 
-  // Calculate status breakdown
-  const statusCounts = {};
-  packages.forEach(p => {
-    statusCounts[p.status] = (statusCounts[p.status] || 0) + 1;
-  });
-
-  const deliveredCount = packages.filter(p => p.status === 'delivered').length;
-  const activeCount = packages.length - deliveredCount;
-
-  // Dynamic Average Transit Calculation based on orderDate
-  const transitTimes = packages
-    .filter(p => p.orderDate && p.status === 'delivered')
-    .map(p => {
-      const start = new Date(p.orderDate).getTime();
-      const end = p.updatedAt ? new Date(p.updatedAt).getTime() : Date.now();
-      const days = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)));
-      return days;
-    });
-
-  const avgTransitDays = transitTimes.length > 0
-    ? Math.round(transitTimes.reduce((a, b) => a + b, 0) / transitTimes.length)
-    : 8;
-
-  // Find top carrier
+  // Top carrier by volume
   let topCarrierId = 'israel-post';
   let topCarrierCount = 0;
-  Object.entries(carrierCounts).forEach(([cid, cnt]) => {
-    if (cnt > topCarrierCount) {
-      topCarrierCount = cnt;
+  Object.entries(metrics.carrierDistribution).forEach(([cid, data]) => {
+    if (data.count > topCarrierCount) {
+      topCarrierCount = data.count;
       topCarrierId = cid;
     }
   });
   const topCarrierObj = CARRIERS[topCarrierId] || CARRIERS['other'];
 
+  // SVG Circular Gauge calculations for Success / On-Time Ring Indicator
+  const ringRadius = 38;
+  const circumference = 2 * Math.PI * ringRadius;
+  const successStrokeDashoffset = circumference - (metrics.deliverySuccessRate / 100) * circumference;
+  const onTimeStrokeDashoffset = circumference - (metrics.onTimeRate / 100) * circumference;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in overflow-y-auto">
-      <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden my-8">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in overflow-y-auto"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="analytics-modal-title"
+    >
+      <div className="relative w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden my-8 flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-gradient-to-r from-indigo-600/10 to-purple-600/10">
+        <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-gradient-to-r from-indigo-600/10 via-purple-600/10 to-blue-600/10 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-500/20">
-              <BarChart3 className="w-5 h-5" />
+            <div className="p-3 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/20 flex items-center justify-center min-w-[48px] min-h-[48px]">
+              <BarChart3 className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-100">
+              <h2 id="analytics-modal-title" className="text-xl font-bold text-slate-100">
                 {t('insights.title')}
               </h2>
-              <p className="text-xs text-slate-400">
-                {language === 'he' ? 'ניתוח ביצועי שילוח, חברות מובילות וזמני הגעה' : 'Shipment performance, carrier breakdown & delivery stats'}
+              <p className="text-xs text-slate-400 mt-0.5">
+                {t('insights.subtitle')}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+            aria-label={language === 'he' ? 'סגור חלון' : 'Close modal'}
+            className="min-w-[48px] min-h-[48px] p-3 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition-all flex items-center justify-center border border-slate-700/50 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Body */}
-        <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
-          {/* Key Insight Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase">{t('insights.activeCount')}</span>
-              <p className="text-2xl font-extrabold text-blue-400 mt-1">{activeCount}</p>
+        {/* Scrollable Body */}
+        <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1">
+          {/* Top Key Metrics Row */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {/* Total Packages */}
+            <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 flex flex-col justify-between min-h-[84px] shadow-sm">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                {t('insights.totalCount')}
+              </span>
+              <p className="text-2xl font-extrabold text-slate-100 mt-1">
+                {metrics.totalCount}
+              </p>
             </div>
-            <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase">{t('insights.avgTime')}</span>
-              <p className="text-2xl font-extrabold text-emerald-400 mt-1">{avgTransitDays} {language === 'he' ? 'ימים בממוצע' : 'days avg'}</p>
+
+            {/* Active Parcels */}
+            <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 flex flex-col justify-between min-h-[84px] shadow-sm">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                {t('insights.activeCount')}
+              </span>
+              <p className="text-2xl font-extrabold text-blue-400 mt-1">
+                {metrics.activeCount}
+              </p>
             </div>
-            <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase">{language === 'he' ? 'חברת שילוח עיקרית' : 'Top Carrier'}</span>
-              <p className="text-base font-extrabold text-amber-400 mt-1 truncate">
+
+            {/* Average Transit Days */}
+            <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 flex flex-col justify-between min-h-[84px] shadow-sm">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                {t('insights.avgTime')}
+              </span>
+              <div className="flex items-baseline gap-1 mt-1">
+                <p className="text-2xl font-extrabold text-emerald-400">
+                  {metrics.avgTransitDays}
+                </p>
+                <span className="text-xs text-slate-400 font-medium">
+                  {t('insights.daysAvg')}
+                </span>
+              </div>
+            </div>
+
+            {/* Top Carrier by Volume */}
+            <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 flex flex-col justify-between min-h-[84px] shadow-sm">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider truncate">
+                {t('insights.topCarrier')}
+              </span>
+              <p className="text-base font-bold text-amber-400 mt-1 truncate">
                 {language === 'he' ? topCarrierObj.hebrewName : topCarrierObj.name}
               </p>
             </div>
           </div>
 
+          {/* Performance Rings & On-Time Indicator Card */}
+          <div className="p-5 rounded-2xl bg-slate-950/60 border border-slate-800/80 shadow-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+              {/* Ring Gauges */}
+              <div className="flex items-center justify-around gap-4 p-2">
+                {/* Success Rate Gauge */}
+                <div className="flex flex-col items-center text-center">
+                  <div className="relative w-24 h-24 flex items-center justify-center">
+                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 96 96">
+                      <circle
+                        cx="48"
+                        cy="48"
+                        r={ringRadius}
+                        className="stroke-slate-800"
+                        strokeWidth="8"
+                        fill="transparent"
+                      />
+                      <circle
+                        cx="48"
+                        cy="48"
+                        r={ringRadius}
+                        className="stroke-emerald-500 transition-all duration-1000 ease-out"
+                        strokeWidth="8"
+                        strokeDasharray={circumference}
+                        strokeDashoffset={successStrokeDashoffset}
+                        strokeLinecap="round"
+                        fill="transparent"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-lg font-extrabold text-slate-100">
+                        {metrics.deliverySuccessRate}%
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-xs font-semibold text-slate-300 mt-2">
+                    {t('insights.successRate')}
+                  </span>
+                </div>
 
-          {/* Carrier Breakdown */}
-          <div className="p-5 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-3">
+                {/* On-Time Rate Gauge */}
+                <div className="flex flex-col items-center text-center">
+                  <div className="relative w-24 h-24 flex items-center justify-center">
+                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 96 96">
+                      <circle
+                        cx="48"
+                        cy="48"
+                        r={ringRadius}
+                        className="stroke-slate-800"
+                        strokeWidth="8"
+                        fill="transparent"
+                      />
+                      <circle
+                        cx="48"
+                        cy="48"
+                        r={ringRadius}
+                        className="stroke-indigo-500 transition-all duration-1000 ease-out"
+                        strokeWidth="8"
+                        strokeDasharray={circumference}
+                        strokeDashoffset={onTimeStrokeDashoffset}
+                        strokeLinecap="round"
+                        fill="transparent"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-lg font-extrabold text-slate-100">
+                        {metrics.onTimeRate}%
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-xs font-semibold text-slate-300 mt-2">
+                    {t('insights.onTimeRate')}
+                  </span>
+                </div>
+              </div>
+
+              {/* Performance Highlights */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-900/80 border border-slate-800/80">
+                  <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+                    <CheckCircle2 className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-300 font-medium">{t('insights.delivered')}</span>
+                      <span className="text-emerald-400 font-bold">{metrics.deliveredCount} / {metrics.totalCount}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-900/80 border border-slate-800/80">
+                  <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400">
+                    <Award className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-300 font-medium">{t('insights.fastestCarrier')}</span>
+                      <span className="text-indigo-300 font-bold truncate">
+                        {fastestCarrier 
+                          ? `${language === 'he' ? fastestCarrier.carrierHebrewName : fastestCarrier.carrierName} (${fastestCarrier.avgDays} ${t('insights.days')})`
+                          : (language === 'he' ? 'דואר ישראל (8 ימים)' : 'Israel Post (8 days)')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 1: Courier Turnaround Leaderboard */}
+          <div className="p-5 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                <Award className="w-4 h-4 text-amber-400" />
+                <span>{t('insights.turnaroundLeaderboard')}</span>
+              </h3>
+              <span className="text-[11px] text-slate-400 hidden sm:inline">
+                {t('insights.turnaroundLeaderboardDesc')}
+              </span>
+            </div>
+
+            {leaderboard.length === 0 ? (
+              <p className="text-xs text-slate-400 text-center py-4">
+                {t('insights.noLeaderboardData')}
+              </p>
+            ) : (
+              <div className="space-y-2.5">
+                {leaderboard.map((item, idx) => (
+                  <div
+                    key={item.carrierId}
+                    className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800/90 hover:border-slate-700 transition-all flex items-center justify-between gap-3 min-h-[52px]"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                        idx === 0 
+                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' 
+                          : idx === 1 
+                          ? 'bg-slate-300/20 text-slate-200 border border-slate-400/40' 
+                          : idx === 2 
+                          ? 'bg-amber-800/20 text-amber-500 border border-amber-700/40' 
+                          : 'bg-slate-800 text-slate-400'
+                      }`}>
+                        {idx + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-200 truncate">
+                          {language === 'he' ? item.carrierHebrewName : item.carrierName}
+                        </p>
+                        <p className="text-[11px] text-slate-400">
+                          {item.totalDelivered} {t('insights.delivered')} · {item.totalActive} {t('insights.active')}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold ${
+                      item.avgDays > 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800 text-slate-400'
+                    }`}>
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>
+                        {item.avgDays > 0 ? `${item.avgDays} ${t('insights.days')}` : '—'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Section 2: Multi-Currency Spending Breakdown */}
+          <div className="p-5 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                <Coins className="w-4 h-4 text-emerald-400" />
+                <span>{t('insights.currencyBreakdown')}</span>
+              </h3>
+              <span className="text-[11px] text-slate-400 hidden sm:inline">
+                {t('insights.currencyBreakdownDesc')}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {Object.entries(currencyBreakdown.currencies).map(([code, cur]) => (
+                <div
+                  key={code}
+                  className="p-4 rounded-xl bg-slate-900/90 border border-slate-800/90 flex flex-col justify-between min-h-[96px] hover:border-slate-700 transition-all shadow-sm"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-400">{code}</span>
+                    <span className="text-base font-extrabold text-indigo-400">{cur.symbol}</span>
+                  </div>
+                  <div>
+                    <p className="text-xl font-extrabold text-slate-100 tracking-tight">
+                      {cur.symbol}{cur.total.toLocaleString(language === 'he' ? 'he-IL' : 'en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      {cur.count} {t('insights.packages')}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {!currencyBreakdown.hasValues && (
+              <p className="text-[11px] text-slate-500 text-center pt-1">
+                {t('insights.noCurrencyData')}
+              </p>
+            )}
+          </div>
+
+          {/* Carrier Distribution */}
+          <div className="p-5 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-3 shadow-sm">
             <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
               <PieChart className="w-4 h-4 text-blue-400" />
-              <span>{language === 'he' ? 'התפלגות לפי חברת שילוח' : 'Shipment Distribution by Carrier'}</span>
+              <span>{t('insights.carrierDistribution')}</span>
             </h3>
 
-            <div className="space-y-2.5">
-              {Object.entries(carrierCounts).map(([carrierId, count]) => {
+            <div className="space-y-3">
+              {Object.entries(metrics.carrierDistribution).map(([carrierId, data]) => {
                 const carrier = CARRIERS[carrierId] || CARRIERS['other'];
-                const percent = Math.round((count / packages.length) * 100) || 0;
 
                 return (
-                  <div key={carrierId} className="space-y-1">
+                  <div key={carrierId} className="space-y-1.5">
                     <div className="flex justify-between text-xs font-semibold">
                       <span className="text-slate-300">{language === 'he' ? carrier.hebrewName : carrier.name}</span>
-                      <span className="text-slate-400">{count} ({percent}%)</span>
+                      <span className="text-slate-400">{data.count} ({data.percentage}%)</span>
                     </div>
-                    <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden">
+                    <div className="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800/50">
                       <div
                         className={`h-full bg-gradient-to-r ${carrier.color} rounded-full transition-all duration-500`}
-                        style={{ width: `${percent}%` }}
+                        style={{ width: `${data.percentage}%` }}
                       />
                     </div>
                   </div>
@@ -131,17 +367,20 @@ export function AnalyticsModal({
           </div>
 
           {/* Status Breakdown */}
-          <div className="p-5 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-3">
+          <div className="p-5 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-3 shadow-sm">
             <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-emerald-400" />
-              <span>{language === 'he' ? 'התפלגות לפי שלב משלוח' : 'Shipment Stages Breakdown'}</span>
+              <span>{t('insights.stageDistribution')}</span>
             </h3>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
               {STAGES.map(s => {
-                const count = statusCounts[s.id] || 0;
+                const count = metrics.stageDistribution[s.id] || 0;
                 return (
-                  <div key={s.id} className="p-3 rounded-xl bg-slate-900/80 border border-slate-800/80 flex flex-col justify-between">
+                  <div
+                    key={s.id}
+                    className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/80 flex flex-col justify-between min-h-[64px]"
+                  >
                     <span className="text-[11px] text-slate-400 font-medium">
                       {language === 'he' ? s.hebrewLabel : s.label}
                     </span>
@@ -156,10 +395,10 @@ export function AnalyticsModal({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950/80 flex justify-end">
+        <div className="p-4 border-t border-slate-800 bg-slate-950/80 flex justify-end shrink-0">
           <button
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors"
+            className="min-w-[120px] min-h-[48px] px-6 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 hover:text-white text-xs font-bold transition-all border border-slate-700/60 shadow-md flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             {language === 'he' ? 'סגור' : 'Close'}
           </button>

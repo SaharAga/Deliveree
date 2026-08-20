@@ -10,12 +10,30 @@ import { useLanguage } from '../context/LanguageContext';
 export function SmartImportModal({
   isOpen,
   onClose,
-  onParsedResult
+  onParsedResult,
+  initialText = ''
 }) {
   const { t, language, isRTL } = useLanguage();
-  const [rawText, setRawText] = useState('');
-  const [parsed, setParsed] = useState(null);
-  const [hasSearched, setHasSearched] = useState(false);
+  const [rawText, setRawText] = useState(initialText || '');
+  const [parsed, setParsed] = useState(() => {
+    if (initialText && initialText.trim()) {
+      return parseSmartText(initialText.trim());
+    }
+    return null;
+  });
+  const [hasSearched, setHasSearched] = useState(() => !!(initialText && initialText.trim()));
+
+  useEffect(() => {
+    if (initialText && initialText.trim() && isOpen) {
+      const trimmed = initialText.trim();
+      setRawText(trimmed);
+      const result = parseSmartText(trimmed);
+      if (result) {
+        setParsed(result);
+        setHasSearched(true);
+      }
+    }
+  }, [initialText, isOpen]);
 
   // Auto-read clipboard on modal mount when permission is granted
   useEffect(() => {

@@ -2,6 +2,7 @@ import { TELEGRAM_FEEDBACK_BOT_TOKEN } from '../constants/telegram';
 import { CARRIERS } from '../types/carriers';
 
 export const NOTIFICATION_PREFS_KEY = 'deliveree_notification_prefs';
+export const PUSH_SUBSCRIPTION_KEY = 'deliveree_push_subscription';
 
 /**
  * Default notification preferences schema
@@ -61,6 +62,49 @@ export const STATUS_NOTIFICATION_INFO = {
     en: 'Archived'
   }
 };
+
+/**
+ * Utility: Convert URL safe base64 to Uint8Array for PushManager subscription
+ */
+export function urlBase64ToUint8Array(base64String) {
+  if (!base64String) return new Uint8Array(0);
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  
+  const rawData = (typeof window !== 'undefined' && typeof window.atob === 'function')
+    ? window.atob(base64)
+    : (typeof Buffer !== 'undefined' ? Buffer.from(base64, 'base64').toString('binary') : '');
+
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+/**
+ * Utility: Format push payload for service worker / FCM
+ */
+export function formatPushPayload({ title, body, packageId, trackingNumber, actions }) {
+  return {
+    title: title || 'Deliveree Update | עדכון משלוח',
+    body: body || '',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    tag: packageId ? `pkg-${packageId}` : (trackingNumber ? `pkg-${trackingNumber}` : 'deliveree-update'),
+    url: packageId ? `/?packageId=${encodeURIComponent(packageId)}` : '/',
+    packageId: packageId || null,
+    data: {
+      packageId: packageId || null,
+      trackingNumber: trackingNumber || null,
+      timestamp: Date.now()
+    },
+    actions: actions || [
+      { action: 'view', title: 'View Tracking | צפה במשלוח' },
+      { action: 'dismiss', title: 'Dismiss | סגור' }
+    ]
+  };
+}
 
 export const notificationService = {
   /**
@@ -127,6 +171,8 @@ export const notificationService = {
       const permission = await root.Notification.requestPermission();
       if (permission === 'granted') {
         notificationService.savePreferences({ pushEnabled: true });
+        // Attempt to subscribe to push manager if service worker is active
+        await notificationService.subscribeToPush();
       } else if (permission === 'denied') {
         notificationService.savePreferences({ pushEnabled: false });
       }
@@ -138,24 +184,77 @@ export const notificationService = {
   },
 
   /**
-   * Sends a native Web Push/Browser Notification
+   * Subscribes the client to Web Push via Service Worker PushManager
+   * @param {string} [vapidPublicKey]
+   * @returns {Promise<PushSubscription|null>}
+   */
+  subscribeToPush: async (vapidPublicKey) => {
+    const root = typeof window !== 'undefined' ? window : globalThis;
+    if (!root || !('serviceWorker' in root.navigator)) {
+      return null;
+    }
+
+    try {
+      const registration = await root.navigator.serviceWorker.ready;
+      if (!registration || !registration.pushManager) {
+        return null;
+      }
+
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription && vapidPublicKey) {
+        const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: convertedVapidKey
+        });
+      }
+
+      if (subscription && typeof localStorage !== 'undefined') {
+        localStorage.setItem(PUSH_SUBSCRIPTION_KEY, JSON.stringify(subscription));
+      }
+      return subscription;
+    } catch (e) {
+      console.warn('[NotificationService] Push subscription failed or not supported:', e);
+      return null;
+    }
+  },
+
+  /**
+   * Sends a native Web Push/Browser Notification via Service Worker registration if available, fallback to Notification constructor
    * @param {string} title
    * @param {NotificationOptions} [options]
-   * @returns {Notification|null}
+   * @returns {Promise<Notification|boolean|null>}
    */
-  sendWebNotification: (title, options = {}) => {
+  sendWebNotification: async (title, options = {}) => {
     if (notificationService.getNotificationPermission() !== 'granted') {
       return null;
     }
     try {
       const root = typeof window !== 'undefined' ? window : globalThis;
       const defaultOptions = {
-        icon: '/icons/icon-192x192.png',
-        badge: '/icons/icon-192x192.png',
+        icon: '/icons/icon-192.png',
+        badge: '/icons/icon-192.png',
         vibrate: [200, 100, 200],
         ...options
       };
-      return new root.Notification(title, defaultOptions);
+
+      // Try ServiceWorker showNotification first
+      if (root.navigator && 'serviceWorker' in root.navigator) {
+        try {
+          const registration = await root.navigator.serviceWorker.ready;
+          if (registration && typeof registration.showNotification === 'function') {
+            await registration.showNotification(title, defaultOptions);
+            return true;
+          }
+        } catch {
+          // Fallback to Window Notification
+        }
+      }
+
+      if (typeof root.Notification === 'function') {
+        return new root.Notification(title, defaultOptions);
+      }
+      return true;
     } catch (e) {
       console.warn('[NotificationService] Failed to send web notification:', e);
       return null;
@@ -281,7 +380,7 @@ export const notificationService = {
 
     // Send Browser Web Notification
     if (prefs.pushEnabled && notificationService.getNotificationPermission() === 'granted') {
-      const notif = notificationService.sendWebNotification(title, {
+      const notif = await notificationService.sendWebNotification(title, {
         body,
         tag: `pkg-${pkg.id || pkg.trackingNumber}`,
         data: { packageId: pkg.id, trackingNumber: pkg.trackingNumber }

@@ -103,6 +103,71 @@ function DashboardContent() {
   const [deletePackageId, setDeletePackageId] = useState(null);
 
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
+  const [smartImportInitialText, setSmartImportInitialText] = useState('');
+
+  // Handle PWA App Shortcuts, Web Share Target & Query Parameters on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const url = new URL(window.location.href);
+      const params = url.searchParams;
+
+      // 1. App Shortcut: ?action=paste
+      const action = params.get('action');
+      if (action === 'paste') {
+        setIsSmartImportOpen(true);
+      }
+
+      // 2. App Shortcut: ?tab=active / ?tab=archived / ?tab=customs / etc.
+      const tabParam = params.get('tab');
+      if (tabParam) {
+        setActiveTab(tabParam);
+      }
+
+      // 3. Web Share Target params: ?title=...&text=...&url=...
+      const shareTitle = params.get('title');
+      const shareText = params.get('text');
+      const shareUrl = params.get('url');
+
+      if (shareTitle || shareText || shareUrl) {
+        const combinedSharedText = [shareTitle, shareText, shareUrl]
+          .filter(Boolean)
+          .join(' ')
+          .trim();
+
+        if (combinedSharedText) {
+          setSmartImportInitialText(combinedSharedText);
+          setIsSmartImportOpen(true);
+        }
+      }
+
+      // 4. Notification routing parameter: ?packageId=...
+      const pkgIdParam = params.get('packageId');
+      if (pkgIdParam) {
+        const found = packages.find(p => p.id === pkgIdParam || p.trackingNumber === pkgIdParam);
+        if (found) {
+          setSelectedDetailPackage(found);
+        }
+      }
+
+      // Clean up share/action query params from URL without reload
+      if (action || tabParam || shareTitle || shareText || shareUrl || pkgIdParam) {
+        const cleanParams = new URLSearchParams(window.location.search);
+        cleanParams.delete('action');
+        cleanParams.delete('title');
+        cleanParams.delete('text');
+        cleanParams.delete('url');
+        cleanParams.delete('packageId');
+        
+        const cleanQuery = cleanParams.toString();
+        const newUrl = window.location.pathname + (cleanQuery ? `?${cleanQuery}` : '') + window.location.hash;
+        window.history.replaceState({}, '', newUrl);
+      }
+    } catch (e) {
+      console.warn('[App] Failed to parse URL parameters:', e);
+    }
+  }, [packages]);
 
   // Listen for PWA Service Worker instant updates
   useEffect(() => {
@@ -645,10 +710,17 @@ function DashboardContent() {
       </ErrorBoundary>
 
       {/* Smart Import from SMS / Email Modal */}
-      <ErrorBoundary compact componentName="SmartImportModal" onReset={() => setIsSmartImportOpen(false)}>
+      <ErrorBoundary compact componentName="SmartImportModal" onReset={() => {
+        setIsSmartImportOpen(false);
+        setSmartImportInitialText('');
+      }}>
         <SmartImportModal
           isOpen={isSmartImportOpen}
-          onClose={() => setIsSmartImportOpen(false)}
+          initialText={smartImportInitialText}
+          onClose={() => {
+            setIsSmartImportOpen(false);
+            setSmartImportInitialText('');
+          }}
           onParsedResult={handleSmartImportResult}
         />
       </ErrorBoundary>

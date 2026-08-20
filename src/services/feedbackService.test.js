@@ -52,7 +52,7 @@ describe('FeedbackService Unit & Resilience Test Suite', () => {
       expect(() => validateAndSanitizeFeedback({ message: '   ' })).toThrow();
     });
 
-    it('sanitizes XSS payloads and script tags from message', () => {
+    it('sanitizes XSS payloads and script tags from message and enforces complete anonymity', () => {
       const dirty = {
         type: 'bug',
         message: '<script>alert("hacked")</script>App crashed on tracking button <img src=x onerror=alert(1)>',
@@ -64,24 +64,26 @@ describe('FeedbackService Unit & Resilience Test Suite', () => {
       expect(result.message).not.toContain('<script>');
       expect(result.message).not.toContain('onerror');
       expect(result.message).toContain('App crashed on tracking button');
-      expect(result.user.name).toBe('Sahar');
+      expect(result.user).toBe('Anonymous Tester');
       expect(result.type).toBe('bug');
       expect(result.rating).toBe(4);
-      expect(result.isAnonymous).toBe(false);
+      expect(result.isAnonymous).toBe(true);
     });
 
-    it('handles anonymous feedback correctly by setting user to Anonymous Tester', () => {
-      const anonymousPayload = {
+    it('enforces 100% complete anonymity regardless of user/isAnonymous input', () => {
+      const inputWithUser = {
         type: 'feature',
-        message: 'Private suggestions without sharing email',
+        message: 'Suggestions with personal profile data provided',
         rating: 5,
-        isAnonymous: true,
-        user: { name: 'Secret User', email: 'secret@domain.com' }
+        isAnonymous: false,
+        user: { id: 'uid-12345', name: 'Secret User', email: 'secret@domain.com' }
       };
 
-      const result = validateAndSanitizeFeedback(anonymousPayload);
+      const result = validateAndSanitizeFeedback(inputWithUser);
       expect(result.isAnonymous).toBe(true);
       expect(result.user).toBe('Anonymous Tester');
+      expect(result.user.id).toBeUndefined();
+      expect(result.user.email).toBeUndefined();
     });
 
     it('clamps ratings between 1 and 5 and defaults valid feedback category', () => {

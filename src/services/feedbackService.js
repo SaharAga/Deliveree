@@ -1,4 +1,5 @@
 import { sanitizeString } from '../utils/packageValidator';
+import { sanitizeForTelemetry, redactPII } from '../utils/privacySanitizer';
 import { APP_VERSION, BUILD_CHANNEL } from '../constants/version';
 import { sendTelegramFeedbackRelay } from '../constants/telegram';
 import { db, isFirebaseConfigured } from './firebase';
@@ -66,7 +67,8 @@ export function validateAndSanitizeFeedback(input) {
   const type = (rawType === 'bug' || rawType === 'feature' || rawType === 'praise') ? rawType : 'bug';
 
   const rawMessage = typeof input.message === 'string' ? input.message : '';
-  const message = sanitizeString(rawMessage, 1500).trim();
+  const sanitizedStringMessage = sanitizeString(rawMessage, 1500).trim();
+  const message = redactPII(sanitizedStringMessage);
   if (!message) {
     throw new Error('Feedback message is required and cannot be empty');
   }
@@ -74,20 +76,9 @@ export function validateAndSanitizeFeedback(input) {
   const rawRating = Number(input.rating);
   const rating = (!Number.isNaN(rawRating) && rawRating >= 1 && rawRating <= 5) ? Math.round(rawRating) : 5;
 
-  const isAnonymous = Boolean(input.isAnonymous);
-
-  let user = 'Anonymous Tester';
-  if (!isAnonymous) {
-    if (input.user && typeof input.user === 'object' && !Array.isArray(input.user)) {
-      user = {
-        id: input.user.id ? sanitizeString(input.user.id, 128) : undefined,
-        name: input.user.name ? sanitizeString(input.user.name, 100) : 'Anonymous',
-        email: input.user.email ? sanitizeString(input.user.email, 150) : undefined
-      };
-    } else if (typeof input.user === 'string' && input.user.trim()) {
-      user = sanitizeString(input.user, 100);
-    }
-  }
+  // Strict complete anonymity: Zero user tracking, no UID, name or email extraction
+  const isAnonymous = true;
+  const user = 'Anonymous Tester';
 
   const id = input.id && typeof input.id === 'string'
     ? sanitizeString(input.id, 64)
@@ -300,7 +291,8 @@ if (typeof window !== 'undefined') {
  * @returns {Promise<{ success: boolean, syncedToCloud: boolean, feedback: FeedbackPayload }>}
  */
 export async function submitFeedback(rawFeedback) {
-  const payload = validateAndSanitizeFeedback(rawFeedback);
+  const validated = validateAndSanitizeFeedback(rawFeedback);
+  const payload = sanitizeForTelemetry(validated);
 
   // Check network connectivity
   const isOnline = typeof navigator === 'undefined' || navigator.onLine !== false;

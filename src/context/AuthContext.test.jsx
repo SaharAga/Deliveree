@@ -1,5 +1,20 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import { validateUserProfile, sanitizeAuthError } from './AuthContext';
+
+let mockStore = {};
+
+beforeAll(() => {
+  globalThis.localStorage = {
+    getItem: (key) => mockStore[key] || null,
+    setItem: (key, value) => { mockStore[key] = String(value); },
+    removeItem: (key) => { delete mockStore[key]; },
+    clear: () => { mockStore = {}; }
+  };
+});
+
+beforeEach(() => {
+  mockStore = {};
+});
 
 describe('AuthContext - sanitizeAuthError', () => {
   it('maps known Firebase auth codes to sanitized user-friendly messages', () => {
@@ -156,5 +171,108 @@ describe('AuthContext - validateUserProfile', () => {
     expect(deserialized.id).toBe('usr-persisted-77');
     expect(deserialized.name).toBe('Persisted User');
     expect(deserialized.email).toBe('persisted@deliveree.app');
+  });
+});
+
+describe('AuthContext - migrateGuestDataToUser', () => {
+  it('returns empty array when target user ID is missing or guest storage is empty', async () => {
+    const { migrateGuestDataToUser } = await import('./AuthContext');
+    expect(await migrateGuestDataToUser(null)).toEqual([]);
+    expect(await migrateGuestDataToUser('')).toEqual([]);
+    
+    localStorage.removeItem('deliveree_packages_guest');
+    expect(await migrateGuestDataToUser('usr-test-1')).toEqual([]);
+  });
+
+  it('migrates guest packages to user storage and clears deliveree_packages_guest', async () => {
+    const { migrateGuestDataToUser } = await import('./AuthContext');
+    const guestData = [
+      {
+        id: 'pkg-guest-1',
+        title: 'Guest Wireless Mouse',
+        trackingNumber: 'RR123456789IL',
+        carrier: 'israel_post',
+        status: 'in_transit',
+        createdAt: '2026-08-20T10:00:00.000Z'
+      }
+    ];
+
+    localStorage.setItem('deliveree_packages_guest', JSON.stringify(guestData));
+    localStorage.removeItem('deliveree_packages_usr-test-2');
+
+    const result = await migrateGuestDataToUser('usr-test-2');
+    expect(result.length).toBe(1);
+    expect(result[0].id).toBe('pkg-guest-1');
+    expect(result[0].userId).toBe('usr-test-2');
+
+    // Guest storage must be wiped
+    expect(localStorage.getItem('deliveree_packages_guest')).toBeNull();
+
+    // User storage must have the package
+    const userStored = JSON.parse(localStorage.getItem('deliveree_packages_usr-test-2'));
+    expect(userStored.length).toBe(1);
+    expect(userStored[0].trackingNumber).toBe('RR123456789IL');
+  });
+
+  it('merges guest packages non-destructively without duplicate tracking numbers or IDs', async () => {
+    const { migrateGuestDataToUser } = await import('./AuthContext');
+    
+    const existingUserData = [
+      {
+        id: 'pkg-user-1',
+        title: 'Existing Keyboard',
+        trackingNumber: 'EE111222333IL',
+        carrier: 'israel_post',
+        status: 'delivered',
+        createdAt: '2026-08-19T10:00:00.000Z'
+      },
+      {
+        id: 'pkg-duplicate-id',
+        title: 'Existing Same ID',
+        trackingNumber: 'UNIQUE-TRACK-99',
+        carrier: 'dhl',
+        status: 'shipped',
+        createdAt: '2026-08-19T11:00:00.000Z'
+      }
+    ];
+    localStorage.setItem('deliveree_packages_usr-test-3', JSON.stringify(existingUserData));
+
+    const guestData = [
+      {
+        id: 'pkg-guest-new',
+        title: 'New Guest Package',
+        trackingNumber: 'NEW-TRACK-44',
+        carrier: 'fedex',
+        status: 'ordered',
+        createdAt: '2026-08-20T12:00:00.000Z'
+      },
+      {
+        id: 'pkg-guest-dup-track',
+        title: 'Duplicate Track In Guest',
+        trackingNumber: 'EE111222333IL', // Duplicate tracking number
+        carrier: 'israel_post',
+        status: 'in_transit',
+        createdAt: '2026-08-20T12:30:00.000Z'
+      },
+      {
+        id: 'pkg-duplicate-id', // Duplicate ID
+        title: 'Guest Same ID',
+        trackingNumber: 'ANOTHER-TRACK',
+        carrier: 'ups',
+        status: 'ordered',
+        createdAt: '2026-08-20T13:00:00.000Z'
+      }
+    ];
+    localStorage.setItem('deliveree_packages_guest', JSON.stringify(guestData));
+
+    const merged = await migrateGuestDataToUser('usr-test-3');
+    // Should have 3 items: New Guest Package + 2 existing user packages
+    expect(merged.length).toBe(3);
+    expect(merged.some(p => p.trackingNumber === 'NEW-TRACK-44')).toBe(true);
+    expect(merged.some(p => p.trackingNumber === 'EE111222333IL')).toBe(true);
+    expect(merged.some(p => p.id === 'pkg-duplicate-id')).toBe(true);
+
+    // Guest storage must be cleaned up
+    expect(localStorage.getItem('deliveree_packages_guest')).toBeNull();
   });
 });

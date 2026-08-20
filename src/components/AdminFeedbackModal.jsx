@@ -101,7 +101,7 @@ export function AdminFeedbackModal({
 
                 <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
                   <span className="truncate">
-                    👤 {typeof fb.user === 'object' && fb.user !== null ? `${fb.user.name} (${fb.user.email || ''})` : (fb.user || 'Anonymous')}
+                    👤 Anonymous Tester
                   </span>
                   <span>📱 {fb.screenWidth}x{fb.screenHeight} • v{fb.appVersion}</span>
                 </div>

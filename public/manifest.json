@@ -11,6 +11,43 @@
   "lang": "he",
   "dir": "auto",
   "categories": ["utilities", "productivity"],
+  "shortcuts": [
+    {
+      "name": "1-Click Paste Tracking",
+      "short_name": "Paste Tracking",
+      "description": "Quickly paste tracking number or SMS from clipboard",
+      "url": "/?action=paste",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Active Deliveries",
+      "short_name": "Active",
+      "description": "View all active deliveries currently in transit",
+      "url": "/?tab=active",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "share_target": {
+    "action": "/",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
   "icons": [
     {
       "src": "/icons/icon-192.png",

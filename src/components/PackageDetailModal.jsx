@@ -4,6 +4,7 @@ import {
   Truck, Clock, RefreshCw
 } from 'lucide-react';
 import { CARRIERS } from '../types/carriers';
+import { detectStore } from '../utils/storeDetector';
 import { copyToClipboard } from '../utils/clipboard';
 import { STAGES, CATEGORIES } from '../types/stages';
 import { useLanguage } from '../context/LanguageContext';
@@ -33,6 +34,7 @@ export function PackageDetailModal({
   if (!isOpen || !pkg) return null;
 
   const carrier = CARRIERS[pkg.carrier] || CARRIERS['other'];
+  const store = detectStore(pkg);
   const currentStageIndex = STAGES.findIndex(s => s.id === pkg.status);
   const effectiveIndex = currentStageIndex === -1 ? 0 : currentStageIndex;
   const currentStage = STAGES[effectiveIndex];
@@ -184,7 +186,12 @@ export function PackageDetailModal({
         {/* Header with Carrier Brand Color Banner */}
         <div className={`p-6 border-b border-slate-800/80 bg-gradient-to-r ${carrier.color} bg-opacity-10 relative flex items-start justify-between gap-4`}>
           <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {store && (
+                <span className={`px-2.5 py-1 rounded-xl text-xs font-bold border shadow-sm ${store.badgeBg} ${store.borderColor} ${store.textColor}`}>
+                  {language === 'he' ? store.hebrewName : store.name}
+                </span>
+              )}
               <span className={`px-2.5 py-1 rounded-xl text-xs font-bold border shadow-sm ${carrier.badgeBg}`}>
                 {language === 'he' ? carrier.hebrewName : carrier.name}
               </span>

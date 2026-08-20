@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { 
   X, MessageSquarePlus, Send, 
-  Bug, Lightbulb, Heart, Smartphone
+  Bug, Lightbulb, Heart, Smartphone, ShieldCheck
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
-import { useAuth } from '../context/AuthContext';
 import { submitFeedback } from '../services/feedbackService';
 
 export function FeedbackModal({
@@ -13,12 +12,10 @@ export function FeedbackModal({
   onShowToast
 }) {
   const { language, isRTL } = useLanguage();
-  const { user } = useAuth();
 
   const [feedbackType, setFeedbackType] = useState('bug'); // 'bug' | 'feature' | 'praise'
   const [message, setMessage] = useState('');
   const [rating, setRating] = useState(5);
-  const [isAnonymous, setIsAnonymous] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
@@ -40,8 +37,8 @@ export function FeedbackModal({
         type: feedbackType,
         message,
         rating,
-        isAnonymous,
-        user: (!isAnonymous && user) ? { id: user.id, name: user.name, email: user.email } : 'Anonymous Tester'
+        isAnonymous: true,
+        user: 'Anonymous Tester'
       });
 
       if (onShowToast) {
@@ -193,25 +190,19 @@ export function FeedbackModal({
             />
           </div>
 
-          {/* Anonymous Toggle */}
-          <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/70 border border-slate-800">
-            <label htmlFor="anonymous-toggle" className="flex flex-col cursor-pointer pr-2">
-              <span className="font-bold text-xs text-slate-200">
-                {language === 'he' ? 'שלח משוב באופן אנונימי' : 'Submit feedback anonymously'}
+          {/* Complete Anonymity Privacy Notice */}
+          <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-indigo-950/40 border border-indigo-500/20 text-slate-300">
+            <ShieldCheck className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+            <div className="flex flex-col space-y-0.5">
+              <span className="font-bold text-xs text-indigo-200">
+                {language === 'he' ? '🔒 כל המשובים נשלחים בצורה אנונימית לחלוטין' : '🔒 All feedback is submitted 100% anonymously'}
               </span>
-              <span className="text-[10px] text-slate-400">
+              <span className="text-[10px] text-slate-400 leading-tight">
                 {language === 'he'
-                  ? 'הסתרת פרטי המשתמש וכתובת האימייל'
-                  : 'Hide your user identity and email address'}
+                  ? 'ללא שמירת פרטי משתמש, מייל או מזהים אישיים (Zero Tracking & PII).'
+                  : 'Zero user tracking, email extraction, or personal identification.'}
               </span>
-            </label>
-            <input
-              id="anonymous-toggle"
-              type="checkbox"
-              checked={isAnonymous}
-              onChange={(e) => setIsAnonymous(e.target.checked)}
-              className="w-6 h-6 rounded-lg text-indigo-600 bg-slate-900 border-slate-700 focus:ring-indigo-500 cursor-pointer min-h-[48px] min-w-[48px]"
-            />
+            </div>
           </div>
 
           {/* Device metadata indicator */}

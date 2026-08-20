@@ -2,7 +2,10 @@ import { describe, it, expect, beforeEach, beforeAll, vi, afterEach } from 'vite
 import {
   notificationService,
   NOTIFICATION_PREFS_KEY,
-  DEFAULT_NOTIFICATION_PREFS
+  PUSH_SUBSCRIPTION_KEY,
+  DEFAULT_NOTIFICATION_PREFS,
+  urlBase64ToUint8Array,
+  formatPushPayload
 } from './notificationService';
 
 describe('notificationService', () => {
@@ -56,7 +59,36 @@ describe('notificationService', () => {
     });
   });
 
-  describe('Web Notification API Wrapper', () => {
+  describe('Web Notification & Push Helpers', () => {
+    it('converts url safe base64 to Uint8Array', () => {
+      const dummyBase64 = 'BMx_abcdef1234567890';
+      const arr = urlBase64ToUint8Array(dummyBase64);
+      expect(arr).toBeInstanceOf(Uint8Array);
+      expect(arr.length).toBeGreaterThan(0);
+    });
+
+    it('returns empty array when base64 string is empty', () => {
+      const arr = urlBase64ToUint8Array('');
+      expect(arr).toEqual(new Uint8Array(0));
+    });
+
+    it('formats push notification payload properly with actions and tag', () => {
+      const payload = formatPushPayload({
+        title: 'Delivered',
+        body: 'Package arrived in Tel Aviv',
+        packageId: 'pkg-999',
+        trackingNumber: 'IL123456'
+      });
+
+      expect(payload.title).toBe('Delivered');
+      expect(payload.body).toBe('Package arrived in Tel Aviv');
+      expect(payload.tag).toBe('pkg-pkg-999');
+      expect(payload.url).toBe('/?packageId=pkg-999');
+      expect(payload.actions).toHaveLength(2);
+      expect(payload.actions[0].action).toBe('view');
+      expect(payload.actions[1].action).toBe('dismiss');
+    });
+
     it('returns unsupported when Notification API is missing', () => {
       const originalNotification = globalThis.Notification;
       // @ts-expect-error test cleanup
@@ -101,26 +133,70 @@ describe('notificationService', () => {
       expect(notificationService.getPreferences().pushEnabled).toBe(false);
     });
 
-    it('instantiates Notification when permission is granted', () => {
+    it('subscribes to push manager when available and stores subscription', async () => {
+      const mockPushSubscription = { endpoint: 'https://fcm.googleapis.com/fcm/send/123' };
+      const getSubscriptionMock = vi.fn().mockResolvedValue(null);
+      const subscribeMock = vi.fn().mockResolvedValue(mockPushSubscription);
+
+      vi.stubGlobal('navigator', {
+        serviceWorker: {
+          ready: Promise.resolve({
+            pushManager: {
+              getSubscription: getSubscriptionMock,
+              subscribe: subscribeMock
+            }
+          })
+        }
+      });
+
+      const sub = await notificationService.subscribeToPush('BMx_mock_vapid_key');
+      expect(sub).toEqual(mockPushSubscription);
+      expect(subscribeMock).toHaveBeenCalled();
+      expect(localStorage.getItem(PUSH_SUBSCRIPTION_KEY)).toContain('fcm.googleapis.com');
+    });
+
+    it('sends notification via ServiceWorker registration if present', async () => {
+      const showNotificationMock = vi.fn().mockResolvedValue(undefined);
+      globalThis.Notification = {
+        permission: 'granted'
+      };
+      vi.stubGlobal('navigator', {
+        serviceWorker: {
+          ready: Promise.resolve({
+            showNotification: showNotificationMock
+          })
+        }
+      });
+
+      const res = await notificationService.sendWebNotification('Package Arrived', { body: 'In Modiin' });
+      expect(res).toBe(true);
+      expect(showNotificationMock).toHaveBeenCalledWith(
+        'Package Arrived',
+        expect.objectContaining({ body: 'In Modiin' })
+      );
+    });
+
+    it('falls back to Window Notification constructor if SW showNotification fails', async () => {
       const notificationConstructor = vi.fn();
       globalThis.Notification = Object.assign(notificationConstructor, {
         permission: 'granted'
       });
+      vi.stubGlobal('navigator', {});
 
-      notificationService.sendWebNotification('Package Arrived', { body: 'In Modiin' });
+      await notificationService.sendWebNotification('Package Arrived', { body: 'In Modiin' });
       expect(notificationConstructor).toHaveBeenCalledWith(
         'Package Arrived',
         expect.objectContaining({ body: 'In Modiin' })
       );
     });
 
-    it('does not send notification if permission is not granted', () => {
+    it('does not send notification if permission is not granted', async () => {
       const notificationConstructor = vi.fn();
       globalThis.Notification = Object.assign(notificationConstructor, {
         permission: 'denied'
       });
 
-      const res = notificationService.sendWebNotification('Package Arrived');
+      const res = await notificationService.sendWebNotification('Package Arrived');
       expect(res).toBeNull();
       expect(notificationConstructor).not.toHaveBeenCalled();
     });

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { TELEGRAM_FEEDBACK_BOT_TOKEN, TELEGRAM_FEEDBACK_CHAT_ID } from '../constants/telegram';
+import { validateAndSanitizeFeedback } from '../services/feedbackService';
 
 describe('Feedback & Telegram Relay Logic', () => {
   it('does not leak hardcoded secret bot tokens into client bundle', () => {
@@ -7,8 +8,7 @@ describe('Feedback & Telegram Relay Logic', () => {
     expect(TELEGRAM_FEEDBACK_CHAT_ID).toBe('726522010');
   });
 
-  it('correctly constructs Telegram HTML notification text with masked email', async () => {
-    const { maskEmail } = await import('../services/feedbackService');
+  it('correctly constructs Telegram HTML notification text with 100% complete anonymity', () => {
     const feedback = {
       type: 'bug',
       rating: 5,
@@ -17,21 +17,20 @@ describe('Feedback & Telegram Relay Logic', () => {
       screenHeight: 852,
       appVersion: '0.2.0-alpha',
       buildChannel: 'alpha',
-      isAnonymous: false,
-      user: { name: 'Sahar', email: 'sahar@test.com' }
+      isAnonymous: true,
+      user: 'Anonymous Tester'
     };
 
     const typeEmoji = feedback.type === 'bug' ? '🚨' : '💡';
     const ratingStars = '⭐'.repeat(feedback.rating);
-    const userName = feedback.user.name;
-    const userEmail = ` (${maskEmail(feedback.user.email)})`;
+    const userDisplay = 'Anonymous Tester';
 
     const text = [
       `<b>${typeEmoji} New Alpha Tester Feedback</b>`,
       `━━━━━━━━━━━━━━━━━━`,
       `<b>⭐ Rating:</b> ${ratingStars} (${feedback.rating}/5)`,
       `<b>🏷️ Category:</b> ${feedback.type}`,
-      `<b>👤 User:</b> ${userName}${userEmail}`,
+      `<b>👤 User:</b> ${userDisplay}`,
       `<b>📱 Device:</b> ${feedback.screenWidth}x${feedback.screenHeight}`,
       `<b>📦 App Version:</b> v${feedback.appVersion} (${feedback.buildChannel})`,
       `━━━━━━━━━━━━━━━━━━`,
@@ -41,22 +40,25 @@ describe('Feedback & Telegram Relay Logic', () => {
 
     expect(text).toContain('🚨 New Alpha Tester Feedback');
     expect(text).toContain('⭐⭐⭐⭐⭐');
-    expect(text).toContain('Sahar (s***r@test.com)');
-    expect(text).not.toContain('sahar@test.com)');
+    expect(text).toContain('👤 User:</b> Anonymous Tester');
+    expect(text).not.toContain('@');
     expect(text).toContain('393x852');
     expect(text).toContain('v0.2.0-alpha');
   });
 
-  it('correctly displays Anonymous Tester (Private) for anonymous feedback', () => {
-    const feedback = {
+  it('strictly enforces anonymous user representation in sanitized payloads', () => {
+    const rawWithPii = {
       type: 'feature',
       rating: 4,
       message: 'Add custom status tags',
-      isAnonymous: true,
-      user: 'Anonymous Tester'
+      isAnonymous: false,
+      user: { name: 'Alice Smith', email: 'alice@company.com', id: 'usr-999' }
     };
 
-    const userDisplay = feedback.isAnonymous ? 'Anonymous Tester (Private)' : feedback.user;
-    expect(userDisplay).toBe('Anonymous Tester (Private)');
+    const sanitized = validateAndSanitizeFeedback(rawWithPii);
+    expect(sanitized.isAnonymous).toBe(true);
+    expect(sanitized.user).toBe('Anonymous Tester');
+    expect(JSON.stringify(sanitized)).not.toContain('alice');
+    expect(JSON.stringify(sanitized)).not.toContain('usr-999');
   });
 });

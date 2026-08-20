@@ -104,18 +104,8 @@ def parse_feedback_item(item: dict) -> dict:
         action_items.append(f"Evaluate feedback in `{suggested_files[0]}`")
         action_items.append("Update product roadmap backlog")
 
-    # Format user display safely with email masking
-    if is_anon:
-        user_display = "Anonymous Tester (Private)"
-    else:
-        raw_user = item.get("user", "Anonymous")
-        if isinstance(raw_user, dict):
-            name = raw_user.get("name", "User")
-            email = raw_user.get("email")
-            masked = f" ({mask_email(email)})" if email else ""
-            user_display = f"{name}{masked}"
-        else:
-            user_display = str(raw_user)
+    # Format user display strictly as Anonymous Tester for 100% complete anonymity
+    user_display = "Anonymous Tester"
 
     return {
         "id": item.get("id", f"fb-{int(datetime.now().timestamp())}"),
@@ -271,7 +261,7 @@ if __name__ == "__main__":
                 "message": "כשמזינים מספר מעקב של דואר ישראל האפליקציה קורסת בנייד",
                 "rating": 1,
                 "appVersion": "0.2.0-alpha",
-                "user": {"name": "Alpha Tester", "email": "tester@example.com"},
+                "user": "Anonymous Tester",
                 "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)",
                 "timestamp": datetime.now().isoformat()
             },
@@ -282,7 +272,7 @@ if __name__ == "__main__":
                 "message": "Would love an option to export package tracking history to CSV or PDF",
                 "rating": 5,
                 "appVersion": "0.2.0-alpha",
-                "user": "David R.",
+                "user": "Anonymous Tester",
                 "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
                 "timestamp": datetime.now().isoformat()
             }

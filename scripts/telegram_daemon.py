@@ -107,18 +107,8 @@ def format_feedback_summary(root_dir: Path) -> str:
             emoji = "🚨" if item.get("type") == "bug" else ("💡" if item.get("type") == "feature" else "❤️")
             status_icon = "⏳" if item.get("status", "pending") == "pending" else "✅"
             
-            is_anon = item.get("isAnonymous", False)
-            if is_anon:
-                user_str = "Anonymous Tester (Private)"
-            else:
-                user_info = item.get("user", "Tester")
-                if isinstance(user_info, dict):
-                    name = user_info.get("name", "Tester")
-                    email = user_info.get("email")
-                    masked = f" ({mask_email(email)})" if email else ""
-                    user_str = f"{name}{masked}"
-                else:
-                    user_str = str(user_info)
+            # Strictly anonymous: Zero user identification
+            user_str = "Anonymous Tester"
             
             msg_snippet = item.get("message", "").replace("<", "&lt;").replace(">", "&gt;")[:75]
             rating = item.get("rating", 5)
