@@ -12,7 +12,7 @@
     <!-- Instant Hard Cache Purge & Service Worker Reset -->
     <script>
       (function() {
-        var APP_CURRENT_VER = '0.6.2.14';
+        var APP_CURRENT_VER = '0.6.2.15';
         var storedVer = localStorage.getItem('deliveree_app_build_version');
         if (storedVer !== APP_CURRENT_VER) {
           if ('serviceWorker' in navigator) {
@@ -30,10 +30,7 @@
             }).catch(function() {});
           }
           localStorage.setItem('deliveree_app_build_version', APP_CURRENT_VER);
-          // If we detect outdated cache in memory, force an instant reload
-          if (storedVer) {
-            window.location.reload(true);
-          }
+          // Cache version synchronized cleanly without abrupt reload
         }
       })();
     </script>

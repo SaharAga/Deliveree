@@ -262,7 +262,7 @@ export function AuthModal({
             <div>
               <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
                 <span>{language === 'he' ? 'חשבון וסנכרון ענן' : 'Account & Cloud Sync'}</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">v0.6.2.14</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">v0.6.2.15</span>
               </h2>
               <p className="text-xs text-slate-400">
                 {language === 'he' ? 'סנכרון החבילות שלך מכל מכשיר' : 'Access your packages from any device'}
