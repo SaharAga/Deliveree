@@ -56,7 +56,7 @@ A critical architectural flaw in the current framework is the **split-brain dive
    - `sdlc-orchestrator/SKILL.md` (Workspace lines 26-82) specifies explicit subagent dispatch templates with `Role: Feature Developer`, `TypeName: developer`, and `You are the Feature Developer.` matching `subagents.json`.
 3. **Rulebook Discrepancy**:
    - `rules/sdlc_pipeline.md` (Plugin lines 31-66) embeds skill names inside the Gate headings (`* **Skill**: sdlc-orchestrator`), but does not have Section 4 skill discovery links.
-   - `AGENTS.md` (Workspace lines 76-85) decouples skill discovery into Section 4 using `file:///` absolute paths (`file:///home/sahar/Deliveree/.agents/skills/...`).
+   - `AGENTS.md` (Workspace lines 76-85) decouples skill discovery into Section 4 using `file:///` absolute paths (`.agents/skills/...`).
 
 ---
 
@@ -227,14 +227,14 @@ A critical architectural flaw in the current framework is the **split-brain dive
   76: ## 4. Custom Skill Discovery
   77: 
   78: The following specialized skills are available in `.agents/skills/`:
-  79: * [`sdlc-orchestrator`](file:///home/sahar/Deliveree/.agents/skills/sdlc-orchestrator/SKILL.md)
-  80: * [`software-development-standards`](file:///home/sahar/Deliveree/.agents/skills/software-development-standards/SKILL.md)
-  81: * [`automated-code-review`](file:///home/sahar/Deliveree/.agents/skills/automated-code-review/SKILL.md)
-  82: * [`owasp-security-and-rate-limiting`](file:///home/sahar/Deliveree/.agents/skills/owasp-security-and-rate-limiting/SKILL.md)
-  83: * [`software-verification-and-qa`](file:///home/sahar/Deliveree/.agents/skills/software-verification-and-qa/SKILL.md)
-  84: * [`remote-notifications-and-chat`](file:///home/sahar/Deliveree/.agents/skills/remote-notifications-and-chat/SKILL.md)
+  79: * [`sdlc-orchestrator`](.agents/skills/sdlc-orchestrator/SKILL.md)
+  80: * [`software-development-standards`](.agents/skills/software-development-standards/SKILL.md)
+  81: * [`automated-code-review`](.agents/skills/automated-code-review/SKILL.md)
+  82: * [`owasp-security-and-rate-limiting`](.agents/skills/owasp-security-and-rate-limiting/SKILL.md)
+  83: * [`software-verification-and-qa`](.agents/skills/software-verification-and-qa/SKILL.md)
+  84: * [`remote-notifications-and-chat`](.agents/skills/remote-notifications-and-chat/SKILL.md)
   ```
-  - *Critique (Portability & Standards)*: Lines 79–84 use hardcoded absolute system file URLs (`file:///home/sahar/Deliveree/...`). This breaks portability across different developers' machines, CI/CD runners, or cloud containers. Standard markdown relative paths (`.agents/skills/<name>/SKILL.md`) or skill identifier names should be used instead.
+  - *Critique (Portability & Standards)*: Lines 79–84 use hardcoded absolute system file URLs (`...`). This breaks portability across different developers' machines, CI/CD runners, or cloud containers. Standard markdown relative paths (`.agents/skills/<name>/SKILL.md`) or skill identifier names should be used instead.
 - **Divergence with Plugin Rulebook**:
   - `AGENTS.md` includes hardware/VLSI ASIC engineering analogies in Section 1 (lines 9–14), while `sdlc_pipeline.md` in the plugin omits them.
   - `AGENTS.md` correctly catalogs all 6 skills in Section 4, while `sdlc_pipeline.md` lists only 5 inline skills and omits `remote-notifications-and-chat`.
@@ -280,11 +280,11 @@ A critical architectural flaw in the current framework is the **split-brain dive
   - *Critique (Pillar 1)*: Frontmatter lacks CLI parameter contracts (`--send`, `--ask`, `--options`, `--timeout`) and negative routing conditions ("Do NOT use for local subagent-to-parent messaging; use `send_message`").
 - **Lines 26–29, 61 (Hardcoded Absolute Script Paths)**:
   ```markdown
-  26: | **Telegram Bot** | [`scripts/telegram_bot.py`](file:///home/sahar/Deliveree/scripts/telegram_bot.py) |
-  27: | **Email (Gmail)** | [`scripts/notify.py`](file:///home/sahar/Deliveree/scripts/notify.py) |
-  29: Credentials are automatically loaded from [`.env.local`](file:///home/sahar/Deliveree/.env.local) ...
+  26: | **Telegram Bot** | [`scripts/telegram_bot.py`](scripts/telegram_bot.py) |
+  27: | **Email (Gmail)** | [`scripts/notify.py`](scripts/notify.py) |
+  29: Credentials are automatically loaded from [`.env.local`](.env.local) ...
   ```
-  - *Critique (Portability Defect)*: Direct `file:///home/sahar/Deliveree/...` links make the skill non-portable. Scripts should be referenced via relative paths (`scripts/telegram_bot.py`) or packaged into the skill's own `scripts/` directory.
+  - *Critique (Portability Defect)*: Direct `...` links make the skill non-portable. Scripts should be referenced via relative paths (`scripts/telegram_bot.py`) or packaged into the skill's own `scripts/` directory.
 - **Omission from Plugin**: Not bundled inside `/home/sahar/.gemini/config/plugins/agentic-sdlc-framework/skills/`.
 
 ---
@@ -1113,7 +1113,7 @@ python3 scripts/notify.py -s "Security Gate Alert" -m "BOLA vulnerability detect
 ## 6. Summary of Action Items for Remediation
 
 1. **Synchronize Plugin Skills**: Copy `remote-notifications-and-chat` to `/home/sahar/.gemini/config/plugins/agentic-sdlc-framework/skills/` and update `plugin.json`.
-2. **Replace Hardcoded URLs**: Update `AGENTS.md` to use portable relative markdown paths instead of `file:///home/sahar/Deliveree/...`.
+2. **Replace Hardcoded URLs**: Update `AGENTS.md` to use portable relative markdown paths instead of `...`.
 3. **Deploy Enhanced YAML Frontmatter**: Update all 6 skills with the complete "Use when" / "Do NOT use when" frontmatter blocks to ensure precise Antigravity routing.
 4. **Implement Progressive Disclosure Folders**: Create `references/` subdirectories in each skill folder to store comprehensive catalogs and checklists.
 5. **Update Subagent Declarations**: Update `subagents.json` to bind explicit `skills` and tool permission restrictions.

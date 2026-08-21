@@ -192,13 +192,18 @@ export function AccountModal({
         {/* Header */}
         <div className="p-5 sm:p-6 border-b border-slate-800 flex items-center justify-between bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-purple-600/10">
           <div className="flex items-center gap-3">
-            {user.avatar ? (
-              <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-2xl object-cover border border-blue-500/30 shadow-md" />
-            ) : (
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-base shadow-md">
-                {user.name?.charAt(0) || 'U'}
-              </div>
-            )}
+            <div className="w-10 h-10 rounded-2xl relative shrink-0 overflow-hidden bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-base shadow-md border border-blue-500/30">
+              <span>{user.name?.charAt(0) || 'U'}</span>
+              {user.avatar && (
+                <img
+                  src={user.avatar}
+                  alt={user.name}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                />
+              )}
+            </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-slate-100 flex items-center gap-2">
                 <span>{user.name}</span>

@@ -9,7 +9,7 @@
    - `plugins/.../sdlc-orchestrator/SKILL.md:32,47,61,75` uses `Activate the <skill> skill`.
    - `workspace/.../sdlc-orchestrator/SKILL.md:26-82` uses `Role: Feature Developer`, `TypeName: developer`, and `You are the Feature Developer.`.
 5. **Hardcoded URLs in Workspace Rulebook (`AGENTS.md:79-84`)**:
-   - Lines 79-84 use machine-specific absolute URLs `file:///home/sahar/Deliveree/.agents/skills/...` instead of portable relative paths.
+   - Lines 79-84 use machine-specific absolute URLs `.agents/skills/...` instead of portable relative paths.
 6. **Subagent Registry Defect (`subagents.json:1-25`)**:
    - Subagents define `name`, `description`, `role` but omit explicit `skills` arrays and tool permission scopes (e.g. read-only constraints for reviewers and auditors).
 7. **Progressive Disclosure Absence**:
@@ -19,7 +19,7 @@
 1. **From Observation 1 & 2 $\rightarrow$ Plugin Incompleteness**: Because `remote-notifications-and-chat` was left out of the global plugin and `plugin.json` does not declare skills or network permissions, any environment initializing solely from the plugin will lack remote Telegram/Email alerting capabilities and network authorization.
 2. **From Observation 3 $\rightarrow$ Sub-optimal Antigravity Routing**: Antigravity's progressive disclosure relies on skill descriptions to decide when to activate a skill. Without explicit "Use when" / "Do NOT use when" boundaries, models may suffer from ambiguous skill activation or false-positive triggers.
 3. **From Observation 4 $\rightarrow$ Protocol Fragility**: Because plugin and workspace versions of `sdlc-orchestrator` use different subagent dispatch patterns (generic skill activation vs `subagents.json` role definitions), orchestrator behavior diverges depending on which directory takes precedence.
-4. **From Observation 5 $\rightarrow$ Portability Breakage**: Absolute `file:///home/sahar/Deliveree/...` links in `AGENTS.md` fail when the repository is cloned by another developer or executed in CI/CD environments.
+4. **From Observation 5 $\rightarrow$ Portability Breakage**: Absolute `...` links in `AGENTS.md` fail when the repository is cloned by another developer or executed in CI/CD environments.
 5. **From Observation 6 $\rightarrow$ Missing Principle of Least Privilege**: Without explicit tool scoping in `subagents.json`, reviewer and security auditor subagents have write permissions (`replace_file_content`, `write_to_file`) that should be restricted to prevent unintended code modifications during read-only evaluation.
 6. **From Observation 7 $\rightarrow$ Context Token Inefficiency**: Ingesting large domain checklists into the primary `SKILL.md` inflates the context window whenever a skill is activated. Progressive disclosure into `references/` allows the agent to fetch specialized rubrics only when needed.
 

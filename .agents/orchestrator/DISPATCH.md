@@ -1,29 +1,28 @@
-# Dispatch Record
+## 2026-08-21T16:10:05Z
 
-## 2026-08-18T08:12:21Z
-Perform a rigorous, adversarial code review and architecture audit on the Deliveree web application codebase to evaluate code quality, edge cases, security vulnerabilities, performance bottlenecks, and user experience flaws.
+You are the SWE Light Orchestrator for the Google Authentication lifecycle fix task in Deliveree.
 
-## 2026-08-18T08:31:42Z
-Perform an exhaustive, adversarial peer review and architectural evaluation of the custom Multi-Agent SDLC Framework, its specialized skills, system prompts, rulebooks, and subagent configurations.
+Authoritative Request: /home/sahar/Deliveree/.agents/ORIGINAL_REQUEST.md
+Working directory: /home/sahar/Deliveree
+Integrity mode: development
 
-Target Artifacts to Review:
-1. /home/sahar/.gemini/config/plugins/agentic-sdlc-framework/plugin.json
-2. /home/sahar/.gemini/config/plugins/agentic-sdlc-framework/rules/sdlc_pipeline.md
-3. /home/sahar/.gemini/config/plugins/agentic-sdlc-framework/skills/sdlc-orchestrator/SKILL.md
-4. /home/sahar/.gemini/config/plugins/agentic-sdlc-framework/skills/software-development-standards/SKILL.md
-5. /home/sahar/.gemini/config/plugins/agentic-sdlc-framework/skills/automated-code-review/SKILL.md
-6. /home/sahar/.gemini/config/plugins/agentic-sdlc-framework/skills/owasp-security-and-rate-limiting/SKILL.md
-7. /home/sahar/.gemini/config/plugins/agentic-sdlc-framework/skills/software-verification-and-qa/SKILL.md
-8. /home/sahar/Deliveree/AGENTS.md
-9. /home/sahar/Deliveree/.agents/subagents/subagents.json
+Task Summary:
+Fix the Google Authentication lifecycle in Deliveree so that when a user logs in via Google on mobile or desktop, the authenticated session persists, the user state updates reliably, and the app transitions cleanly to the authenticated dashboard without reverting to the landing/login view.
 
-Key Requirements:
-- R1: Skill Architecture & Antigravity Compatibility Audit (YAML frontmatter, progressive disclosure, instruction hierarchies, execution checklists)
-- R2: Enterprise Security & Threat Model Completeness (OWASP ASVS L3: Zero-Trust, BOLA/BFLA, token replay, cryptography, anti-ReDoS, SSRF CIDR blocking, rate limiting dual-key algorithms)
-- R3: Scalability, Concurrency & Modern Framework Standards (Big-O complexity, React 19 / Next.js / Vue lifecycles, memory leak prevention, async race conditions, single-pass aggregations, DB indexing)
-- R4: Multi-Agent Orchestration & Quality Gate Robustness (handoff protocols, failure remediation loops, gate-blocking thresholds, testbench standards)
+Requirements:
+### R1. Robust OAuth State Synchronization
+- When `signInWithPopup` or `signInWithRedirect` completes, the user session must immediately resolve in `AuthContext` and set `user` with valid profile data.
+- Ensure `onAuthStateChanged` correctly detects the active Firebase user and persists the session across app mounts and page reloads.
 
-Deliverables:
-- Detailed line-cited critique for each individual skill, rulebook, and configuration
-- Identification of missing engineering checklists, security blind spots, or edge cases
-- Actionable, drop-in text enhancements to elevate the framework to world-class enterprise standards
+### R2. Seamless UI Transition
+- The welcome/login screen (`!user && !isDemoMode`) must immediately switch to the active authenticated dashboard upon successful authentication without getting stuck in a loop or closing back to the unauthenticated landing view.
+
+### R3. Safe Cross-Device & Mobile Support
+- Guarantee identical authentication behavior across desktop browsers (Chrome, Edge, Safari) and mobile viewports (iOS Safari, Android Chrome).
+
+Acceptance Criteria:
+- User can click 'Continue with Google', complete authentication in the popup/redirect, and immediately view their personal dashboard with user avatar in the navbar.
+- Refreshing the page while logged in retains the authenticated session (no flicker back to login screen).
+- Adding a package as an authenticated user persists the package under the user's Firestore collection and local storage without disappearing.
+
+Execute the SWE Light protocol (implementer, reviewer, test verification), maintain progress in your progress.md, and notify when complete.

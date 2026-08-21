@@ -5,21 +5,31 @@ const LanguageContext = createContext();
 
 export function LanguageProvider({ children }) {
   const [language, setLanguage] = useState(() => {
-    return localStorage.getItem('deliveree_lang') || 'he'; // Default to Hebrew or English
+    try {
+      return localStorage.getItem('deliveree_lang') || 'he';
+    } catch {
+      return 'he';
+    }
   });
 
   const isRTL = language === 'he';
 
   useEffect(() => {
-    localStorage.setItem('deliveree_lang', language);
-    document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
-    document.documentElement.lang = language;
-    if (isRTL) {
-      document.body.classList.add('rtl-layout');
-      document.body.classList.remove('ltr-layout');
-    } else {
-      document.body.classList.add('ltr-layout');
-      document.body.classList.remove('rtl-layout');
+    try {
+      localStorage.setItem('deliveree_lang', language);
+    } catch {
+      // Ignore in strict private mode
+    }
+    if (typeof document !== 'undefined') {
+      document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
+      document.documentElement.lang = language;
+      if (isRTL) {
+        document.body.classList.add('rtl-layout');
+        document.body.classList.remove('ltr-layout');
+      } else {
+        document.body.classList.add('ltr-layout');
+        document.body.classList.remove('rtl-layout');
+      }
     }
   }, [language, isRTL]);
 

@@ -1,0 +1,37 @@
+{
+  "name": "agentic-sdlc-framework",
+  "version": "2.1.0",
+  "description": "Multi-Agent Software Development Lifecycle Framework with Orchestrator, Developer, Scalability Reviewer, Security Baseline Auditor, and QA Verifier.",
+  "author": {
+    "name": "Sahar"
+  },
+  "license": "Apache-2.0",
+  "keywords": [
+    "sdlc",
+    "multi-agent",
+    "orchestration",
+    "clean-architecture",
+    "scalability",
+    "qa-testbench"
+  ],
+  "engines": {
+    "antigravity": ">=2.0.0"
+  },
+  "rules": [
+    "rules/sdlc_pipeline.md"
+  ],
+  "skills": [
+    "skills/sdlc-orchestrator",
+    "skills/software-development-standards",
+    "skills/automated-code-review",
+    "skills/owasp-security-and-rate-limiting",
+    "skills/software-verification-and-qa",
+    "skills/remote-notifications-and-chat",
+    "skills/git-branch-and-pr-workflow",
+    "skills/feedback-triage-and-action-items",
+    "skills/project-release-tracking",
+    "skills/ui-ux-design-systems",
+    "skills/performance-and-chaos-stress",
+    "skills/adversarial-penetration-testing"
+  ]
+}

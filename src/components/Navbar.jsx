@@ -92,8 +92,8 @@ export function Navbar({
               <span className="text-base sm:text-lg font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400 truncate">
                 {t('appTitle')}
               </span>
-              <span className="text-[9px] px-1 py-0.2 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold uppercase tracking-wider">
-                Alpha
+              <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono font-bold tracking-wider">
+                v0.6.2.14
               </span>
             </div>
             <span className="hidden sm:block text-[10px] text-slate-400 font-medium -mt-0.5 truncate">
@@ -273,8 +273,17 @@ export function Navbar({
           >
             {user ? (
               <>
-                <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-[10px] font-bold">
-                  {user.name?.charAt(0) || 'U'}
+                <div className="w-5 h-5 rounded-full relative shrink-0 overflow-hidden bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-[10px] font-bold text-white border border-blue-500/40">
+                  <span>{user.name?.charAt(0) || 'U'}</span>
+                  {user.avatar && (
+                    <img
+                      src={user.avatar}
+                      alt={user.name || 'User'}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  )}
                 </div>
                 <span className="text-xs font-medium max-w-[100px] truncate">{user.name}</span>
               </>
@@ -319,8 +328,17 @@ export function Navbar({
             title={user ? user.name : 'Sign In'}
           >
             {user ? (
-              <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-xs font-bold">
-                {user.name?.charAt(0) || 'U'}
+              <div className="w-6 h-6 rounded-full relative shrink-0 overflow-hidden bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-xs font-bold text-white border border-blue-500/40">
+                <span>{user.name?.charAt(0) || 'U'}</span>
+                {user.avatar && (
+                  <img
+                    src={user.avatar}
+                    alt={user.name || 'User'}
+                    className="absolute inset-0 w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                )}
               </div>
             ) : (
               <>

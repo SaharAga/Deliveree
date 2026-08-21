@@ -1,48 +1,42 @@
-# Deliveree Engineering Roadmap & Architecture
+# 🚀 Deliveree: Master Production Roadmap
 
-## 1. Product Vision & Architecture Overview
-Deliveree is a modern, privacy-conscious, multi-carrier package tracking Progressive Web App (PWA) designed for Israeli and global e-commerce consumers. It unifies order updates across Israeli couriers (Israel Post, Cheetah Delivery, HFD, BoxIt) and global shipping networks (AliExpress Cainiao, YunExpress, 4PX, DHL, FedEx, UPS, USPS, Royal Mail, Aramex, Yanwen) into an intuitive, bilingual (Hebrew RTL / English LTR), cloud-synchronized experience.
-
-### Multi-Agent Governance & SDLC Structure
-The codebase is developed and maintained using an autonomous **3-Squad Topology** and **7-Stage Quality Gate Pipeline** (defined in AGENTS.md):
-- **Squad A: Feature Development Squad** (ui_ux_specialist, auth_cloud_specialist, delivery_pipeline_specialist, pwa_offline_specialist, feedback_telemetry_specialist)
-- **Squad B: High-Assurance Verification Squad** (property_test_eng, formal_invariant_eng, testability_bist_eng, qa_build_verifier)
-- **Squad C: Adversarial & Red Team Squad** (adversarial_pentester, chaos_resilience_eng, compliance_auditor)
+**Target**: Transition Deliveree from simulated prototype to production-grade consumer package tracking app.
 
 ---
 
-## 2. Sprint Roadmap
+## 🗺️ Step-by-Step Execution Plan
 
-
-
----
-
-## 3. Sprint Breakdown & Milestones
-
-### Sprint 1: Architecture & Security Hardening (Completed — v0.2.1)
-- [x] **TASK-101: Data Integrity & Schema Validation Layer**
-- [x] **TASK-102: Multi-Tier Authentication & Firestore Adapter**
-
-### Sprint 2: Multi-Carrier Auto-Tracking & State Transitions (Completed — v0.2.2)
-- [x] **TASK-201: Multi-Carrier Resolution Engine & Rate-Limiting Cache**
-- [x] **TASK-202: Israeli & Global Couriers Direct Parsers**
-- [x] **TASK-203: State Machine Transition Pipeline & UI Controls**
-
-### Sprint 3: Smart Notifications, Offline & Export (Active — v0.4.1 -> v0.5.0)
-- [x] **TASK-301: Dedicated Export Center & Extended Courier Support** (Completed — v0.4.0)
-- [x] **TASK-302: Navbar & Triage Ergonomics Cleanup** (Completed — v0.4.1)
-- [ ] **TASK-303: Web Push Notifications via Service Worker** (Active)
-- [ ] **TASK-304: Telegram User Notification Bridge** (Active)
-- [ ] **TASK-305: Advanced PWA Offline Storage (IndexedDB Migration)** (Planned)
-- [ ] **TASK-306: Service Worker Background Sync API** (Planned)
-
-### Sprint 4: AI Smart Ingestion & Omnichannel Ecosystem (Planned — v0.6.0)
-- [ ] **TASK-401: Gemini AI Smart Ingestion Engine** (Planned)
-- [ ] **TASK-402: Gmail OAuth Integration** (Planned)
-- [ ] **TASK-403: Inbound Email Delivery Webhook Parser** (Planned)
-- [ ] **TASK-404: Multilingual Checkpoint Translation Engine** (Planned)
+### ✅ Step 1: Real Authentication & Registration (COMPLETED)
+* **What was changed**:
+  1. Configured real Firebase Web App credentials (`deliveree-app-2a938`) in `.env.local`.
+  2. Eliminated all mock user generation from `AuthContext.jsx`.
+  3. Added Google, Apple, and Facebook SSO providers + real Email/Password registration and login.
+  4. Handled duplicate account rejection (`auth/email-already-in-use`) and weak password errors with friendly bilingual messages.
+  5. Guaranteed persistent session across page reloads and browser restarts.
+  6. Implemented complete account and package deletion in Firestore & Auth (`deleteUserAccountAndData`).
+  7. Removed developer jargon and cleaned `AuthModal.jsx`.
 
 ---
 
-## 4. Quality Gates & Definition of Done (DoD)
-All features must strictly pass the 7-Stage SDLC Pipeline before merging.
+### 📦 Step 2: Real Carrier Live Tracking Engine (NEXT)
+* Deploy serverless proxy (Cloudflare Worker / Firebase Cloud Function) to query real 17Track, Israel Post, DHL, and Cainiao tracking APIs without browser CORS errors.
+* Replace `simulateCarrierTracking` with real upstream checkpoints and 2-hour edge caching.
+
+---
+
+### 📥 Step 3: Zero-Friction Automated Ingestion
+* 1-Click "Connect Gmail" (`gmail.readonly`) to automatically detect order & tracking numbers from AliExpress, Amazon, Shein, ASOS, and Israel Post.
+* Native SMS and notification auto-capture.
+
+---
+
+### 🎨 Step 4: UI/UX Simplification & De-cluttering
+* Remove developer jargon and technical metric badges from consumer views.
+* Redesign Package Cards with carrier logos, clear human stages, and instant pickup barcodes.
+* Simple in-app feedback dialog.
+
+---
+
+### 📱 Step 5: Native App Packaging (Capacitor)
+* Wrap application with Capacitor for iOS and Android deployment.
+* Enable native mobile Push Notifications and WebCam/Camera barcode scanning.

@@ -1,32 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
-  X, Cloud, ShieldCheck, Smartphone, Laptop, 
-  ArrowRight, Mail, User, Lock, Check, UserCheck
+  X, Cloud, Check, AlertCircle,
+  Mail, User, Lock, Loader2, LogOut, Trash2, ArrowLeft
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { isFirebaseConfigured } from '../services/firebase';
 
-/**
- * Evaluates password strength criteria and calculates password entropy / security score.
- * 
- * @param {string} password
- * @returns {{
- *   score: number, // 0: empty, 1: Weak, 2: Fair, 3: Strong, 4: Secure
- *   level: 'none' | 'weak' | 'fair' | 'strong' | 'secure',
- *   labelHe: string,
- *   labelEn: string,
- *   colorClass: string,
- *   textClass: string,
- *   criteria: {
- *     length: boolean,
- *     lowercase: boolean,
- *     uppercase: boolean,
- *     number: boolean,
- *     symbol: boolean
- *   }
- * }}
- */
 export function calculatePasswordStrength(password) {
   const str = typeof password === 'string' ? password : '';
   const criteria = {
@@ -110,22 +89,40 @@ export function AuthModal({
   onClose,
   onShowToast
 }) {
-  const { user, loginWithGoogle, loginWithEmail, registerWithEmail, logout } = useAuth();
+  const { 
+    user, 
+    loginWithGoogle, 
+    loginWithEmail, 
+    registerWithEmail, 
+    resetPassword,
+    deleteUserAccountAndData,
+    logout 
+  } = useAuth();
+  
   const { language, isRTL } = useLanguage();
 
-  const [activeTab, setActiveTab] = useState('signin'); // 'signin' | 'register'
+  const [activeTab, setActiveTab] = useState('signin'); // 'signin' | 'register' | 'forgot'
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
   const [nameInput, setNameInput] = useState('');
   const [formError, setFormError] = useState('');
+  const [formSuccess, setFormSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const passwordStrength = useMemo(() => {
     return calculatePasswordStrength(passwordInput);
   }, [passwordInput]);
 
-  if (!isOpen) return null;
+  const hasMinLength = passwordInput.length >= 8;
+  const hasLettersAndNumbers = /(?=.*[A-Za-zא-ת])(?=.*[0-9])/.test(passwordInput);
+  const hasSpecialChar = /[^A-Za-z0-9א-ת]/.test(passwordInput);
+  const passwordsMatch = useMemo(() => {
+    return passwordInput.length > 0 && confirmPasswordInput.length > 0 && passwordInput === confirmPasswordInput;
+  }, [passwordInput, confirmPasswordInput]);
 
   const validateEmail = (email) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -134,77 +131,124 @@ export function AuthModal({
   const handleEmailSubmit = async (e) => {
     e.preventDefault();
     setFormError('');
+    setFormSuccess('');
 
     const cleanEmail = emailInput.trim();
     const cleanPassword = passwordInput;
+    const cleanConfirm = confirmPasswordInput;
     const cleanName = nameInput.trim();
 
     if (!cleanEmail) {
-      setFormError(language === 'he' ? 'נא להזין כתובת אימייל תקינה' : 'Please enter an email address');
+      setFormError(language === 'he' ? 'נא להזין כתובת אימייל' : 'Please enter an email address');
       return;
     }
 
     if (!validateEmail(cleanEmail)) {
-      setFormError(language === 'he' ? 'כתובת האימייל אינה תקינה' : 'Please enter a valid email address');
+      setFormError(language === 'he' ? 'כתובת האימייל אינה תקינה (לדוגמה: name@domain.com)' : 'Please enter a valid email address (e.g. name@domain.com)');
       return;
     }
 
-    if (!cleanPassword || cleanPassword.length < 6) {
-      setFormError(language === 'he' ? 'הסיסמה חייבת להכיל לפחות 6 תווים' : 'Password must be at least 6 characters');
+    if (activeTab === 'forgot') {
+      setIsLoading(true);
+      try {
+        await resetPassword(cleanEmail);
+        setFormSuccess(
+          language === 'he'
+            ? 'קישור לאיפוס סיסמה נשלח לתיבת האימייל שלך!'
+            : 'Password reset link has been sent to your email!'
+        );
+      } catch (err) {
+        setFormError(err.message || 'Error sending password reset email');
+      } finally {
+        setIsLoading(false);
+      }
       return;
     }
 
-    if (activeTab === 'register' && !cleanName) {
-      setFormError(language === 'he' ? 'נא להזין שם מלא בהרשמה' : 'Please enter your name for registration');
+    if (!cleanPassword) {
+      setFormError(language === 'he' ? 'נא להזין סיסמה' : 'Please enter a password');
       return;
+    }
+
+    if (cleanPassword.length < 8) {
+      setFormError(language === 'he' ? 'הסיסמה חייבת להכיל לפחות 8 תווים' : 'Password must be at least 8 characters');
+      return;
+    }
+
+    if (activeTab === 'register') {
+      if (!/(?=.*[A-Za-zא-ת])(?=.*[0-9])/.test(cleanPassword)) {
+        setFormError(language === 'he' ? 'הסיסמה חייבת לכלול שילוב של אותיות ומספרים' : 'Password must include both letters and numbers');
+        return;
+      }
+      if (!/[^A-Za-z0-9א-ת]/.test(cleanPassword)) {
+        setFormError(language === 'he' ? 'הסיסמה חייבת לכלול לפחות תו מיוחד אחד (כגון !@#$%)' : 'Password must contain at least one special character (!@#$%)');
+        return;
+      }
+      if (!cleanName) {
+        setFormError(language === 'he' ? 'נא להזין שם מלא' : 'Please enter your full name');
+        return;
+      }
+      if (cleanPassword !== cleanConfirm) {
+        setFormError(language === 'he' ? 'הסיסמאות אינן תואמות. נא להזין שוב.' : 'Passwords do not match. Please re-enter.');
+        return;
+      }
     }
 
     setIsLoading(true);
     try {
       if (activeTab === 'register') {
         await registerWithEmail(cleanEmail, cleanPassword, cleanName);
-        if (onShowToast) onShowToast(language === 'he' ? 'החשבון נוצר בהצלחה! הנתונים סונכרנו' : 'Account created successfully! Data synced', 'success');
+        if (onShowToast) onShowToast(language === 'he' ? 'החשבון נוצר בהצלחה!' : 'Account created successfully!', 'success');
       } else {
-        await loginWithEmail(cleanEmail, cleanPassword, cleanName);
-        if (onShowToast) onShowToast(language === 'he' ? 'התחברת בהצלחה! הנתונים סונכרנו לענן' : 'Logged in successfully! Data synced to cloud', 'success');
+        await loginWithEmail(cleanEmail, cleanPassword);
+        if (onShowToast) onShowToast(language === 'he' ? 'התחברת בהצלחה!' : 'Logged in successfully!', 'success');
       }
       onClose();
     } catch (err) {
-      setFormError(err.message || 'Authentication error');
+      setFormError(err.message || (language === 'he' ? 'שגיאה באימות' : 'Authentication error'));
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Auto-close modal when user is authenticated
+  useEffect(() => {
+    if (user && isOpen) {
+      if (onShowToast) onShowToast(language === 'he' ? 'התחברת בהצלחה!' : 'Logged in successfully!', 'success');
+      onClose();
+    }
+  }, [user, isOpen, onClose, onShowToast, language]);
+
   const handleGoogleClick = async () => {
     setIsGoogleLoading(true);
     setFormError('');
     try {
-      if (isFirebaseConfigured) {
-        await loginWithGoogle();
-        if (onShowToast) onShowToast(language === 'he' ? 'התחברת באמצעות Google! החבילות מסונכרנות' : 'Logged in with Google! Packages synced', 'success');
-        onClose();
-      } else {
-        // Dynamic local user session
-        const randId = Math.floor(1000 + Math.random() * 9000);
-        const derivedEmail = emailInput.trim() || `tester_${randId}@deliveree.app`;
-        const emailPrefix = derivedEmail.split('@')[0];
-        const derivedName = nameInput.trim() || (emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1));
-        
-        await loginWithGoogle({
-          name: derivedName,
-          email: derivedEmail,
-          avatar: null
-        });
-        if (onShowToast) onShowToast(language === 'he' ? 'התחברת לפרופיל אישי מקומי!' : 'Signed into local profile!', 'info');
-        onClose();
-      }
+      await loginWithGoogle();
+      onClose();
     } catch (err) {
-      setFormError(err.message || 'Google Sign-In failed');
+      if (err && err.message) {
+        setFormError(err.message);
+      }
     } finally {
       setIsGoogleLoading(false);
     }
   };
+
+  const handleDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    try {
+      await deleteUserAccountAndData();
+      if (onShowToast) onShowToast(language === 'he' ? 'החשבון והנתונים נמחקו לצמיתות' : 'Account & data deleted permanently', 'info');
+      onClose();
+    } catch (err) {
+      setFormError(err.message || (language === 'he' ? 'שגיאה במחיקת חשבון' : 'Error deleting account'));
+    } finally {
+      setIsDeletingAccount(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in overflow-y-auto" role="dialog" aria-modal="true">
@@ -216,11 +260,12 @@ export function AuthModal({
               <Cloud className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-100">
-                {language === 'he' ? 'חשבון משתמש וסנכרון ענן' : 'User Account & Cloud Sync'}
+              <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                <span>{language === 'he' ? 'חשבון וסנכרון ענן' : 'Account & Cloud Sync'}</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">v0.6.2.14</span>
               </h2>
               <p className="text-xs text-slate-400">
-                {language === 'he' ? 'סנכרון חבילות בין הטלפון, המחשב והטאבלט' : 'Sync packages across phone, laptop & tablet'}
+                {language === 'he' ? 'סנכרון החבילות שלך מכל מכשיר' : 'Access your packages from any device'}
               </p>
             </div>
           </div>
@@ -237,149 +282,208 @@ export function AuthModal({
         <div className="p-6 space-y-5 text-xs">
           {/* Active User Card if already logged in */}
           {user ? (
-            <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
+            <div className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  {user.avatar ? (
-                    <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full object-cover border border-blue-500/40" />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm">
-                      {user.name.charAt(0)}
-                    </div>
-                  )}
+                  <div className="w-12 h-12 rounded-full relative shrink-0 overflow-hidden bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-base shadow-md border-2 border-blue-500/40">
+                    <span>{user.name?.charAt(0) || 'U'}</span>
+                    {user.avatar && (
+                      <img
+                        src={user.avatar}
+                        alt={user.name}
+                        className="absolute inset-0 w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                    )}
+                  </div>
                   <div>
                     <h3 className="font-bold text-sm text-slate-100">{user.name}</h3>
-                    <p className="text-[11px] text-slate-400">{user.email}</p>
+                    <p className="text-xs text-slate-400">{user.email}</p>
                   </div>
                 </div>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold border border-emerald-500/20">
-                  {language === 'he' ? 'מחובר ומסונכרן' : 'Active & Synced'}
+                <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-[11px] font-bold border border-emerald-500/20">
+                  {language === 'he' ? 'מחובר' : 'Active'}
                 </span>
               </div>
 
-              {/* Ingestion Email Card */}
-              <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 space-y-1">
-                <span className="text-[10px] text-slate-400 font-bold uppercase">
-                  {language === 'he' ? 'כתובת אימייל אישית לקבלת משלוחים:' : 'Personal Ingestion Email:'}
-                </span>
-                <p className="font-mono text-xs text-blue-400 select-all font-semibold">
-                  <bdi dir="ltr">{user.ingestionEmail}</bdi>
-                </p>
-              </div>
+              {formError && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{formError}</span>
+                </div>
+              )}
 
-              <div className="flex items-center justify-between pt-2 border-t border-slate-900 text-slate-400">
-                <span className="flex items-center gap-1.5 text-[11px]">
-                  <Laptop className="w-3.5 h-3.5 text-blue-400" />
-                  <span>{user.devicesCount} {language === 'he' ? 'מכשירים מחוברים' : 'active devices'}</span>
-                </span>
-                <button
-                  onClick={() => {
-                    logout();
-                    if (onShowToast) onShowToast(language === 'he' ? 'התנתקת מהחשבון' : 'Logged out', 'info');
-                  }}
-                  className="text-rose-400 hover:text-rose-300 font-semibold text-xs cursor-pointer min-h-[48px] px-3 py-2 flex items-center"
-                >
-                  {language === 'he' ? 'התנתק' : 'Log Out'}
-                </button>
+              {/* Action Buttons */}
+              <div className="space-y-2 pt-3 border-t border-slate-800">
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => {
+                      logout();
+                      if (onShowToast) onShowToast(language === 'he' ? 'התנתקת מהחשבון' : 'Logged out', 'info');
+                    }}
+                    className="flex items-center gap-2 text-slate-300 hover:text-white font-semibold text-xs cursor-pointer min-h-[48px] px-3 py-2 rounded-xl hover:bg-slate-800 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>{language === 'he' ? 'התנתק מהחשבון' : 'Sign Out'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => setShowDeleteConfirm(!showDeleteConfirm)}
+                    className="flex items-center gap-2 text-rose-400 hover:text-rose-300 font-semibold text-xs cursor-pointer min-h-[48px] px-3 py-2 rounded-xl hover:bg-rose-500/10 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>{language === 'he' ? 'מחיקת חשבון' : 'Delete Account'}</span>
+                  </button>
+                </div>
+
+                {/* Delete Confirmation Warning Box */}
+                {showDeleteConfirm && (
+                  <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 space-y-2.5 animate-fade-in">
+                    <p className="text-xs text-rose-300 font-medium leading-relaxed">
+                      {language === 'he'
+                        ? 'פעולה זו תמחק לצמיתות את החשבון, נתוני המעקב והחבילות שלך מכל השרתים.'
+                        : 'This action will permanently delete your account, tracking data, and packages from all servers.'}
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleDeleteAccount}
+                        disabled={isDeletingAccount}
+                        className="flex-1 py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        {isDeletingAccount ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                        <span>{language === 'he' ? 'אשר מחיקה לצמיתות' : 'Confirm Deletion'}</span>
+                      </button>
+                      <button
+                        onClick={() => setShowDeleteConfirm(false)}
+                        className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
+                      >
+                        {language === 'he' ? 'ביטול' : 'Cancel'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
             <>
-              {/* Value Proposition Pills */}
-              <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-300">
-                <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center gap-2">
-                  <Smartphone className="w-4 h-4 text-blue-400 shrink-0" />
-                  <span>{language === 'he' ? 'סנכרון מיידי עם הטלפון' : 'Instant Phone Sync'}</span>
-                </div>
-                <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>{language === 'he' ? 'גיבוי ענן אוטומטי' : 'Cloud Backup'}</span>
-                </div>
-              </div>
-
               {/* Google Sign-in Button */}
-              <button
-                type="button"
-                onClick={handleGoogleClick}
-                disabled={isGoogleLoading}
-                className="w-full flex items-center justify-center gap-3 p-3.5 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs transition-all shadow-lg hover:shadow-xl cursor-pointer min-h-[48px]"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                </svg>
-                <span>
-                  {isGoogleLoading 
-                    ? (language === 'he' ? 'מתחבר ל-Google...' : 'Signing in with Google...') 
-                    : (language === 'he' ? 'המשך עם Google' : 'Continue with Google')}
-                </span>
-              </button>
+              {activeTab !== 'forgot' && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleGoogleClick}
+                    disabled={isGoogleLoading || isLoading}
+                    className="w-full flex items-center justify-center gap-3 p-3.5 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs transition-all shadow-md cursor-pointer min-h-[48px] disabled:opacity-50"
+                  >
+                    {isGoogleLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-slate-900" />
+                    ) : (
+                      <svg className="w-4 h-4" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                      </svg>
+                    )}
+                    <span>
+                      {language === 'he' ? 'המשך עם חשבון Google' : 'Continue with Google'}
+                    </span>
+                  </button>
 
-              <div className="flex items-center gap-2 text-slate-500 my-2">
-                <div className="flex-1 h-px bg-slate-800" />
-                <span className="text-[10px] uppercase font-bold text-slate-400">
-                  {language === 'he' ? 'או באמצעות אימייל וסיסמה' : 'Or with Email & Password'}
-                </span>
-                <div className="flex-1 h-px bg-slate-800" />
-              </div>
+                  <div className="flex items-center gap-2 text-slate-500 my-2">
+                    <div className="flex-1 h-px bg-slate-800" />
+                    <span className="text-[10px] uppercase font-bold text-slate-400">
+                      {language === 'he' ? 'או באמצעות אימייל וסיסמה' : 'Or with Email & Password'}
+                    </span>
+                    <div className="flex-1 h-px bg-slate-800" />
+                  </div>
+                </>
+              )}
 
-              {/* Tabs: Sign In / Register */}
-              <div className="flex rounded-2xl bg-slate-950 p-1 border border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTab('signin');
-                    setFormError('');
-                  }}
-                  className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer min-h-[48px] ${
-                    activeTab === 'signin'
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  {language === 'he' ? 'התחברות' : 'Sign In'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTab('register');
-                    setFormError('');
-                  }}
-                  className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer min-h-[48px] ${
-                    activeTab === 'register'
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  {language === 'he' ? 'הרשמה חדשה' : 'Register'}
-                </button>
-              </div>
+              {/* Tabs / Forgot Header */}
+              {activeTab === 'forgot' ? (
+                <div className="flex items-center gap-2 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('signin');
+                      setFormError('');
+                      setFormSuccess('');
+                    }}
+                    className="p-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
+                  >
+                    <ArrowLeft className={`w-4 h-4 ${isRTL ? 'rotate-180' : ''}`} />
+                  </button>
+                  <h3 className="font-bold text-sm text-slate-100">
+                    {language === 'he' ? 'איפוס סיסמה' : 'Reset Password'}
+                  </h3>
+                </div>
+              ) : (
+                <div className="flex rounded-2xl bg-slate-950 p-1 border border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('signin');
+                      setFormError('');
+                      setFormSuccess('');
+                    }}
+                    className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer min-h-[48px] ${
+                      activeTab === 'signin'
+                        ? 'bg-blue-600 text-white shadow-md'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {language === 'he' ? 'התחברות' : 'Sign In'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('register');
+                      setFormError('');
+                      setFormSuccess('');
+                    }}
+                    className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer min-h-[48px] ${
+                      activeTab === 'register'
+                        ? 'bg-blue-600 text-white shadow-md'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {language === 'he' ? 'הרשמה חדשה' : 'Register'}
+                  </button>
+                </div>
+              )}
 
-              {/* Form Errors */}
+              {/* Form Messages */}
               {formError && (
-                <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
-                  {formError}
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs leading-relaxed animate-fade-in flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{formError}</span>
+                </div>
+              )}
+
+              {formSuccess && (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs leading-relaxed animate-fade-in flex items-start gap-2">
+                  <Check className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{formSuccess}</span>
                 </div>
               )}
 
               {/* Email + Password Form */}
-              <form onSubmit={handleEmailSubmit} className="space-y-3">
+              <form onSubmit={handleEmailSubmit} noValidate className="space-y-3">
                 {activeTab === 'register' && (
                   <div>
                     <label className="block text-[11px] font-bold text-slate-300 mb-1">
                       {language === 'he' ? 'שם מלא' : 'Full Name'} *
                     </label>
                     <div className="relative">
-                      <User className={`w-3.5 h-3.5 text-slate-500 absolute top-1/2 -translate-y-1/2 ${isRTL ? 'right-3' : 'left-3'}`} />
+                      <User className={`w-4 h-4 text-slate-500 absolute top-1/2 -translate-y-1/2 ${isRTL ? 'right-3' : 'left-3'}`} />
                       <input
                         type="text"
-                        required={activeTab === 'register'}
                         value={nameInput}
                         onChange={(e) => setNameInput(e.target.value)}
-                        placeholder="e.g. Alex Cohen"
-                        className={`w-full bg-slate-950 border border-slate-800 text-base sm:text-sm text-slate-100 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none min-h-[48px] ${isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'}`}
+                        placeholder={language === 'he' ? 'לדוגמה: אלכס כהן' : 'e.g. Alex Cohen'}
+                        className={`w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none min-h-[48px] ${isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'}`}
                       />
                     </div>
                   </div>
@@ -390,139 +494,151 @@ export function AuthModal({
                     {language === 'he' ? 'כתובת אימייל' : 'Email Address'} *
                   </label>
                   <div className="relative">
-                    <Mail className={`w-3.5 h-3.5 text-slate-500 absolute top-1/2 -translate-y-1/2 ${isRTL ? 'right-3' : 'left-3'}`} />
+                    <Mail className={`w-4 h-4 text-slate-500 absolute top-1/2 -translate-y-1/2 ${isRTL ? 'right-3' : 'left-3'}`} />
                     <input
                       type="email"
-                      required
                       value={emailInput}
                       onChange={(e) => setEmailInput(e.target.value)}
                       placeholder="you@domain.com"
-                      className={`w-full bg-slate-950 border border-slate-800 text-base sm:text-sm text-slate-100 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none min-h-[48px] ${isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'}`}
+                      className={`w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none min-h-[48px] ${isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'}`}
                     />
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-300 mb-1">
-                    {language === 'he' ? 'סיסמה' : 'Password'} *
-                  </label>
-                  <div className="relative">
-                    <Lock className={`w-3.5 h-3.5 text-slate-500 absolute top-1/2 -translate-y-1/2 ${isRTL ? 'right-3' : 'left-3'}`} />
-                    <input
-                      type="password"
-                      required
-                      minLength={6}
-                      value={passwordInput}
-                      onChange={(e) => setPasswordInput(e.target.value)}
-                      placeholder="••••••••"
-                      className={`w-full bg-slate-950 border border-slate-800 text-base sm:text-sm text-slate-100 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none min-h-[48px] ${isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'}`}
-                    />
-                  </div>
-
-                  {/* Password Entropy & Strength Meter */}
-                  {passwordInput.length > 0 && (
-                    <div className="space-y-2 mt-2.5 p-3 rounded-2xl bg-slate-950/90 border border-slate-800 animate-fade-in" aria-live="polite">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-400 font-medium">
-                          {language === 'he' ? 'חוזק סיסמה:' : 'Password strength:'}
-                        </span>
-                        <span className={`font-bold ${passwordStrength.textClass}`}>
-                          {language === 'he' ? passwordStrength.labelHe : passwordStrength.labelEn}
-                        </span>
-                      </div>
-
-                      {/* 4 Segment Visual Progress Bar */}
-                      <div className="grid grid-cols-4 gap-1.5 h-1.5 w-full bg-slate-900 rounded-full overflow-hidden">
-                        {[1, 2, 3, 4].map((step) => (
-                          <div
-                            key={step}
-                            className={`h-full rounded-full transition-all duration-300 ${
-                              passwordStrength.score >= step
-                                ? passwordStrength.colorClass
-                                : 'bg-slate-800'
-                            }`}
-                          />
-                        ))}
-                      </div>
-
-                      {/* Criteria Indicators */}
-                      <div className="grid grid-cols-2 gap-1.5 pt-1 text-[10px]">
-                        <div className={`flex items-center gap-1.5 ${passwordStrength.criteria.length ? 'text-emerald-400 font-medium' : 'text-slate-500'}`}>
-                          <Check className="w-3 h-3 shrink-0" />
-                          <span>{language === 'he' ? '8+ תווים' : '8+ characters'}</span>
-                        </div>
-                        <div className={`flex items-center gap-1.5 ${passwordStrength.criteria.lowercase ? 'text-emerald-400 font-medium' : 'text-slate-500'}`}>
-                          <Check className="w-3 h-3 shrink-0" />
-                          <span>{language === 'he' ? 'אות קטנה' : 'Lowercase (a-z)'}</span>
-                        </div>
-                        <div className={`flex items-center gap-1.5 ${passwordStrength.criteria.uppercase ? 'text-emerald-400 font-medium' : 'text-slate-500'}`}>
-                          <Check className="w-3 h-3 shrink-0" />
-                          <span>{language === 'he' ? 'אות גדולה' : 'Uppercase (A-Z)'}</span>
-                        </div>
-                        <div className={`flex items-center gap-1.5 ${passwordStrength.criteria.number ? 'text-emerald-400 font-medium' : 'text-slate-500'}`}>
-                          <Check className="w-3 h-3 shrink-0" />
-                          <span>{language === 'he' ? 'ספרה (0-9)' : 'Number (0-9)'}</span>
-                        </div>
-                        <div className={`flex items-center gap-1.5 col-span-2 ${passwordStrength.criteria.symbol ? 'text-emerald-400 font-medium' : 'text-slate-500'}`}>
-                          <Check className="w-3 h-3 shrink-0" />
-                          <span>{language === 'he' ? 'תו מיוחד (!@#$)' : 'Special symbol (!@#$)'}</span>
-                        </div>
-                      </div>
+                {activeTab !== 'forgot' && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[11px] font-bold text-slate-300">
+                        {language === 'he' ? 'סיסמה' : 'Password'} *
+                      </label>
+                      {activeTab === 'signin' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveTab('forgot');
+                            setFormError('');
+                            setFormSuccess('');
+                          }}
+                          className="text-[11px] text-blue-400 hover:text-blue-300 cursor-pointer font-medium"
+                        >
+                          {language === 'he' ? 'שכחת סיסמה?' : 'Forgot password?'}
+                        </button>
+                      )}
                     </div>
-                  )}
-                </div>
+                    <div className="relative">
+                      <Lock className={`w-4 h-4 text-slate-500 absolute top-1/2 -translate-y-1/2 ${isRTL ? 'right-3' : 'left-3'}`} />
+                      <input
+                        type="password"
+                        value={passwordInput}
+                        onChange={(e) => setPasswordInput(e.target.value)}
+                        placeholder="••••••••"
+                        className={`w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none min-h-[48px] ${isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'}`}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Confirm Password & Criteria on Register */}
+                {activeTab === 'register' && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                      {language === 'he' ? 'אימות סיסמה' : 'Confirm Password'} *
+                    </label>
+                    <div className="relative">
+                      <Lock className={`w-4 h-4 text-slate-500 absolute top-1/2 -translate-y-1/2 ${isRTL ? 'right-3' : 'left-3'}`} />
+                      <input
+                        type="password"
+                        value={confirmPasswordInput}
+                        onChange={(e) => setConfirmPasswordInput(e.target.value)}
+                        placeholder="••••••••"
+                        className={`w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl p-2.5 focus:border-blue-500 focus:outline-none min-h-[48px] ${isRTL ? 'pr-9 pl-3' : 'pl-9 pr-3'}`}
+                      />
+                    </div>
+
+                    {/* NIST / OWASP Password Checklist */}
+                    <div className="mt-2.5 space-y-1.5 p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+                      <div className="flex items-center gap-2 text-[10px]">
+                        <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center ${hasMinLength ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-500'}`}>
+                          <Check className="w-2.5 h-2.5" />
+                        </div>
+                        <span className={hasMinLength ? 'text-emerald-400 font-medium' : 'text-slate-500'}>
+                          {language === 'he' ? 'לפחות 8 תווים' : 'At least 8 characters'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-[10px]">
+                        <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center ${hasLettersAndNumbers ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-500'}`}>
+                          <Check className="w-2.5 h-2.5" />
+                        </div>
+                        <span className={hasLettersAndNumbers ? 'text-emerald-400 font-medium' : 'text-slate-500'}>
+                          {language === 'he' ? 'שילוב של אותיות ומספרים' : 'Combination of letters and numbers'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-[10px]">
+                        <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center ${hasSpecialChar ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-500'}`}>
+                          <Check className="w-2.5 h-2.5" />
+                        </div>
+                        <span className={hasSpecialChar ? 'text-emerald-400 font-medium' : 'text-slate-500'}>
+                          {language === 'he' ? 'לפחות תו מיוחד אחד (!@#$%)' : 'At least one special character (!@#$%)'}
+                        </span>
+                      </div>
+                      
+                      {confirmPasswordInput.length > 0 && (
+                        <div className="flex items-center gap-2 text-[10px]">
+                          <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center ${passwordsMatch ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
+                            <Check className="w-2.5 h-2.5" />
+                          </div>
+                          <span className={passwordsMatch ? 'text-emerald-400 font-medium' : 'text-rose-400'}>
+                            {passwordsMatch 
+                              ? (language === 'he' ? 'הסיסמאות תואמות' : 'Passwords match') 
+                              : (language === 'he' ? 'הסיסמאות אינן תואמות' : 'Passwords do not match')}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Visual Strength Bar */}
+                      {passwordInput.length > 0 && (
+                        <div className="pt-1">
+                          <div className="flex items-center justify-between text-[9px] mb-1">
+                            <span className="text-slate-400">{language === 'he' ? 'חוזק סיסמה:' : 'Strength:'}</span>
+                            <span className={`font-bold ${passwordStrength.textClass}`}>
+                              {language === 'he' ? passwordStrength.labelHe : passwordStrength.labelEn}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-4 gap-1 h-1 w-full bg-slate-900 rounded-full overflow-hidden">
+                            {[1, 2, 3, 4].map((step) => (
+                              <div
+                                key={step}
+                                className={`h-full rounded-full transition-all duration-300 ${
+                                  passwordStrength.score >= step ? passwordStrength.colorClass : 'bg-slate-800'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <button
                   type="submit"
-                  disabled={isLoading}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-all shadow-md shadow-blue-500/20 mt-2 cursor-pointer min-h-[48px]"
+                  disabled={isLoading || isGoogleLoading}
+                  className="w-full py-3.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:from-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-600/20 transition-all cursor-pointer min-h-[48px] flex items-center justify-center gap-2 disabled:opacity-50 mt-3"
                 >
+                  {isLoading && <Loader2 className="w-4 h-4 animate-spin text-white" />}
                   <span>
-                    {isLoading
-                      ? (language === 'he' ? 'מעבד...' : 'Processing...')
+                    {activeTab === 'forgot'
+                      ? (language === 'he' ? 'שלח קישור לאיפוס סיסמה' : 'Send Reset Link')
                       : activeTab === 'register'
-                        ? (language === 'he' ? 'צור חשבון וסנכרן' : 'Create Account & Sync')
-                        : (language === 'he' ? 'התחבר עם אימייל' : 'Sign In with Email')}
+                      ? (language === 'he' ? 'צור חשבון והתחל לסנכרן' : 'Create Account & Sync')
+                      : (language === 'he' ? 'התחבר לחשבון' : 'Sign In')}
                   </span>
-                  <ArrowRight className={`w-4 h-4 ${isRTL ? 'rotate-180' : ''}`} />
                 </button>
               </form>
-
-              {/* Continue as Guest CTA Button */}
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    if (onShowToast) {
-                      onShowToast(
-                        language === 'he'
-                          ? 'ממשיך במצב אורח - החבילות יישמרו מקומית'
-                          : 'Continuing as guest - packages saved locally',
-                        'info'
-                      );
-                    }
-                  }}
-                  className="w-full flex items-center justify-center gap-2.5 p-3 rounded-2xl bg-slate-950/90 hover:bg-slate-850 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white font-semibold text-xs transition-all cursor-pointer min-h-[48px]"
-                >
-                  <UserCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>
-                    {language === 'he' ? 'המשך כאורח / ללא התחברות' : 'Continue as Guest / No Login'}
-                  </span>
-                </button>
-              </div>
             </>
           )}
-        </div>
-
-        {/* Footer */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950/80 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-5 py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold cursor-pointer min-h-[48px]"
-          >
-            {language === 'he' ? 'סגור' : 'Close'}
-          </button>
         </div>
       </div>
     </div>

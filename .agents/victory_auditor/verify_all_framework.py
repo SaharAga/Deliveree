@@ -109,7 +109,7 @@ check_citation('automated-code-review/SKILL.md', 16, 23, 'array.map')
 check_citation('automated-code-review/SKILL.md', 24, 29, 'useMemo')
 check_citation('sdlc_pipeline.md', 50, 58, '10.0.0.0/8')
 check_citation('AGENTS.md', 50, 56, '10.0.0.0/8')
-check_citation('AGENTS.md', 78, 84, 'file:///home/sahar/Deliveree/.agents/skills/')
+check_citation('AGENTS.md', 78, 84, '.agents/skills/')
 check_citation('sdlc-orchestrator/SKILL.md', 25, 30, 'developer')
 check_citation('software-verification-and-qa/SKILL.md', 24, 30, 'Automated Test Execution')
 

@@ -59,7 +59,7 @@ Every finding and citation across the 4 explorer reports was checked against the
   - `/home/sahar/Deliveree/.agents/skills/remote-notifications-and-chat/SKILL.md` (Lines 1–89)
 - **Empirical Findings Verified**:
   1. **Split-Brain Synchronization**: Verified that `remote-notifications-and-chat` exists in `/home/sahar/Deliveree/.agents/skills/remote-notifications-and-chat/SKILL.md` and is listed in `AGENTS.md:84`, but is **completely absent** from `/home/sahar/.gemini/config/plugins/agentic-sdlc-framework/skills/` and undeclared in `plugin.json`.
-  2. **Hardcoded URLs**: Verified that `AGENTS.md` (lines 79–84) and `remote-notifications-and-chat/SKILL.md` (lines 26–29, 61) contain hardcoded absolute `file:///home/sahar/Deliveree/...` URLs.
+  2. **Hardcoded URLs**: Verified that `AGENTS.md` (lines 79–84) and `remote-notifications-and-chat/SKILL.md` (lines 26–29, 61) contain hardcoded absolute `...` URLs.
   3. **Subagent Invocation Protocol Clash**: Verified that `sdlc-orchestrator/SKILL.md` in the global plugin uses `Activate the <skill> skill` (lines 32, 47, 61, 75), whereas workspace `sdlc-orchestrator/SKILL.md` specifies `Role: Feature Developer` and `TypeName: developer` (lines 26–82).
   4. **Progressive Disclosure Defect**: Verified that zero skills contain `references/`, `resources/`, or `scripts/` subdirectories; all text is stored in monolithic `SKILL.md` files.
 

@@ -1,3 +1,4 @@
+import { fetchLiveCarrierTracking } from './carrierApiProxy';
 import { detectCarrier } from '../utils/carrierDetector';
 import { validatePackageSafe } from '../schemas/packageSchema';
 
@@ -650,7 +651,7 @@ export async function fetchTrackingUpdates(trackingNumber, carrierId, bypassRate
   }
 
   try {
-    const trackingData = await simulateCarrierTracking(cleanTrack, detectedCarrier);
+    const trackingData = await fetchLiveCarrierTracking(cleanTrack, detectedCarrier, bypassRateLimit);
     recordTrackingFetch(cleanTrack);
 
     return {
@@ -729,7 +730,7 @@ export async function batchRefreshTracking(packages, onProgress, concurrencyLimi
       if (batchCache.has(cleanTrack)) {
         res = batchCache.get(cleanTrack);
       } else {
-        res = await fetchTrackingUpdates(pkg.trackingNumber, pkg.carrier);
+        res = await fetchTrackingUpdates(pkg.trackingNumber, pkg.carrier, true);
         if (res.success) {
           batchCache.set(cleanTrack, res);
         }

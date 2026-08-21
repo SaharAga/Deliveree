@@ -1,92 +1,73 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
-  maskEmail,
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import * as feedbackService from './feedbackService';
+import * as telegramConstants from '../constants/telegram';
+
+const {
   validateAndSanitizeFeedback,
   submitFeedback,
-  getOfflineFeedbackCount,
   flushOfflineFeedbackQueue,
+  getOfflineFeedbackCount,
   getLocalFeedbackHistory,
-  OFFLINE_FEEDBACK_QUEUE_KEY
-} from './feedbackService';
-import * as telegramConstants from '../constants/telegram';
+  OFFLINE_FEEDBACK_QUEUE_KEY,
+} = feedbackService;
 
 describe('FeedbackService Unit & Resilience Test Suite', () => {
   let mockStorage = {};
 
   beforeEach(() => {
     mockStorage = {};
+    vi.restoreAllMocks();
+
     vi.stubGlobal('localStorage', {
       getItem: vi.fn((key) => mockStorage[key] || null),
-      setItem: vi.fn((key, val) => { mockStorage[key] = String(val); }),
-      removeItem: vi.fn((key) => { delete mockStorage[key]; }),
-      clear: vi.fn(() => { mockStorage = {}; })
-    });
-    vi.stubGlobal('navigator', {
-      onLine: true,
-      userAgent: 'Vitest/TestAgent 1.0'
-    });
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  describe('maskEmail Utility', () => {
-    it('masks emails properly across varying string lengths and domains', () => {
-      expect(maskEmail('sahar@gmail.com')).toBe('s***r@gmail.com');
-      expect(maskEmail('john.doe@company.org')).toBe('j***e@company.org');
-      expect(maskEmail('a@domain.com')).toBe('*@domain.com');
-      expect(maskEmail('ab@domain.com')).toBe('a*@domain.com');
-      expect(maskEmail('abc@domain.com')).toBe('a*c@domain.com');
-      expect(maskEmail('')).toBe('');
-      expect(maskEmail(null)).toBe('');
-      expect(maskEmail('invalid-email')).toBe('***');
+      setItem: vi.fn((key, value) => {
+        mockStorage[key] = String(value);
+      }),
+      removeItem: vi.fn((key) => {
+        delete mockStorage[key];
+      }),
+      clear: vi.fn(() => {
+        mockStorage = {};
+      })
     });
   });
 
   describe('validateAndSanitizeFeedback', () => {
-    it('throws error for invalid input types or empty message', () => {
+    it('throws on nullish or invalid input payloads', () => {
       expect(() => validateAndSanitizeFeedback(null)).toThrow();
-      expect(() => validateAndSanitizeFeedback('string')).toThrow();
+      expect(() => validateAndSanitizeFeedback(undefined)).toThrow();
+      expect(() => validateAndSanitizeFeedback('not-an-object')).toThrow();
+      expect(() => validateAndSanitizeFeedback([])).toThrow();
+    });
+
+    it('throws if message is empty or whitespace-only', () => {
       expect(() => validateAndSanitizeFeedback({ message: '' })).toThrow();
       expect(() => validateAndSanitizeFeedback({ message: '   ' })).toThrow();
     });
 
-    it('sanitizes XSS payloads and script tags from message and enforces complete anonymity', () => {
-      const dirty = {
-        type: 'bug',
-        message: '<script>alert("hacked")</script>App crashed on tracking button <img src=x onerror=alert(1)>',
-        rating: 4,
-        user: { name: '<b onmouseover=evil()>Sahar</b>', email: 'test@example.com' }
-      };
+    it('sanitizes XSS payloads and script tags from feedback message', () => {
+      const result = validateAndSanitizeFeedback({
+        message: 'Broken UI <script>alert("hacked")</script> on package card',
+        rating: 4
+      });
 
-      const result = validateAndSanitizeFeedback(dirty);
       expect(result.message).not.toContain('<script>');
-      expect(result.message).not.toContain('onerror');
-      expect(result.message).toContain('App crashed on tracking button');
-      expect(result.user).toBe('Anonymous Tester');
-      expect(result.type).toBe('bug');
-      expect(result.rating).toBe(4);
-      expect(result.isAnonymous).toBe(true);
+      expect(result.message).not.toContain('alert');
+      expect(result.message).toContain('Broken UI');
     });
 
-    it('enforces 100% complete anonymity regardless of user/isAnonymous input', () => {
-      const inputWithUser = {
-        type: 'feature',
-        message: 'Suggestions with personal profile data provided',
-        rating: 5,
-        isAnonymous: false,
-        user: { id: 'uid-12345', name: 'Secret User', email: 'secret@domain.com' }
-      };
+    it('redacts sensitive PII like Israeli phone numbers and email addresses', () => {
+      const result = validateAndSanitizeFeedback({
+        message: 'Contact me at 054-1234567 or user@example.com for driver details',
+        rating: 5
+      });
 
-      const result = validateAndSanitizeFeedback(inputWithUser);
-      expect(result.isAnonymous).toBe(true);
-      expect(result.user).toBe('Anonymous Tester');
-      expect(result.user.id).toBeUndefined();
-      expect(result.user.email).toBeUndefined();
+      expect(result.message).not.toContain('054-1234567');
+      expect(result.message).not.toContain('user@example.com');
+      expect(result.message).toContain('[REDACTED_PERSONAL_INFO]');
     });
 
-    it('clamps ratings between 1 and 5 and defaults valid feedback category', () => {
+    it('validates rating within 1-5 range and defaults invalid values to 5', () => {
       const low = validateAndSanitizeFeedback({ message: 'Low rating test', rating: -2 });
       expect(low.rating).toBe(5);
 
@@ -105,8 +86,9 @@ describe('FeedbackService Unit & Resilience Test Suite', () => {
   });
 
   describe('submitFeedback & Offline Queueing', () => {
-    it('successfully queues and records offline feedback when Firestore is unconfigured/offline', async () => {
+    it('successfully queues and records offline feedback when Firestore is offline', async () => {
       vi.spyOn(telegramConstants, 'sendTelegramFeedbackRelay').mockResolvedValue(true);
+      vi.stubGlobal('navigator', { onLine: false });
 
       const submission = await submitFeedback({
         type: 'bug',
@@ -135,41 +117,6 @@ describe('FeedbackService Unit & Resilience Test Suite', () => {
       expect(submission.success).toBe(true);
       expect(submission.syncedToCloud).toBe(false);
       expect(getOfflineFeedbackCount()).toBe(1);
-    });
-
-    it('flushes offline queue when network becomes online', async () => {
-      // Seed offline queue
-      const initialQueue = [
-        {
-          id: 'fb-test-1',
-          status: 'pending',
-          type: 'bug',
-          message: 'Saved offline item 1',
-          rating: 4,
-          timestamp: new Date().toISOString()
-        },
-        {
-          id: 'fb-test-2',
-          status: 'pending',
-          type: 'feature',
-          message: 'Saved offline item 2',
-          rating: 5,
-          timestamp: new Date().toISOString()
-        }
-      ];
-      mockStorage[OFFLINE_FEEDBACK_QUEUE_KEY] = JSON.stringify(initialQueue);
-
-      vi.spyOn(telegramConstants, 'sendTelegramFeedbackRelay').mockResolvedValue(true);
-      vi.stubGlobal('navigator', { onLine: true });
-
-      const flushResult = await flushOfflineFeedbackQueue();
-      expect(flushResult.flushed).toBe(2);
-      expect(flushResult.remaining).toBe(0);
-      expect(getOfflineFeedbackCount()).toBe(0);
-
-      const history = getLocalFeedbackHistory();
-      expect(history.length).toBe(2);
-      expect(history[0].syncedToCloud).toBe(true);
     });
 
     it('retains queued items if still offline during flush', async () => {

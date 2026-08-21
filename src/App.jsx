@@ -53,14 +53,66 @@ function DashboardContent() {
     return deliveryService.getPackages(user?.id || null);
   });
 
-  // Reload packages when switching users or logging in/out
+  // Automatically disable demo mode upon user authentication
+  useEffect(() => {
+    if (user?.id) {
+      setIsDemoMode(false);
+    }
+  }, [user?.id]);
+
+  // Reload packages and auto-migrate guest shipments when logging in
   useEffect(() => {
     if (isDemoMode) {
       setPackages(INITIAL_PACKAGES);
+    } else if (user?.id) {
+      const guestPkgs = deliveryService.getPackages(null);
+      const userPkgs = deliveryService.getPackages(user.id);
+      if (guestPkgs.length > 0) {
+        const existingIds = new Set(userPkgs.map(p => p.id || p.trackingNumber));
+        const toMerge = guestPkgs
+          .filter(p => !existingIds.has(p.id || p.trackingNumber))
+          .map(p => ({ ...p, userId: user.id }));
+        const merged = [...toMerge, ...userPkgs];
+        deliveryService.savePackages(merged, user.id);
+        deliveryService.savePackages([], null); // Clear guest storage after merge
+        setPackages(merged);
+        if (cloudAdapter.isFirestoreActive()) {
+          cloudAdapter.savePackages(merged);
+        }
+      } else {
+        setPackages(userPkgs);
+      }
     } else {
-      const userPkgs = deliveryService.getPackages(user?.id || null);
-      setPackages(userPkgs);
+      const guestPkgs = deliveryService.getPackages(null);
+      setPackages(guestPkgs);
     }
+  }, [user?.id, isDemoMode]);
+
+  // Multi-tab package synchronization via StorageEvent
+  useEffect(() => {
+    if (typeof window === 'undefined' || isDemoMode) return;
+
+    const handlePackageStorageChange = (e) => {
+      const currentStorageKey = deliveryService.getStorageKey(user?.id || null);
+      if (e.key === currentStorageKey) {
+        if (!e.newValue) {
+          setPackages([]);
+        } else {
+          try {
+            const parsed = JSON.parse(e.newValue);
+            if (Array.isArray(parsed)) {
+              const validated = deliveryService.getPackages(user?.id || null);
+              setPackages(validated);
+            }
+          } catch (err) {
+            console.warn('[App] Multi-tab package sync error:', err);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('storage', handlePackageStorageChange);
+    return () => window.removeEventListener('storage', handlePackageStorageChange);
   }, [user?.id, isDemoMode]);
 
   // Real-time Cloud Synchronization listener
@@ -75,11 +127,11 @@ function DashboardContent() {
   }, [user?.id, isDemoMode]);
 
   useEffect(() => {
-    if (isDemoUrl && !isDemoMode) {
+    if (isDemoUrl && !isDemoMode && !user) {
       setIsDemoMode(true);
       setPackages(INITIAL_PACKAGES);
     }
-  }, [isDemoUrl, isDemoMode]);
+  }, [isDemoUrl, isDemoMode, user]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
@@ -210,6 +262,9 @@ function DashboardContent() {
   const updatePackagesState = (newPackages) => {
     setPackages(newPackages);
     deliveryService.savePackages(newPackages, user?.id || null);
+    if (user?.id && cloudAdapter.isFirestoreActive?.()) {
+      cloudAdapter.savePackages(newPackages);
+    }
     triggerCloudSync();
   };
 
@@ -230,10 +285,12 @@ function DashboardContent() {
       if (pkgData.status && pkgData.status !== existingPkg.status) {
         notificationService.notifyStatusChange(pkgData, existingPkg.status, pkgData.status, language);
       }
-      updated = packages.map(p => (p.id === pkgData.id ? pkgData : p));
+      const updatedPkgWithUser = user?.id ? { ...pkgData, userId: user.id } : pkgData;
+      updated = packages.map(p => (p.id === pkgData.id ? updatedPkgWithUser : p));
       showToast(language === 'he' ? 'החבילה עודכנה בהצלחה!' : 'Package updated successfully!', 'success');
     } else {
-      updated = [pkgData, ...packages];
+      const newPkgWithUser = user?.id ? { ...pkgData, userId: user.id } : pkgData;
+      updated = [newPkgWithUser, ...packages];
       showToast(language === 'he' ? 'החבילה נוספה למעקב!' : 'New package added to tracking!', 'success');
     }
     updatePackagesState(updated);
@@ -247,6 +304,9 @@ function DashboardContent() {
   const handleDeletePackage = (id) => {
     const updated = packages.filter(p => p.id !== id);
     updatePackagesState(updated);
+    if (user?.id && cloudAdapter.isFirestoreActive?.()) {
+      cloudAdapter.deletePackage(id);
+    }
     if (selectedDetailPackage?.id === id) {
       setSelectedDetailPackage(null);
     }

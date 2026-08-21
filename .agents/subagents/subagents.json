@@ -45,7 +45,7 @@
     },
     {
       "name": "code_reviewer",
-      "description": "Specialized Peer Code Reviewer subagent. Audits code deltas for Big-O complexity, memory leak prevention, async race conditions, N+1 database queries, and executes Domain Specialist Consultations.",
+      "description": "Specialized Peer Code Reviewer subagent. Audits code deltas for Big-O complexity, memory leak prevention, async race conditions, N+1 database queries, scope challenges, and executes Domain Specialist Consultations.",
       "role": "Scalability & Code Reviewer",
       "skills": [
         "automated-code-review",
@@ -63,8 +63,8 @@
     },
     {
       "name": "security_auditor",
-      "description": "Specialized Enterprise Security Auditor subagent. Audits changes against OWASP ASVS Level 3 and OWASP API Top 10 (Zero-Trust, BOLA/BFLA, ReDoS, SSRF, Dual-Key Rate Limiting, Crypto).",
-      "role": "Enterprise Security Auditor",
+      "description": "Specialized Security Auditor subagent. Audits changes against Deliveree Security Baseline (Zero-Trust/BOLA Firestore rules, anti-ReDoS regexes, XSS input sanitization, prototype pollution guards, and secrets scanning).",
+      "role": "Security Baseline Auditor",
       "skills": [
         "owasp-security-and-rate-limiting"
       ],
@@ -80,7 +80,7 @@
     },
     {
       "name": "adversarial_pentester",
-      "description": "Adversarial Security Pentester / Red Team Auditor subagent. Systematically executes controlled offensive attack simulations, attempts access control bypasses (BOLA/BFLA), prototype pollution, XSS injection, and ReDoS starvation in a sandbox, and outputs a formal Vulnerability & Threat Assessment Report.",
+      "description": "Adversarial Security Pentester / Red Team Auditor subagent. Executes controlled security evaluations, checking access control bypasses (BOLA), prototype pollution, XSS injection, and ReDoS starvation in a sandbox, outputting a formal Vulnerability & Threat Assessment Report.",
       "role": "Adversarial Pentester & Red Team Auditor",
       "skills": [
         "adversarial-penetration-testing",
@@ -91,8 +91,7 @@
         "list_dir",
         "grep_search",
         "find_by_name",
-        "run_command",
-        "write_to_file"
+        "run_command"
       ],
       "model": "inherit",
       "temperature": 0.1

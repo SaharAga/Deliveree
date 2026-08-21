@@ -4,20 +4,30 @@ const ThemeContext = createContext();
 
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('deliveree_theme') || 'dark';
+    try {
+      return localStorage.getItem('deliveree_theme') || 'dark';
+    } catch {
+      return 'dark';
+    }
   });
 
   const isDark = theme === 'dark';
 
   useEffect(() => {
-    localStorage.setItem('deliveree_theme', theme);
-    const root = document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-      root.classList.remove('light');
-    } else {
-      root.classList.remove('dark');
-      root.classList.add('light');
+    try {
+      localStorage.setItem('deliveree_theme', theme);
+    } catch {
+      // Ignore in strict private mode
+    }
+    if (typeof document !== 'undefined') {
+      const root = document.documentElement;
+      if (theme === 'dark') {
+        root.classList.add('dark');
+        root.classList.remove('light');
+      } else {
+        root.classList.remove('dark');
+        root.classList.add('light');
+      }
     }
   }, [theme]);
 

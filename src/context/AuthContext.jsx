@@ -2,12 +2,24 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import {
   signInWithPopup,
   signInWithRedirect,
+  getRedirectResult,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  updateProfile,
+  deleteUser,
   signOut as firebaseSignOut,
   onAuthStateChanged
 } from 'firebase/auth';
-import { auth, googleProvider, isFirebaseConfigured, db } from '../services/firebase';
+import { doc, setDoc, deleteDoc, collection, getDocs } from 'firebase/firestore';
+import { 
+  auth, 
+  db, 
+  googleProvider, 
+  appleProvider, 
+  facebookProvider, 
+  isFirebaseConfigured 
+} from '../services/firebase';
 import { cloudAdapter } from '../services/cloudStorageAdapter';
 import { deliveryService } from '../services/deliveryService';
 import { sanitizeString } from '../utils/packageValidator';
@@ -18,12 +30,26 @@ const STORAGE_AUTH_KEY = 'deliveree_auth_user_v1';
 const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 /**
- * Migrates isolated guest packages (deliveree_packages_guest) to an authenticated user's
- * permanent storage partition (deliveree_packages_${targetUserId}) and cloud Firestore.
- * Performs union by trackingNumber and id to guarantee zero duplicate creation.
- *
- * @param {string} targetUserId - Target authenticated user ID
- * @returns {Promise<Array<object>>} Merged package list
+ * Executes a promise with a safety timeout to prevent UI hanging.
+ */
+async function withTimeout(promise, ms = 2000) {
+  let timeoutHandle;
+  const timeoutPromise = new Promise((resolve) => {
+    timeoutHandle = setTimeout(() => resolve(null), ms);
+  });
+  try {
+    const res = await Promise.race([promise, timeoutPromise]);
+    clearTimeout(timeoutHandle);
+    return res;
+  } catch (err) {
+    clearTimeout(timeoutHandle);
+    console.warn('[AuthContext] Firestore operation error:', err);
+    return null;
+  }
+}
+
+/**
+ * Migrates isolated guest packages to user storage partition.
  */
 export async function migrateGuestDataToUser(targetUserId) {
   if (!targetUserId || typeof targetUserId !== 'string') return [];
@@ -60,8 +86,11 @@ export async function migrateGuestDataToUser(targetUserId) {
     const merged = [...packagesToAdd, ...userPackages];
     deliveryService.savePackages(merged, targetUserId);
 
-    if (cloudAdapter.isFirestoreActive?.()) {
-      await cloudAdapter.savePackages(merged);
+    if (cloudAdapter) {
+      cloudAdapter.setUserId(targetUserId);
+      if (cloudAdapter.isFirestoreActive?.()) {
+        withTimeout(cloudAdapter.savePackages(merged), 2500);
+      }
     }
 
     localStorage.removeItem('deliveree_packages_guest');
@@ -73,54 +102,171 @@ export async function migrateGuestDataToUser(targetUserId) {
 }
 
 /**
- * Sanitizes authentication errors to prevent raw error code / stack leakage (CWE-209).
+ * Sanitizes and translates all Firebase authentication error codes into clear human messages.
  */
-export function sanitizeAuthError(err) {
-  if (!err) return 'An unexpected authentication error occurred. Please try again.';
+export function sanitizeAuthError(err, language = 'en') {
+  if (!err) {
+    return language === 'he' 
+      ? 'אירעה שגיאה בתהליך האימות. נא לנסות שוב.' 
+      : 'An unexpected authentication error occurred. Please try again.';
+  }
   
-  const code = typeof err === 'object' && err !== null && err.code ? String(err.code) : '';
+  const rawMsg = typeof err === 'object' && err !== null && err.message ? String(err.message) : String(err);
+  let code = typeof err === 'object' && err !== null && err.code ? String(err.code) : '';
+  
+  if (!code && rawMsg) {
+    const match = rawMsg.match(/auth\/([a-z0-9-]+)/i);
+    if (match) code = `auth/${match[1].toLowerCase()}`;
+  }
+  
+  console.warn('[AuthContext] Auth error code:', code, 'rawMsg:', rawMsg);
   
   switch (code) {
-    case 'auth/user-not-found':
-    case 'auth/wrong-password':
-    case 'auth/invalid-credential':
-      return 'Invalid email or password. Please check your credentials and try again.';
     case 'auth/email-already-in-use':
-      return 'This email address is already in use by another account.';
+      return language === 'he'
+        ? 'כתובת אימייל זו כבר רשומה במערכת. נא להתחבר או להשתמש בכתובת אחרת.'
+        : 'This email address is already in use by another account.';
+    case 'auth/wrong-password':
+      return language === 'he'
+        ? 'הסיסמה שהוזנה שגויה. נא לבדוק את הסיסמה ולנסות שוב.'
+        : 'Invalid email or password. Please check your credentials and try again.';
+    case 'auth/user-not-found':
+      return language === 'he'
+        ? 'לא נמצא חשבון עם כתובת אימייל זו. נא לבדוק את הכתובת או להירשם.'
+        : 'Invalid email or password. Please check your credentials and try again.';
+    case 'auth/invalid-credential':
+    case 'auth/invalid-login-credentials':
+      return language === 'he'
+        ? 'אימייל או סיסמה שגויים. נא לבדוק את הפרטים ולנסות שוב.'
+        : 'Invalid email or password. Please check your credentials and try again.';
     case 'auth/invalid-email':
-      return 'The email address is invalid. Please check the formatting.';
+      return language === 'he'
+        ? 'כתובת האימייל אינה תקינה. נא להזין כתובת תקינה (למשל: name@domain.com).'
+        : 'The email address is invalid. Please check the formatting.';
     case 'auth/weak-password':
-      return 'The password is too weak. Please use at least 6 characters.';
+      return language === 'he'
+        ? 'הסיסמה חלשה מדי. נא לבחור סיסמה עם 8 תווים לפחות הכוללת אותיות, מספרים ותו מיוחד.'
+        : 'The password is too weak. Please use at least 8 characters.';
     case 'auth/popup-blocked':
-      return 'Sign-in popup was blocked by your browser. Please allow popups or use email.';
+      return language === 'he'
+        ? 'חלון ההתחברות של Google נחסם על ידי הדפדפן. נא לאפשר חלונות קופצים בדפדפן.'
+        : 'Sign-in popup was blocked by your browser. Please allow popups or use email.';
     case 'auth/popup-closed-by-user':
-      return 'Sign-in window was closed before completing authentication.';
+    case 'auth/cancelled-popup-request':
+      return language === 'he'
+        ? 'חלון ההתחברות נסגר לפני סיום תהליך האימות.'
+        : 'Sign-in window was closed before completing authentication.';
+    case 'auth/unauthorized-domain':
+      return language === 'he'
+        ? 'הדומיין הנוכחי אינו מורשה לאימות Google. נא להשתמש בכתובת הרשמית: https://deliveree-app-2a938.web.app'
+        : 'This domain is not authorized for Google OAuth. Please use https://deliveree-app-2a938.web.app';
     case 'auth/network-request-failed':
-      return 'Network connection failed. Please check your internet connection.';
+      return language === 'he'
+        ? 'שגיאת חיבור לרשת. נא לבדוק את החיבור לאינטרנט.'
+        : 'Network connection failed. Please check your internet connection.';
     case 'auth/too-many-requests':
-      return 'Too many unsuccessful attempts. Access temporarily disabled. Try again later.';
+      return language === 'he'
+        ? 'בוצעו יותר מדי ניסיונות שגויים ברצף. החשבון ננעל זמנית להגנה. נא לנסות שוב בעוד מספר דקות או לאפס סיסמה.'
+        : 'Too many unsuccessful attempts. Access temporarily disabled. Try again later.';
+    case 'auth/requires-recent-login':
+      return language === 'he'
+        ? 'פעולה זו (מחיקת חשבון) דורשת אימות עדכני. נא להתנתק, להתחבר מחדש ולנסות שוב.'
+        : 'This action requires recent authentication. Please log out and sign in again before retrying.';
     case 'auth/operation-not-allowed':
-      return 'This sign-in method is currently disabled.';
+      return language === 'he'
+        ? 'שיטת התחברות זו עדיין אינה מופעלת במסוף Firebase. יש להפעיל אותה ב-Authentication -> Sign-in method.'
+        : 'This sign-in method is currently disabled in Firebase Console. Please enable it under Authentication -> Sign-in method.';
+    case 'auth/operation-not-supported-in-this-environment':
+      return language === 'he'
+        ? 'שיטת התחברות זו אינה נתמכת בסביבת דפדפן זו. נא לנסות בדפדפן אחר או באמצעות אימייל.'
+        : 'This sign-in method is not supported in this browser environment. Please use another browser or email.';
+    case 'auth/account-exists-with-different-credential':
+      return language === 'he'
+        ? 'קיים כבר חשבון עם כתובת אימייל זו בשיטת התחברות אחרת. נא להתחבר בשיטה המקורית.'
+        : 'An account already exists with the same email address using a different sign-in method.';
+    case 'auth/user-disabled':
+      return language === 'he'
+        ? 'חשבון זה הושבת. נא לפנות לתמיכה.'
+        : 'This user account has been disabled. Please contact support.';
+    case 'auth/admin-restricted-operation':
+    case 'auth/configuration-not-found':
+      return language === 'he'
+        ? 'ספק Google אינו מופעל עדיין במסוף Firebase. נא להתחבר עם אימייל וסיסמה או להפעיל את Google ב-Firebase Console.'
+        : 'Google Sign-In is not enabled in Firebase Console. Please use Email/Password or enable Google Provider.';
+    case 'auth/credential-already-in-use':
+      return language === 'he'
+        ? 'פרטי האימות כבר משויכים לחשבון משתמש אחר.'
+        : 'This credential is already linked to a different user account.';
+    case 'auth/web-storage-unsupported':
+      return language === 'he'
+        ? 'אחסון הדפדפן מושבת או חסום (למשל במצב גלישה פרטית). נא לאפשר עוגיות ואחסון מקומי.'
+        : 'Web storage or cookies are blocked/unsupported. Please enable cookies and local storage.';
+    case 'auth/cookies-blocked':
+      return language === 'he'
+        ? 'העוגיות בדפדפן חסומות. נא לאפשר עוגיות צד שלישי עבור אימות Google.'
+        : 'Browser cookies are blocked. Please enable cookies for Google Sign-In.';
+    case 'auth/timeout':
+      return language === 'he'
+        ? 'פג הזמן המוקצב לתהליך האימות. נא לנסות שוב.'
+        : 'Authentication request timed out. Please try again.';
+    case 'auth/invalid-api-key':
+      return language === 'he'
+        ? 'מפתח API לא תקין. נא לבדוק את הגדרות המערכת.'
+        : 'Invalid API key configuration.';
+    case 'auth/app-deleted':
+      return language === 'he'
+        ? 'מופע האימות אותחל מחדש. נא לרענן את הדף.'
+        : 'Authentication instance was reinitialized. Please refresh.';
+    case 'auth/internal-error':
+      return language === 'he'
+        ? 'אירעה שגיאה פנימית בשירות האימות. נא לנסות שוב.'
+        : 'An internal authentication error occurred. Please try again.';
+    case 'auth/invalid-auth-event':
+      return language === 'he'
+        ? 'אירוע אימות לא תקין. נא לנסות שוב.'
+        : 'Invalid authentication event. Please try again.';
+    case 'auth/user-token-expired':
+    case 'auth/id-token-expired':
+    case 'auth/id-token-revoked':
+      return language === 'he'
+        ? 'פג תוקף חיבור המשתמש. נא להתחבר מחדש.'
+        : 'User session expired. Please sign in again.';
+    case 'auth/quota-exceeded':
+      return language === 'he'
+        ? 'חרגת ממכסת הבקשות של השירות. נא לנסות שוב בעוד מספר דקות.'
+        : 'Service quota exceeded. Please try again in a few minutes.';
     default: {
-      const rawMessage = typeof err === 'object' && err !== null && err.message ? String(err.message) : String(err);
-      if (/network-request-failed/i.test(rawMessage)) {
-        return 'Network connection failed. Please check your internet connection.';
+      if (/network-request-failed/i.test(rawMsg)) {
+        return language === 'he'
+          ? 'שגיאת חיבור לרשת. נא לבדוק את החיבור לאינטרנט.'
+          : 'Network connection failed. Please check your internet connection.';
       }
-      if (/user-not-found|wrong-password|invalid-credential/i.test(rawMessage)) {
-        return 'Invalid email or password. Please check your credentials and try again.';
+      if (/email-already-in-use/i.test(rawMsg)) {
+        return language === 'he'
+          ? 'כתובת אימייל זו כבר רשומה במערכת. נא להתחבר.'
+          : 'This email address is already in use by another account.';
       }
-      if (/too-many-requests/i.test(rawMessage)) {
-        return 'Too many unsuccessful attempts. Access temporarily disabled. Try again later.';
+      if (/wrong-password|invalid-credential|invalid-login-credentials/i.test(rawMsg)) {
+        return language === 'he'
+          ? 'אימייל או סיסמה שגויים. נא לבדוק את הפרטים ולנסות שוב.'
+          : 'Invalid email or password. Please check your credentials and try again.';
       }
-      const clean = sanitizeString(rawMessage, 200)
-        .replace(/auth\/[a-z0-9-]+/gi, '')
-        .replace(/Firebase:\s*/gi, '')
-        .replace(/\(Error\s*[^)]*\)/gi, '')
-        .replace(/\bat\s+(?:line\s+)?\d+.*$/gim, '')
-        .replace(/\bat\s+[^()\n]+\([^)]+\)/gi, '')
-        .replace(/\bline\s+\d+(?::\d+)?/gi, '')
-        .trim();
-      return clean || 'Authentication failed. Please try again.';
+      if (/user-not-found/i.test(rawMsg)) {
+        return language === 'he'
+          ? 'לא נמצא חשבון עם כתובת זו.'
+          : 'Invalid email or password. Please check your credentials and try again.';
+      }
+      if (/web-storage-unsupported|cookies-blocked/i.test(rawMsg)) {
+        return language === 'he'
+          ? 'אחסון הדפדפן או העוגיות חסומים בדפדפן זה.'
+          : 'Web storage or cookies are blocked in this browser.';
+      }
+      if (code) {
+        return language === 'he'
+          ? `שגיאת אימות (${code}). נא לנסות שוב או להשתמש באימייל וסיסמה.`
+          : `Authentication error (${code}). Please try again or use email/password.`;
+      }
+      return language === 'he' ? 'ההתחברות נכשלה. נא לנסות שוב או להשתמש באימייל וסיסמה.' : 'Authentication failed. Please try again.';
     }
   }
 }
@@ -146,7 +292,7 @@ export function validateUserProfile(raw) {
 
   let avatar = null;
   if (typeof safeObj.avatar === 'string') {
-    const cleanAvatar = sanitizeString(safeObj.avatar, 500);
+    const cleanAvatar = sanitizeString(safeObj.avatar, 1000);
     if (/^https?:\/\//i.test(cleanAvatar)) {
       avatar = cleanAvatar;
     }
@@ -192,6 +338,58 @@ export function validateUserProfile(raw) {
   };
 }
 
+/**
+ * Helper to retrieve existing cached user profile matching UID to preserve preferences & custom fields.
+ */
+export function getCachedUserForUid(uid) {
+  if (!uid) return null;
+  try {
+    const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_AUTH_KEY) : null;
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed && (parsed.id === uid || parsed.uid === uid)) {
+        return parsed;
+      }
+    }
+  } catch {
+    // Ignore parse/storage error
+  }
+  return null;
+}
+
+/**
+ * Builds and validates a clean Deliveree user profile from Firebase User credentials
+ * while merging and preserving custom preferences and metadata.
+ */
+export function buildCleanUserProfile(firebaseUser, customName = null) {
+  if (!firebaseUser) return null;
+  const cached = getCachedUserForUid(firebaseUser.uid);
+  const resolvedName =
+    (customName && customName.trim()) ||
+    (cached?.name && cached.name.trim() && cached.name !== 'User' ? cached.name : null) ||
+    (firebaseUser.displayName && firebaseUser.displayName.trim()) ||
+    firebaseUser.email?.split('@')[0] ||
+    cached?.name ||
+    'User';
+
+  const cleanPrefix =
+    resolvedName.toLowerCase().replace(/[^a-z0-9]/g, '') ||
+    firebaseUser.email?.split('@')[0]?.toLowerCase().replace(/[^a-z0-9]/g, '') ||
+    'user';
+
+  return validateUserProfile({
+    id: firebaseUser.uid,
+    name: resolvedName,
+    email: firebaseUser.email || cached?.email || '',
+    avatar: firebaseUser.photoURL || cached?.avatar || null,
+    ingestionEmail: cached?.ingestionEmail || `${cleanPrefix}.pkg@in.deliveree.app`,
+    plan: cached?.plan || 'Personal Account',
+    devicesCount: cached?.devicesCount || 1,
+    createdAt: firebaseUser.metadata?.creationTime || cached?.createdAt || new Date().toISOString(),
+    preferences: cached?.preferences
+  });
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     try {
@@ -207,14 +405,54 @@ export function AuthProvider({ children }) {
     return null;
   });
 
-  const [loading, setLoading] = useState(isFirebaseConfigured);
+  const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState(null);
   const [syncStatus, setSyncStatus] = useState('synced');
   const [lastSyncTime, setLastSyncTime] = useState(new Date());
   const syncTimerRef = useRef(null);
   const isExplicitLogoutRef = useRef(false);
+  const isMountedRef = useRef(true);
 
-  // Sync state with cloudAdapter and localStorage with quota error resilience
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (syncTimerRef.current) {
+        clearTimeout(syncTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Cross-tab synchronization for auth session and profile preferences
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleAuthStorageChange = (e) => {
+      if (!isMountedRef.current) return;
+      if (e.key === STORAGE_AUTH_KEY) {
+        if (!e.newValue) {
+          // User session cleared or logged out in another tab
+          setUser(null);
+          cloudAdapter.setUserId(null);
+        } else {
+          try {
+            const parsed = JSON.parse(e.newValue);
+            const validated = validateUserProfile(parsed);
+            if (validated) {
+              setUser(validated);
+              cloudAdapter.setUserId(validated.id);
+            }
+          } catch (err) {
+            console.warn('[AuthContext] Cross-tab auth storage parse error:', err);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleAuthStorageChange);
+    return () => window.removeEventListener('storage', handleAuthStorageChange);
+  }, []);
+
   useEffect(() => {
     try {
       if (user?.id) {
@@ -222,41 +460,78 @@ export function AuthProvider({ children }) {
         localStorage.setItem(STORAGE_AUTH_KEY, JSON.stringify(user));
       } else {
         cloudAdapter.setUserId(null);
-        if (isExplicitLogoutRef.current) {
-          localStorage.removeItem(STORAGE_AUTH_KEY);
-        }
+        localStorage.removeItem(STORAGE_AUTH_KEY);
       }
     } catch (storageErr) {
-      console.warn('[AuthContext] LocalStorage setItem error:', storageErr);
+      console.warn('[AuthContext] LocalStorage error:', storageErr);
     }
   }, [user]);
 
-  // Listen to Firebase Auth state changes
+  const syncProfileToFirestore = async (firebaseUser, customName = null) => {
+    if (!db || !firebaseUser) return null;
+    const cleanUser = buildCleanUserProfile(firebaseUser, customName);
+    if (!cleanUser) return null;
+    
+    const profileData = {
+      ...cleanUser,
+      updatedAt: new Date().toISOString()
+    };
+
+    // Non-blocking firestore sync with timeout to guarantee ultra-fast registration
+    withTimeout(setDoc(doc(db, 'users', firebaseUser.uid), profileData, { merge: true }), 1500);
+    return profileData;
+  };
+
   useEffect(() => {
     if (!isFirebaseConfigured || !auth) {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
       return;
     }
 
+    // Check if user returned from mobile or desktop redirect flow
+    getRedirectResult(auth)
+      .then((res) => {
+        if (!isMountedRef.current) return;
+        if (res?.user) {
+          isExplicitLogoutRef.current = false;
+          const cleanUser = buildCleanUserProfile(res.user);
+          setUser(cleanUser);
+          syncProfileToFirestore(res.user);
+          migrateGuestDataToUser(res.user.uid);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!isMountedRef.current) return;
+        console.warn('[AuthContext] getRedirectResult warning:', err?.message);
+        const isCancelled =
+          err?.code === 'auth/redirect-cancelled-by-user' ||
+          err?.code === 'auth/popup-closed-by-user' ||
+          err?.code === 'auth/cancelled-popup-request' ||
+          /redirect-cancelled|popup-closed/i.test(err?.message || '');
+        if (!isCancelled) {
+          setAuthError(sanitizeAuthError(err));
+        }
+        setLoading(false);
+      });
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!isMountedRef.current) return;
       if (firebaseUser) {
-        const cleanUser = validateUserProfile({
-          id: firebaseUser.uid,
-          name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
-          email: firebaseUser.email || '',
-          avatar: firebaseUser.photoURL || null,
-          ingestionEmail: `${(firebaseUser.displayName || 'user').toLowerCase().replace(/[^a-z0-9]/g, '')}.pkg@in.deliveree.app`,
-          plan: 'Cloud Synced Account',
-          devicesCount: 1,
-          createdAt: firebaseUser.metadata?.creationTime || new Date().toISOString()
-        });
-        await migrateGuestDataToUser(firebaseUser.uid);
+        isExplicitLogoutRef.current = false;
+        const cleanUser = buildCleanUserProfile(firebaseUser);
+        migrateGuestDataToUser(firebaseUser.uid);
         setUser(cleanUser);
       } else {
-        // Only wipe user if an explicit logout action was initiated.
-        // On cold start or offline boot, retain cached user from localStorage.
-        if (isExplicitLogoutRef.current) {
-          setUser(null);
+        // Authoritative unauthenticated state from Firebase
+        setUser(null);
+        cloudAdapter.setUserId(null);
+        try {
+          localStorage.removeItem(STORAGE_AUTH_KEY);
+        } catch {
+          // Ignore
         }
       }
       setLoading(false);
@@ -265,70 +540,63 @@ export function AuthProvider({ children }) {
     return () => unsubscribe();
   }, []);
 
-  // Cleanup cloud sync timer on unmount
-  useEffect(() => {
-    return () => {
-      if (syncTimerRef.current) {
-        clearTimeout(syncTimerRef.current);
-      }
-    };
-  }, []);
-
   const triggerCloudSync = useCallback(() => {
     if (syncTimerRef.current) {
       clearTimeout(syncTimerRef.current);
     }
-    setSyncStatus('syncing');
+    if (isMountedRef.current) {
+      setSyncStatus('syncing');
+    }
     syncTimerRef.current = setTimeout(() => {
-      setSyncStatus('synced');
-      setLastSyncTime(new Date());
+      if (isMountedRef.current) {
+        setSyncStatus('synced');
+        setLastSyncTime(new Date());
+      }
       syncTimerRef.current = null;
     }, 600);
   }, []);
 
-  const loginWithGoogle = useCallback(async (customProfile = null) => {
-    isExplicitLogoutRef.current = false;
-    setAuthError(null);
+  const executeOAuthSignIn = useCallback(async (provider) => {
     if (!isFirebaseConfigured || !auth) {
-      // Dynamic local user generation for demo / offline mode
-      const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-      const email = customProfile?.email || `user_${randomSuffix}@deliveree.app`;
-      const emailPrefix = (email || '').split('@')[0] || `user_${randomSuffix}`;
-      const cleanPrefix = emailPrefix.replace(/[^a-zA-Z0-9]/g, '') || `user${randomSuffix}`;
-      const cleanName = customProfile?.name?.trim() || emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
-      const avatar = customProfile?.avatar || null;
-
-      const newUser = validateUserProfile({
-        id: `usr-google-${Date.now()}-${randomSuffix}`,
-        name: cleanName,
-        email: email,
-        avatar: avatar,
-        ingestionEmail: `${cleanPrefix.toLowerCase()}.pkg@in.deliveree.app`,
-        plan: 'Local Profile',
-        devicesCount: 1,
-        createdAt: new Date().toISOString()
-      });
-      await migrateGuestDataToUser(newUser.id);
-      setUser(newUser);
-      triggerCloudSync();
-      return;
+      throw new Error('Firebase Authentication is not configured.');
     }
-
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      if (result?.user?.uid) {
-        await migrateGuestDataToUser(result.user.uid);
+      const result = await signInWithPopup(auth, provider);
+      if (!isMountedRef.current) return null;
+      if (result?.user && !isExplicitLogoutRef.current) {
+        const cleanUser = buildCleanUserProfile(result.user);
+        setUser(cleanUser);
+        syncProfileToFirestore(result.user);
+        migrateGuestDataToUser(result.user.uid);
       }
       triggerCloudSync();
+      return result?.user || null;
     } catch (err) {
-      if (err.code === 'auth/popup-blocked' || err.code === 'auth/popup-closed-by-user') {
+      if (!isMountedRef.current) return null;
+      const shouldFallbackToRedirect =
+        err?.code === 'auth/popup-blocked' ||
+        err?.code === 'auth/operation-not-supported-in-this-environment' ||
+        err?.code === 'auth/internal-error' ||
+        err?.code === 'auth/web-storage-unsupported' ||
+        /popup-blocked|operation-not-supported|storage-unsupported/i.test(err?.message || '');
+
+      if (shouldFallbackToRedirect) {
         try {
-          await signInWithRedirect(auth, googleProvider);
+          console.info('[AuthContext] Popup unavailable or blocked, falling back to redirect flow...');
+          await signInWithRedirect(auth, provider);
+          return null;
         } catch (redirectErr) {
+          if (!isMountedRef.current) return null;
           const cleanErr = sanitizeAuthError(redirectErr);
           setAuthError(cleanErr);
           throw new Error(cleanErr);
         }
+      } else if (
+        err?.code === 'auth/popup-closed-by-user' ||
+        err?.code === 'auth/cancelled-popup-request' ||
+        /popup-closed|cancelled-popup/i.test(err?.message || '')
+      ) {
+        return null;
       } else {
         const cleanErr = sanitizeAuthError(err);
         setAuthError(cleanErr);
@@ -337,38 +605,45 @@ export function AuthProvider({ children }) {
     }
   }, [triggerCloudSync]);
 
-  const loginWithEmail = useCallback(async (email, password = '', name = '') => {
+  const loginWithGoogle = useCallback(async () => {
+    isExplicitLogoutRef.current = false;
+    setAuthError(null);
+    return executeOAuthSignIn(googleProvider);
+  }, [executeOAuthSignIn]);
+
+  const loginWithApple = useCallback(async () => {
+    isExplicitLogoutRef.current = false;
+    setAuthError(null);
+    return executeOAuthSignIn(appleProvider);
+  }, [executeOAuthSignIn]);
+
+  const loginWithFacebook = useCallback(async () => {
+    isExplicitLogoutRef.current = false;
+    setAuthError(null);
+    return executeOAuthSignIn(facebookProvider);
+  }, [executeOAuthSignIn]);
+
+  const loginWithEmail = useCallback(async (email, password) => {
     isExplicitLogoutRef.current = false;
     setAuthError(null);
     if (!isFirebaseConfigured || !auth) {
-      const emailPrefix = (email || '').split('@')[0] || 'user';
-      const cleanPrefix = emailPrefix.replace(/[^a-zA-Z0-9]/g, '') || 'user';
-      const cleanName = name.trim() || (emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1));
-      const randomSuffix = Math.floor(100 + Math.random() * 900);
-      const newUser = validateUserProfile({
-        id: `usr-email-${Date.now()}-${randomSuffix}`,
-        name: cleanName,
-        email: email,
-        avatar: null,
-        ingestionEmail: `${cleanPrefix.toLowerCase()}.del${randomSuffix}@in.deliveree.app`,
-        plan: 'Local Profile',
-        devicesCount: 1,
-        createdAt: new Date().toISOString()
-      });
-      await migrateGuestDataToUser(newUser.id);
-      setUser(newUser);
-      triggerCloudSync();
-      return;
+      throw new Error('Firebase Authentication is not configured.');
     }
 
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
-      if (result?.user?.uid) {
-        await migrateGuestDataToUser(result.user.uid);
+      if (!isMountedRef.current) return null;
+      if (result?.user && !isExplicitLogoutRef.current) {
+        const cleanUser = buildCleanUserProfile(result.user);
+        setUser(cleanUser);
+        syncProfileToFirestore(result.user);
+        migrateGuestDataToUser(result.user.uid);
       }
       triggerCloudSync();
+      return result.user;
     } catch (err) {
-      const cleanErr = sanitizeAuthError(err);
+      if (!isMountedRef.current) return null;
+      const cleanErr = sanitizeAuthError(err, 'he');
       setAuthError(cleanErr);
       throw new Error(cleanErr);
     }
@@ -378,41 +653,49 @@ export function AuthProvider({ children }) {
     isExplicitLogoutRef.current = false;
     setAuthError(null);
     if (!isFirebaseConfigured || !auth) {
-      const emailPrefix = (email || '').split('@')[0] || 'user';
-      const cleanPrefix = emailPrefix.replace(/[^a-zA-Z0-9]/g, '') || 'user';
-      const cleanName = name.trim() || (emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1));
-      const randomSuffix = Math.floor(100 + Math.random() * 900);
-      const newUser = validateUserProfile({
-        id: `usr-email-${Date.now()}-${randomSuffix}`,
-        name: cleanName,
-        email: email,
-        avatar: null,
-        ingestionEmail: `${cleanPrefix.toLowerCase()}.del${randomSuffix}@in.deliveree.app`,
-        plan: 'Local Profile',
-        devicesCount: 1,
-        createdAt: new Date().toISOString()
-      });
-      await migrateGuestDataToUser(newUser.id);
-      setUser(newUser);
-      triggerCloudSync();
-      return;
+      throw new Error('Firebase Authentication is not configured.');
     }
 
     try {
       const result = await createUserWithEmailAndPassword(auth, email, password);
-      if (result?.user?.uid) {
-        await migrateGuestDataToUser(result.user.uid);
+      if (!isMountedRef.current) return null;
+      if (result?.user && !isExplicitLogoutRef.current) {
+        if (name.trim()) {
+          updateProfile(result.user, { displayName: name.trim() }).catch(() => {});
+        }
+        const cleanUser = buildCleanUserProfile(result.user, name.trim());
+        setUser(cleanUser);
+        syncProfileToFirestore(result.user, name.trim());
+        migrateGuestDataToUser(result.user.uid);
       }
       triggerCloudSync();
+      return result.user;
     } catch (err) {
-      const cleanErr = sanitizeAuthError(err);
+      if (!isMountedRef.current) return null;
+      const cleanErr = sanitizeAuthError(err, 'he');
       setAuthError(cleanErr);
       throw new Error(cleanErr);
     }
   }, [triggerCloudSync]);
 
-  const updateUserPreferences = useCallback((newPrefs) => {
-    if (!user) return;
+  const resetPassword = useCallback(async (email) => {
+    setAuthError(null);
+    if (!isFirebaseConfigured || !auth) {
+      throw new Error('Firebase Authentication is not configured.');
+    }
+    try {
+      await sendPasswordResetEmail(auth, email);
+      return true;
+    } catch (err) {
+      if (!isMountedRef.current) return false;
+      const cleanErr = sanitizeAuthError(err, 'he');
+      setAuthError(cleanErr);
+      throw new Error(cleanErr);
+    }
+  }, []);
+
+  const updateUserPreferences = useCallback(async (newPrefs) => {
+    if (!user || !isMountedRef.current) return;
     const sanitizedPrefs = {
       defaultCarrier: sanitizeString(newPrefs?.defaultCarrier, 50) || user.preferences?.defaultCarrier || 'all',
       language: sanitizeString(newPrefs?.language, 10) || user.preferences?.language || 'he',
@@ -425,6 +708,10 @@ export function AuthProvider({ children }) {
       preferences: sanitizedPrefs
     };
     setUser(updatedUser);
+
+    if (db && user.id) {
+      withTimeout(setDoc(doc(db, 'users', user.id), { preferences: sanitizedPrefs, updatedAt: new Date().toISOString() }, { merge: true }), 1500);
+    }
     triggerCloudSync();
   }, [user, triggerCloudSync]);
 
@@ -433,23 +720,7 @@ export function AuthProvider({ children }) {
     if (!targetId) return;
     isExplicitLogoutRef.current = true;
 
-    // 1. Wipe cloud Firestore data if configured
-    if (isFirebaseConfigured && db) {
-      try {
-        const { collection, getDocs, deleteDoc, doc } = await import('firebase/firestore');
-        const userPackagesRef = collection(db, 'users', targetId, 'packages');
-        const snapshot = await getDocs(userPackagesRef);
-        const deletePromises = snapshot.docs.map(d => deleteDoc(d.ref));
-        await Promise.all(deletePromises);
-
-        // Delete user root doc
-        await deleteDoc(doc(db, 'users', targetId));
-      } catch (err) {
-        console.warn('[AuthContext] Error deleting cloud data:', err);
-      }
-    }
-
-    // 2. Clear local storage delivery packages & custom data
+    // 1. Delete local caches immediately
     try {
       localStorage.removeItem(`deliveree_packages_${targetId}`);
       localStorage.removeItem('deliveree_packages_guest');
@@ -457,16 +728,26 @@ export function AuthProvider({ children }) {
       localStorage.removeItem('deliveree_tester_feedback');
       localStorage.removeItem('deliveree_pwa_banner_dismissed');
     } catch {
-      // Ignore localStorage errors
+      // Ignore
     }
 
-    // 3. Delete Firebase Auth user if active
-    if (isFirebaseConfigured && auth && auth.currentUser) {
+    // 2. Non-blocking Firestore purge with timeout
+    if (db) {
+      withTimeout((async () => {
+        const userPackagesRef = collection(db, 'users', targetId, 'packages');
+        const snapshot = await getDocs(userPackagesRef);
+        const deletePromises = snapshot.docs.map(d => deleteDoc(d.ref));
+        await Promise.all(deletePromises);
+        await deleteDoc(doc(db, 'users', targetId));
+      })(), 2000);
+    }
+
+    // 3. Delete Firebase Auth user
+    if (auth && auth.currentUser) {
       try {
-        const { deleteUser } = await import('firebase/auth');
         await deleteUser(auth.currentUser);
       } catch (err) {
-        console.warn('[AuthContext] Error deleting auth user:', err);
+        console.warn('[AuthContext] Error deleting auth user, signing out:', err);
         try {
           await firebaseSignOut(auth);
         } catch {
@@ -475,27 +756,31 @@ export function AuthProvider({ children }) {
       }
     }
 
-    // 4. Reset state
+    // 4. Immediately clear client session
     cloudAdapter.setUserId(null);
-    setUser(null);
+    if (isMountedRef.current) {
+      setUser(null);
+    }
   }, [user]);
 
   const logout = useCallback(async () => {
     isExplicitLogoutRef.current = true;
-    if (isFirebaseConfigured && auth) {
-      try {
-        await firebaseSignOut(auth);
-      } catch (err) {
-        console.warn('Sign out error:', err);
-      }
+    cloudAdapter.setUserId(null);
+    if (isMountedRef.current) {
+      setUser(null);
     }
     try {
       localStorage.removeItem(STORAGE_AUTH_KEY);
     } catch {
       // Ignore
     }
-    cloudAdapter.setUserId(null);
-    setUser(null);
+    if (auth) {
+      try {
+        await firebaseSignOut(auth);
+      } catch (err) {
+        console.warn('Sign out error:', err);
+      }
+    }
   }, []);
 
   const isGuestMode = !user;
@@ -506,8 +791,11 @@ export function AuthProvider({ children }) {
     loading,
     authError,
     loginWithGoogle,
+    loginWithApple,
+    loginWithFacebook,
     loginWithEmail,
     registerWithEmail,
+    resetPassword,
     migrateGuestDataToUser,
     updateUserPreferences,
     deleteUserAccountAndData,
@@ -521,8 +809,11 @@ export function AuthProvider({ children }) {
     loading,
     authError,
     loginWithGoogle,
+    loginWithApple,
+    loginWithFacebook,
     loginWithEmail,
     registerWithEmail,
+    resetPassword,
     updateUserPreferences,
     deleteUserAccountAndData,
     logout,

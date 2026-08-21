@@ -2,10 +2,42 @@
 <html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <link rel="icon" type="image/png" href="/icons/app-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="Deliveree - Modern, smart parcel and shipment tracking dashboard with auto carrier detection and live timelines." />
     
+    <!-- Instant Hard Cache Purge & Service Worker Reset -->
+    <script>
+      (function() {
+        var APP_CURRENT_VER = '0.6.2.14';
+        var storedVer = localStorage.getItem('deliveree_app_build_version');
+        if (storedVer !== APP_CURRENT_VER) {
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+              for (var i = 0; i < registrations.length; i++) {
+                registrations[i].unregister();
+              }
+            }).catch(function() {});
+          }
+          if (typeof window !== 'undefined' && 'caches' in window) {
+            caches.keys().then(function(keys) {
+              keys.forEach(function(key) {
+                caches.delete(key);
+              });
+            }).catch(function() {});
+          }
+          localStorage.setItem('deliveree_app_build_version', APP_CURRENT_VER);
+          // If we detect outdated cache in memory, force an instant reload
+          if (storedVer) {
+            window.location.reload(true);
+          }
+        }
+      })();
+    </script>
+
     <!-- PWA & Mobile Installation Meta Tags -->
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#0f172a" />

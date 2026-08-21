@@ -23,11 +23,11 @@ export const CARRIERS = {
   'chita': {
     id: 'chita',
     name: 'Cheetah Delivery (Chita)',
-    hebrewName: 'צ\'יטה שליחויות',
+    hebrewName: "צ'יטה שליחויות",
     color: 'from-amber-600 to-orange-700',
     badgeBg: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
     accentColor: '#d97706',
-    logoText: 'צ\'יטה',
+    logoText: "צ'יטה",
     website: 'https://chita-il.com',
     getTrackingUrl: (trackNum) => `https://chita-il.com/runportal/tracking?num=${encodeURIComponent(trackNum)}`,
     fallbackTrackingUrl: (trackNum) => `https://t.17track.net/en#nums=${encodeURIComponent(trackNum)}`,
@@ -41,8 +41,8 @@ export const CARRIERS = {
   },
   'hfd': {
     id: 'hfd',
-    name: 'HFD Delivery',
-    hebrewName: 'HFD שליחויות',
+    name: 'HFD / E-Post',
+    hebrewName: 'HFD שליחויות / אי-פוסט',
     color: 'from-blue-700 to-indigo-800',
     badgeBg: 'bg-blue-500/10 border-blue-500/30 text-blue-400',
     accentColor: '#3b82f6',
@@ -52,6 +52,7 @@ export const CARRIERS = {
     fallbackTrackingUrl: (trackNum) => `https://t.17track.net/en#nums=${encodeURIComponent(trackNum)}`,
     patterns: [
       /^HFD\d{8,12}$/i,
+      /^EP\d{8,12}$/i,
       /^5\d{8,9}$/
     ],
     sample: 'HFD90481029',
@@ -75,6 +76,133 @@ export const CARRIERS = {
     sample: 'BOX920194',
     country: 'Israel'
   },
+  'tapuz': {
+    id: 'tapuz',
+    name: 'Tapuz / YDM',
+    hebrewName: 'תפוז שליחויות / YDM',
+    color: 'from-orange-500 to-amber-600',
+    badgeBg: 'bg-orange-500/10 border-orange-500/30 text-orange-400',
+    accentColor: '#f97316',
+    logoText: 'תפוז',
+    website: 'https://tapuzdelivery.co.il',
+    getTrackingUrl: (trackNum) => `https://tapuzdelivery.co.il/%D7%90%D7%99%D7%A4%D7%94-%D7%94%D7%97%D7%91%D7%99%D7%9C%D7%94-%D7%A9%D7%9C%D7%99/?num=${encodeURIComponent(trackNum)}`,
+    fallbackTrackingUrl: (trackNum) => `https://t.17track.net/en#nums=${encodeURIComponent(trackNum)}`,
+    patterns: [
+      /^TPZ\d{7,12}$/i,
+      /^YDM\d{7,12}$/i,
+      /^7\d{8}$/
+    ],
+    sample: 'TPZ84920194',
+    country: 'Israel'
+  },
+  'cargo': {
+    id: 'cargo',
+    name: 'Cargo Express',
+    hebrewName: 'קרגו שליחויות',
+    color: 'from-cyan-600 to-blue-700',
+    badgeBg: 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400',
+    accentColor: '#0891b2',
+    logoText: 'Cargo',
+    website: 'https://cargoexpress.co.il',
+    getTrackingUrl: (trackNum) => `https://cargoexpress.co.il/track?tracknum=${encodeURIComponent(trackNum)}`,
+    fallbackTrackingUrl: (trackNum) => `https://t.17track.net/en#nums=${encodeURIComponent(trackNum)}`,
+    patterns: [
+      /^CRG\d{7,12}$/i,
+      /^CARGO\d{6,10}$/i
+    ],
+    sample: 'CRG9104821',
+    country: 'Israel'
+  },
+  'getpackage': {
+    id: 'getpackage',
+    name: 'GetPackage',
+    hebrewName: "גט פקג' (GetPackage)",
+    color: 'from-emerald-600 to-teal-700',
+    badgeBg: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
+    accentColor: '#059669',
+    logoText: 'GetPkg',
+    website: 'https://getpackage.com',
+    getTrackingUrl: (trackNum) => `https://getpackage.com/tracking?id=${encodeURIComponent(trackNum)}`,
+    fallbackTrackingUrl: (trackNum) => `https://t.17track.net/en#nums=${encodeURIComponent(trackNum)}`,
+    patterns: [
+      /^GP[A-Z0-9]{8,12}$/i,
+      /^GET\d{8,10}$/i
+    ],
+    sample: 'GP94820194',
+    country: 'Israel'
+  },
+  'flying-cargo': {
+    id: 'flying-cargo',
+    name: 'Flying Cargo / FedEx Israel',
+    hebrewName: 'פליינג קרגו / פדאקס ישראל',
+    color: 'from-indigo-600 to-violet-700',
+    badgeBg: 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400',
+    accentColor: '#6366f1',
+    logoText: 'FC',
+    website: 'https://www.flying-cargo.com',
+    getTrackingUrl: (trackNum) => `https://www.flying-cargo.com/tracking?n=${encodeURIComponent(trackNum)}`,
+    fallbackTrackingUrl: (trackNum) => `https://t.17track.net/en#nums=${encodeURIComponent(trackNum)}`,
+    patterns: [
+      /^FC\d{8,12}$/i,
+      /^4\d{9}$/
+    ],
+    sample: 'FC84920194',
+    country: 'Israel'
+  },
+  'orian': {
+    id: 'orian',
+    name: 'Orian / UPS Israel',
+    hebrewName: 'אוריאן / UPS ישראל',
+    color: 'from-amber-800 to-amber-950',
+    badgeBg: 'bg-amber-600/10 border-amber-600/30 text-amber-300',
+    accentColor: '#b45309',
+    logoText: 'אוריאן',
+    website: 'https://orian.com',
+    getTrackingUrl: (trackNum) => `https://orian.com/track?num=${encodeURIComponent(trackNum)}`,
+    fallbackTrackingUrl: (trackNum) => `https://t.17track.net/en#nums=${encodeURIComponent(trackNum)}`,
+    patterns: [
+      /^OR\d{8,12}$/i,
+      /^ORN\d{8,10}$/i
+    ],
+    sample: 'OR94820194',
+    country: 'Israel'
+  },
+  'bar': {
+    id: 'bar',
+    name: 'Bar Distribution',
+    hebrewName: 'בר הפצה',
+    color: 'from-blue-600 to-slate-800',
+    badgeBg: 'bg-blue-600/10 border-blue-600/30 text-blue-300',
+    accentColor: '#2563eb',
+    logoText: 'בר',
+    website: 'https://barexpress.co.il',
+    getTrackingUrl: (trackNum) => `https://barexpress.co.il/track?track=${encodeURIComponent(trackNum)}`,
+    fallbackTrackingUrl: (trackNum) => `https://t.17track.net/en#nums=${encodeURIComponent(trackNum)}`,
+    patterns: [
+      /^BAR\d{7,12}$/i,
+      /^9\d{8}$/
+    ],
+    sample: 'BAR1094821',
+    country: 'Israel'
+  },
+  'zigzag': {
+    id: 'zigzag',
+    name: 'ZigZag Express',
+    hebrewName: 'זיגזג שליחויות',
+    color: 'from-rose-600 to-red-700',
+    badgeBg: 'bg-rose-500/10 border-rose-500/30 text-rose-400',
+    accentColor: '#e11d48',
+    logoText: 'ZigZag',
+    website: 'https://zigzag24.co.il',
+    getTrackingUrl: (trackNum) => `https://zigzag24.co.il/track?code=${encodeURIComponent(trackNum)}`,
+    fallbackTrackingUrl: (trackNum) => `https://t.17track.net/en#nums=${encodeURIComponent(trackNum)}`,
+    patterns: [
+      /^ZZ\d{7,12}$/i,
+      /^ZIG\d{6,10}$/i
+    ],
+    sample: 'ZZ9482019',
+    country: 'Israel'
+  },
   'cainiao': {
     id: 'cainiao',
     name: 'AliExpress / Cainiao',
@@ -87,8 +215,8 @@ export const CARRIERS = {
     getTrackingUrl: (trackNum) => `https://global.cainiao.com/newDetail.htm?mailNoList=${encodeURIComponent(trackNum)}`,
     fallbackTrackingUrl: (trackNum) => `https://t.17track.net/en#nums=${encodeURIComponent(trackNum)}`,
     patterns: [
-      /^(LP|CAINIAO)\d+/i,            // LP00582910482CN
-      /^[A-Z]{2}\d{9}CN$/i,           // Standard China Post
+      /^(LP|CAINIAO)\d+/i,
+      /^[A-Z]{2}\d{9}CN$/i,
       /^CN\d{10,}/i,
       /^AE[A-Z0-9]{10,18}$/i
     ],
@@ -125,7 +253,7 @@ export const CARRIERS = {
     getTrackingUrl: (trackNum) => `https://t.17track.net/en#nums=${encodeURIComponent(trackNum)}`,
     fallbackTrackingUrl: (trackNum) => `https://express.4px.com/track/search?keyword=${encodeURIComponent(trackNum)}`,
     patterns: [
-      /^4PX\d+/i,                     // 4PX300084920194
+      /^4PX\d+/i,
       /^FPX\d+/i
     ],
     sample: '4PX300184920194',
@@ -143,8 +271,8 @@ export const CARRIERS = {
     getTrackingUrl: (trackNum) => `https://www.dhl.com/en/express/tracking.html?AWB=${encodeURIComponent(trackNum)}`,
     fallbackTrackingUrl: (trackNum) => `https://t.17track.net/en#nums=${encodeURIComponent(trackNum)}`,
     patterns: [
-      /^\d{10}$/,                     // 10 digits DHL express AWB
-      /^JJD\d{16,18}$/i,              // DHL Packet / eCommerce
+      /^\d{10}$/,
+      /^JJD\d{16,18}$/i,
       /^GM\d{16,18}$/i
     ],
     sample: '4829104821',
@@ -162,9 +290,9 @@ export const CARRIERS = {
     getTrackingUrl: (trackNum) => `https://www.fedex.com/fedextrack/?trknbr=${encodeURIComponent(trackNum)}`,
     fallbackTrackingUrl: (trackNum) => `https://t.17track.net/en#nums=${encodeURIComponent(trackNum)}`,
     patterns: [
-      /^\d{12}$/,                     // Standard 12 digits
-      /^\d{15}$/,                     // Ground 15 digits
-      /^\d{20}$/,                     // SmartPost
+      /^\d{12}$/,
+      /^\d{15}$/,
+      /^\d{20}$/,
       /^\d{22}$/
     ],
     sample: '794820194821',
@@ -182,7 +310,7 @@ export const CARRIERS = {
     getTrackingUrl: (trackNum) => `https://www.ups.com/track?tracknum=${encodeURIComponent(trackNum)}`,
     fallbackTrackingUrl: (trackNum) => `https://t.17track.net/en#nums=${encodeURIComponent(trackNum)}`,
     patterns: [
-      /^1Z[0-9A-Z]{16}$/i,            // Standard 1Z tracking number (e.g. 1Z9999999999999999)
+      /^1Z[0-9A-Z]{16}$/i,
       /^\d{9}$/,
       /^\d{11}$/
     ],
@@ -201,7 +329,7 @@ export const CARRIERS = {
     getTrackingUrl: (trackNum) => `https://tools.usps.com/go/TrackConfirmAction?tLabels=${encodeURIComponent(trackNum)}`,
     fallbackTrackingUrl: (trackNum) => `https://t.17track.net/en#nums=${encodeURIComponent(trackNum)}`,
     patterns: [
-      /^94\d{20}$/,                   // 9400 1000 0000 0000 0000 00
+      /^94\d{20}$/,
       /^92\d{20}$/,
       /^93\d{20}$/,
       /^[A-Z]{2}\d{9}US$/i
@@ -256,7 +384,7 @@ export const CARRIERS = {
     getTrackingUrl: (trackNum) => `https://t.17track.net/en#nums=${encodeURIComponent(trackNum)}`,
     fallbackTrackingUrl: (_trackNum) => `https://www.yw56.com.cn/en/`,
     patterns: [
-      /^U[A-Z]\d{9}YP$/i,             // e.g. UY894729184YP
+      /^U[A-Z]\d{9}YP$/i,
       /^VR\d{9}YP$/i,
       /^LP\d{14}YP$/i
     ],

@@ -63,7 +63,7 @@ PHASE C — INDEPENDENT TEST EXECUTION:
      - `owasp-security-and-rate-limiting/SKILL.md` (69 lines) — phantom SSRF claim in description vs. zero SSRF rules in body verified; deprecated `X-RateLimit-*` headers verified.
      - `automated-code-review/SKILL.md` (68 lines) — phantom N+1 queries claim vs. zero N+1 checklists in body verified; missing React 19 / Server Components verified.
      - `sdlc-orchestrator/SKILL.md` (91 lines) — lack of bounded retry loops / dead-end tracking verified; self-review allowance in workspace version verified.
-     - `AGENTS.md` (84 lines) — hardcoded `file:///home/sahar/...` URLs and incomplete IPv4-only CIDR blocklist verified.
+     - `AGENTS.md` (84 lines) — hardcoded `...` URLs and incomplete IPv4-only CIDR blocklist verified.
      - `software-development-standards/SKILL.md` (63 lines) — un-sanitized `AppError.details` information leakage risk verified.
 3. **Drop-In Enhancement Viability**:
    - All drop-in implementations (Redis Lua sliding window script, constant-time pre-hashed token comparison, dual-stack IPv4/IPv6 SSRF guard with socket IP-pinning, updated `plugin.json`, `subagents.json`, and standardized Antigravity YAML frontmatters) are syntactically complete, robust, and production-grade.

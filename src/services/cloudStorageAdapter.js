@@ -100,10 +100,34 @@ export class CloudStorageAdapter {
             remotePackages.push({ ...docSnap.data(), id: docSnap.id });
           });
 
-          const validated = strictlyValidatePackageList(remotePackages);
-          // Keep local storage mirror in sync
+          const localPackages = deliveryService.getPackages(this.userId);
+
+          // If remote is empty but local has packages, sync local up to cloud
+          if (remotePackages.length === 0 && localPackages.length > 0) {
+            this.savePackages(localPackages);
+            return;
+          }
+
+          // Merge remote with local unsynced packages to prevent data loss
+          const remoteIds = new Set(remotePackages.map(p => p.id || p.trackingNumber));
+          const unsyncedLocal = localPackages.filter(p => !remoteIds.has(p.id || p.trackingNumber));
+          const merged = [...remotePackages, ...unsyncedLocal];
+
+          const validated = strictlyValidatePackageList(merged);
           deliveryService.savePackages(validated, this.userId);
           this.notifyListeners(validated);
+
+          // Upload any unsynced local packages to Firestore so they persist in the cloud
+          if (unsyncedLocal.length > 0 && db && this.userId) {
+            for (const pkg of unsyncedLocal) {
+              if (pkg && pkg.id) {
+                const docRef = doc(db, 'users', this.userId, 'packages', pkg.id);
+                setDoc(docRef, { ...pkg, userId: this.userId }, { merge: true }).catch((err) => {
+                  console.warn('[CloudStorageAdapter] Firestore background sync error for local package:', err);
+                });
+              }
+            }
+          }
         },
         (error) => {
           console.warn('[CloudStorageAdapter] Firestore onSnapshot warning:', error.message);
@@ -126,8 +150,11 @@ export class CloudStorageAdapter {
       const packagesRef = collection(db, 'users', this.userId, 'packages');
       const snapshot = await getDocs(packagesRef);
       if (snapshot.empty) {
-        // Authenticated user with intentionally empty remote collection - do not resurrect local mock data
-        deliveryService.savePackages([], this.userId);
+        const local = deliveryService.getPackages(this.userId);
+        if (local.length > 0) {
+          this.savePackages(local);
+          return local;
+        }
         return [];
       }
 
@@ -179,9 +206,9 @@ export class CloudStorageAdapter {
    */
   async upsertPackage(pkg) {
     const validatedPkg = strictlyValidatePackage(pkg);
-    if (!validatedPkg) return await this.getPackages();
+    if (!validatedPkg) return deliveryService.getPackages(this.userId);
 
-    const existing = await this.getPackages();
+    const existing = deliveryService.getPackages(this.userId);
     const index = existing.findIndex((p) => p.id === validatedPkg.id);
 
     let updated;
@@ -211,7 +238,7 @@ export class CloudStorageAdapter {
    * Deletes a package by ID
    */
   async deletePackage(packageId) {
-    const existing = await this.getPackages();
+    const existing = deliveryService.getPackages(this.userId);
     const updated = existing.filter((p) => p.id !== packageId);
 
     deliveryService.savePackages(updated, this.userId);

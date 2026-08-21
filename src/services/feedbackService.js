@@ -211,8 +211,9 @@ export async function uploadToFirestore(payload) {
   try {
     const { collection, doc, setDoc } = await import('firebase/firestore');
     const feedbackRef = doc(collection(db, 'feedback'), payload.id);
-    await setDoc(feedbackRef, payload);
-    return true;
+    const uploadPromise = setDoc(feedbackRef, payload).then(() => true).catch(() => false);
+    const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(false), 2500));
+    return await Promise.race([uploadPromise, timeoutPromise]);
   } catch (err) {
     console.warn('[FeedbackService] Firestore submission failed:', err);
     return false;

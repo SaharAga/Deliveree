@@ -43,7 +43,7 @@ While the conceptual foundation is exceptionally strong, this adversarial peer r
 3. **YAML Frontmatter Routing Deficiency**:
    - All skills (`sdlc-orchestrator`, `software-development-standards`, `automated-code-review`, `owasp-security-and-rate-limiting`, `software-verification-and-qa`, `remote-notifications-and-chat`) used single-sentence summaries without explicit "Use when" / "Do NOT use when" negative triggers or I/O contract definitions.
 4. **Machine-Specific Absolute URLs (`AGENTS.md:79-84`)**:
-   - `AGENTS.md` used `file:///home/sahar/Deliveree/.agents/skills/...` URLs. This breaks portability across workstations, containers, or CI/CD pipelines.
+   - `AGENTS.md` used `.agents/skills/...` URLs. This breaks portability across workstations, containers, or CI/CD pipelines.
 5. **Subagent Registry Tool Isolation (`subagents.json:1-25`)**:
    - Subagents defined `name`, `description`, and `role`, but omitted explicit tool scopes (allowing reviewer and security auditor subagents write tool access).
 

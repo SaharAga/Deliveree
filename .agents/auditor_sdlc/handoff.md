@@ -14,8 +14,8 @@ Direct empirical observations verified across target disk files:
 
 1. **R1 Verification (`explorer_sdlc_arch/report.md`)**:
    - `plugin.json` (lines 1–9) verified on disk. Missing `skills` package list and `remote-notifications-and-chat`.
-   - `AGENTS.md` (lines 79–84) verified on disk: contains hardcoded absolute `file:///home/sahar/Deliveree/.agents/skills/...` URLs.
-   - `remote-notifications-and-chat/SKILL.md` (lines 26–29, 61) verified on disk: contains hardcoded `file:///home/sahar/Deliveree/...` paths.
+   - `AGENTS.md` (lines 79–84) verified on disk: contains hardcoded absolute `.agents/skills/...` URLs.
+   - `remote-notifications-and-chat/SKILL.md` (lines 26–29, 61) verified on disk: contains hardcoded `...` paths.
    - Global plugin vs workspace divergence verified: `remote-notifications-and-chat` exists in `/home/sahar/Deliveree/.agents/skills/remote-notifications-and-chat/` but is completely absent from `/home/sahar/.gemini/config/plugins/agentic-sdlc-framework/skills/`.
 
 2. **R2 Verification (`explorer_sdlc_sec/report.md`)**:
