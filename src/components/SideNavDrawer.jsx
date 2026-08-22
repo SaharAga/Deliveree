@@ -79,7 +79,7 @@ export function SideNavDrawer({
       <div
         className={`relative w-full max-w-xs sm:max-w-sm h-full bg-slate-900 border-s border-slate-800 shadow-2xl flex flex-col z-10 transition-transform duration-300 animate-slide-in-${isRTL ? 'right' : 'left'}`}
         style={{
-          [isRTL ? 'marginRight' : 'marginLeft']: 'auto'
+          [isRTL ? 'marginLeft' : 'marginRight']: 'auto'
         }}
       >
         {/* Drawer Header */}
