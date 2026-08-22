@@ -1,3 +1,13 @@
+# Base44 Dev Environment
+
+- **Stack**: React 19 + Vite 8 PWA ("deliveree" package-tracking app), client-only. Tailwind v4, Firebase (Auth + Firestore), Zod.
+- **Run**: `docker compose -f docker-compose.base44.yml up -d` — single `web` service (node:22) bind-mounts the repo, runs `npm install && npm run dev`, maps host port 3000 → container 5173. Vite live-reloads edits.
+- **No external secrets required to boot**: Firebase config (`src/services/firebase.js`) ships working defaults inline (client-side public API key, restricted via Firebase Console). Optional `VITE_TELEGRAM_FEEDBACK_BOT_TOKEN` / `VITE_TELEGRAM_FEEDBACK_CHAT_ID` power the feedback relay but are not needed to run/preview.
+- **Verify**: `curl -sf -H "Host: external-preview.example.com" http://localhost:3000/` returns 200 with the Vite dev HTML (serves unhashed `/src/main.jsx`, not a prebuilt bundle). Healthcheck hits `127.0.0.1:5173`.
+- **Tests**: `npm test` (vitest), `npm run lint` (oxlint), `npm run build` (vite build).
+
+---
+
 # Multi-Agent Software Development Lifecycle (SDLC) Rulebook
 
 This repository is governed by an **autonomous Multi-Agent Software Development Framework**. All agents and subagents operating within this workspace must strictly adhere to this rulebook.
