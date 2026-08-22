@@ -31,3 +31,7 @@ __pycache__/
 
 # Firebase cache
 .firebase/
+
+# Agent-to-Agent Local Sync
+.agent_sync/
+docs/AGENT_SYNC.md
