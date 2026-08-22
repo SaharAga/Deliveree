@@ -792,6 +792,13 @@ function DashboardContent() {
             setSmartImportInitialText('');
           }}
           onParsedResult={handleSmartImportResult}
+          onSwitchToManual={(rawText) => {
+            setIsSmartImportOpen(false);
+            setSmartImportInitialText('');
+            setEditPackage(null);
+            setSmartPrefill(rawText?.trim() ? { notes: rawText.trim() } : null);
+            setIsAddModalOpen(true);
+          }}
         />
       </ErrorBoundary>
 

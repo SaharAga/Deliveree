@@ -106,26 +106,14 @@ export function Navbar({
           </button>
 
           {(user || isDemoMode) && (
-            <>
-              {/* Smart Paste (SMS/Email Auto Detection) */}
-              <button
-                onClick={onOpenSmartImport}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600/20 to-indigo-600/20 hover:from-blue-600/30 hover:to-indigo-600/30 border border-blue-500/30 text-blue-300 text-xs font-bold transition-all shadow-sm cursor-pointer min-h-[48px]"
-                title={t('smartPaste')}
-              >
-                <Sparkles className="w-3.5 h-3.5 text-blue-400 animate-pulse" />
-                <span>{t('smartPaste')}</span>
-              </button>
-
-              {/* Primary Add Package Modal Trigger */}
-              <button
-                onClick={onOpenAddModal}
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer min-h-[48px]"
-              >
-                <Plus className="w-4 h-4 stroke-[3]" />
-                <span>{t('addPackage')}</span>
-              </button>
-            </>
+            /* Primary Add Package Trigger — opens Smart Import by default, with a manual-entry fallback inside it */
+            <button
+              onClick={onOpenSmartImport}
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer min-h-[48px]"
+            >
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>{t('addPackage')}</span>
+            </button>
           )}
         </div>
 
