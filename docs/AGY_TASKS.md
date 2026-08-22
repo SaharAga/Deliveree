@@ -5,66 +5,66 @@ This catalog defines the comprehensive 25 engineering tasks across all priority 
 ---
 
 ## Tier 0: Critical P0 Architecture & Foundation Tasks
-
-### `TASK-01-SEC`: Revoke Compromised Tokens & Enforce Secret Scanning
-* **Priority**: `P0`
-* **Status**: `Todo`
-* **Squad**: Squad C (`adversarial_pentester`, `compliance_auditor`)
-* **Summary**: Revoke exposed Telegram token, purge Git history with git-filter-repo, configure Gitleaks pre-commit hook.
-
-### `TASK-02-CI`: Fix Failing Vitest & Fast-Check Test Suite
-* **Priority**: `P0`
-* **Status**: `Todo`
-* **Squad**: Squad B (`property_test_eng`, `qa_build_verifier`)
-* **Summary**: Diagnose and fix the failing annotations in Vitest run. Verify all Zod schemas and fast-check property tests across 2,700+ iterations.
-
-### `TASK-03-AUTH`: Production Firebase Authentication & Strong Password Policy
-* **Priority**: `P0`
-* **Status**: `Todo`
-* **Squad**: Squad A (`auth_cloud_specialist`) + Squad C (`adversarial_pentester`)
-* **Summary**: Implement Google & Apple SSO, strong password validator with live entropy meter, and email verification.
-
-### `TASK-04-GUEST`: Anonymous Guest Mode & Non-Destructive Account Linking
-* **Priority**: `P0`
-* **Status**: `Todo`
-* **Squad**: Squad A (`auth_cloud_specialist`) + Squad B (`formal_invariant_eng`)
-* **Summary**: Enable signInAnonymously and linkWithCredential to migrate guest deliveries to permanent UID with zero data loss.
-
-### `TASK-05-PRIVACY`: Anti-Profiling Sanitization & Client-Side Hashing
-* **Priority**: `P0`
-* **Status**: `Todo`
-* **Squad**: Squad C (`compliance_auditor`) + Squad A (`auth_cloud_specialist`)
-* **Summary**: Strip store PII from telemetry, hash parcel IDs with local salt, and enforce per-UID Firestore security rules.
-
-### `TASK-06-EXPORT`: User-Friendly Data Export (Excel/CSV/PDF) & GDPR Wipe
-* **Priority**: `P0`
-* **Status**: `Todo`
-* **Squad**: Squad A (`ui_ux_specialist`) + Squad C (`compliance_auditor`)
-* **Summary**: Implement Excel (.xlsx) export as default, RFC 4180 CSV & PDF, and full account deletion with confirmation.
-
-### `TASK-07-UI-SHELL`: Solid Slide-Over Navigation Drawer (Option 1C)
-* **Priority**: `P0`
-* **Status**: `Todo`
-* **Squad**: Squad A (`ui_ux_specialist`)
-* **Summary**: Build opaque slide-over drawer (bg-slate-900) with profile card, quick links, and resolve mobile opacity bug.
-
-### `TASK-08-UI-DASH`: Dashboard with Grid / List Toggle (Option 2)
-* **Priority**: `P0`
-* **Status**: `Todo`
-* **Squad**: Squad A (`ui_ux_specialist`)
-* **Summary**: Implement top toggle for Rich Cards (2A) vs Compact Feed (2C) with stage filter tabs.
-
-### `TASK-09-UI-PASTE`: 1-Click Auto-Detect Bottom Sheet (Option 3A)
-* **Priority**: `P0`
-* **Status**: `Todo`
-* **Squad**: Squad A (`ui_ux_specialist`, `delivery_pipeline_specialist`)
-* **Summary**: Floating + button opens sheet, ephemerally reads clipboard in memory, detects tracking format and adds parcel.
-
-### `TASK-10-UI-TIMELINE`: Vertical Milestone Step-Tracker Sheet (Option 4A)
-* **Priority**: `P0`
-* **Status**: `Todo`
-* **Squad**: Squad A (`ui_ux_specialist`, `delivery_pipeline_specialist`)
-* **Summary**: Vertical interconnected timeline, unmaskable locker code card, and 1-click external courier links.
+ 
+ ### `TASK-01-SEC`: Revoke Compromised Tokens & Enforce Secret Scanning
+ * **Priority**: `P0`
+ * **Status**: `Done`
+ * **Squad**: Squad C (`adversarial_pentester`, `compliance_auditor`)
+ * **Summary**: Revoke exposed Telegram token, purge Git history with git-filter-repo, configure Gitleaks/regex pre-commit hook (`.githooks/pre-commit`).
+ 
+ ### `TASK-02-CI`: Fix Failing Vitest & Fast-Check Test Suite
+ * **Priority**: `P0`
+ * **Status**: `Done`
+ * **Squad**: Squad B (`property_test_eng`, `qa_build_verifier`)
+ * **Summary**: Diagnose and fix failing annotations. Verify all Zod schemas and fast-check property tests across 373 passing tests.
+ 
+ ### `TASK-03-AUTH`: Production Firebase Authentication & Strong Password Policy
+ * **Priority**: `P0`
+ * **Status**: `Done`
+ * **Squad**: Squad A (`auth_cloud_specialist`) + Squad C (`adversarial_pentester`)
+ * **Summary**: Implement Google & Apple SSO, strong password validator with live entropy meter, and email verification.
+ 
+ ### `TASK-04-GUEST`: Anonymous Guest Mode & Non-Destructive Account Linking
+ * **Priority**: `P0`
+ * **Status**: `Done`
+ * **Squad**: Squad A (`auth_cloud_specialist`) + Squad B (`formal_invariant_eng`)
+ * **Summary**: Enable signInAnonymously and linkWithCredential to migrate guest deliveries to permanent UID with zero data loss.
+ 
+ ### `TASK-05-PRIVACY`: Anti-Profiling Sanitization & Client-Side Hashing
+ * **Priority**: `P0`
+ * **Status**: `Done`
+ * **Squad**: Squad C (`compliance_auditor`) + Squad A (`auth_cloud_specialist`)
+ * **Summary**: Strip store PII from telemetry, hash parcel IDs with local salt, and enforce per-UID Firestore security rules.
+ 
+ ### `TASK-06-EXPORT`: User-Friendly Data Export (Excel/CSV/PDF) & GDPR Wipe
+ * **Priority**: `P0`
+ * **Status**: `Done`
+ * **Squad**: Squad A (`ui_ux_specialist`) + Squad C (`compliance_auditor`)
+ * **Summary**: Implement Excel (.xlsx) export as default, RFC 4180 CSV & PDF, and full account deletion with confirmation.
+ 
+ ### `TASK-07-UI-SHELL`: Solid Slide-Over Navigation Drawer (Option 1C)
+ * **Priority**: `P0`
+ * **Status**: `Done`
+ * **Squad**: Squad A (`ui_ux_specialist`)
+ * **Summary**: Build opaque slide-over drawer (bg-slate-900) with profile card, quick links, and resolve mobile opacity bug.
+ 
+ ### `TASK-08-UI-DASH`: Dashboard with Grid / List Toggle (Option 2)
+ * **Priority**: `P0`
+ * **Status**: `Done`
+ * **Squad**: Squad A (`ui_ux_specialist`)
+ * **Summary**: Implement top toggle for Rich Cards (2A) vs Compact Feed (2C) with stage filter tabs.
+ 
+ ### `TASK-09-UI-PASTE`: 1-Click Auto-Detect Bottom Sheet (Option 3A)
+ * **Priority**: `P0`
+ * **Status**: `Done`
+ * **Squad**: Squad A (`ui_ux_specialist`, `delivery_pipeline_specialist`)
+ * **Summary**: Floating + button opens sheet, ephemerally reads clipboard in memory, detects tracking format and adds parcel.
+ 
+ ### `TASK-10-UI-TIMELINE`: Vertical Milestone Step-Tracker Sheet (Option 4A)
+ * **Priority**: `P0`
+ * **Status**: `Done`
+ * **Squad**: Squad A (`ui_ux_specialist`, `delivery_pipeline_specialist`)
+ * **Summary**: Vertical interconnected timeline, unmaskable locker code card, and 1-click external courier links.
 
 ---
 
