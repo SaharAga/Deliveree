@@ -6,6 +6,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
+  sendEmailVerification,
   updateProfile,
   deleteUser,
   signOut as firebaseSignOut,
@@ -334,6 +335,7 @@ export function validateUserProfile(raw) {
     plan,
     devicesCount,
     createdAt,
+    emailVerified: Boolean(safeObj.emailVerified),
     preferences
   };
 }
@@ -381,6 +383,7 @@ export function buildCleanUserProfile(firebaseUser, customName = null) {
     id: firebaseUser.uid,
     name: resolvedName,
     email: firebaseUser.email || cached?.email || '',
+    emailVerified: Boolean(firebaseUser.emailVerified ?? cached?.emailVerified),
     avatar: firebaseUser.photoURL || cached?.avatar || null,
     ingestionEmail: cached?.ingestionEmail || `${cleanPrefix}.pkg@in.deliveree.app`,
     plan: cached?.plan || 'Personal Account',
@@ -695,6 +698,21 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  const sendVerificationEmail = useCallback(async () => {
+    setAuthError(null);
+    if (!isFirebaseConfigured || !auth || !auth.currentUser) {
+      throw new Error('No authenticated user found to send verification email.');
+    }
+    try {
+      await sendEmailVerification(auth.currentUser);
+      return true;
+    } catch (err) {
+      const cleanErr = sanitizeAuthError(err, 'he');
+      setAuthError(cleanErr);
+      throw new Error(cleanErr);
+    }
+  }, []);
+
   const updateUserPreferences = useCallback(async (newPrefs) => {
     if (!user || !isMountedRef.current) return;
     const sanitizedPrefs = {
@@ -797,6 +815,7 @@ export function AuthProvider({ children }) {
     loginWithEmail,
     registerWithEmail,
     resetPassword,
+    sendVerificationEmail,
     migrateGuestDataToUser,
     updateUserPreferences,
     deleteUserAccountAndData,
@@ -815,6 +834,7 @@ export function AuthProvider({ children }) {
     loginWithEmail,
     registerWithEmail,
     resetPassword,
+    sendVerificationEmail,
     updateUserPreferences,
     deleteUserAccountAndData,
     logout,

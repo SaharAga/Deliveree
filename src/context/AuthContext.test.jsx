@@ -69,6 +69,7 @@ describe('AuthContext - validateUserProfile', () => {
     const validated = validateUserProfile(raw);
     expect(validated).toEqual({
       ...raw,
+      emailVerified: false,
       preferences: {
         defaultCarrier: 'all',
         language: 'he',
