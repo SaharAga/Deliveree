@@ -20,6 +20,19 @@
     --color-slate-800: oklch(27.9% 0.041 260.031);
     --color-slate-900: oklch(20.8% 0.042 265.755);
     --color-slate-950: oklch(12.9% 0.042 264.695);
+
+    /* Brand accent: Transit Indigo (replaces default Tailwind blue app-wide) */
+    --color-blue-50: oklch(97% 0.010 266);
+    --color-blue-100: oklch(93.2% 0.020 266);
+    --color-blue-200: oklch(88.2% 0.035 266);
+    --color-blue-300: oklch(80.9% 0.060 266);
+    --color-blue-400: oklch(70.7% 0.095 266);
+    --color-blue-500: oklch(62.3% 0.125 266);
+    --color-blue-600: oklch(54.6% 0.140 266);
+    --color-blue-700: oklch(48.8% 0.140 266);
+    --color-blue-800: oklch(42.4% 0.125 266);
+    --color-blue-900: oklch(37.9% 0.100 266);
+    --color-blue-950: oklch(28.2% 0.070 266);
   }
 
   .light {
@@ -147,7 +160,7 @@
 
 /* Glow effects */
 .glow-blue {
-  box-shadow: 0 0 25px -5px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 25px -5px rgba(90, 98, 214, 0.3);
 }
 
 .glow-emerald {

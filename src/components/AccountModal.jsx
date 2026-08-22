@@ -12,9 +12,19 @@ import { CARRIERS, CARRIER_LIST } from '../types/carriers';
 import { APP_VERSION, RELEASE_DATE, BUILD_CHANNEL } from '../constants/version';
 import { notificationService } from '../services/notificationService';
 
+const ACCOUNT_SECTIONS = [
+  { id: 'profile', icon: User, label: { en: 'Profile & Account', he: 'פרופיל וחשבון' } },
+  { id: 'notifications', icon: Bell, label: { en: 'Notifications', he: 'התראות' } },
+  { id: 'preferences', icon: Settings, label: { en: 'Preferences', he: 'העדפות אישיות' } },
+  { id: 'data', icon: Database, label: { en: 'Data & Backup', he: 'נתונים וגיבוי' } },
+  { id: 'about', icon: Info, label: { en: 'About & Info', he: 'אודות ומידע' } },
+  { id: 'danger', icon: ShieldAlert, label: { en: 'Danger Zone', he: 'מחיקת חשבון (GDPR)' }, danger: true }
+];
+
 export function AccountModal({
   isOpen,
   onClose,
+  initialTab = 'profile',
   packages = [],
   onExportData,
   onOpenExport,
@@ -24,7 +34,7 @@ export function AccountModal({
   const { isDark, toggleTheme } = useTheme();
   const { user, updateUserPreferences, deleteUserAccountAndData, syncStatus, lastSyncTime, logout } = useAuth();
 
-  const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'notifications' | 'preferences' | 'data' | 'danger'
+  const [activeTab, setActiveTab] = useState(initialTab); // one of ACCOUNT_SECTIONS ids
   const [deleteConfirmationInput, setDeleteConfirmationInput] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [notificationPrefs, setNotificationPrefs] = useState(() => notificationService.getPreferences());
@@ -33,9 +43,11 @@ export function AccountModal({
 
   useEffect(() => {
     if (isOpen) {
+      setActiveTab(initialTab);
       setNotificationPrefs(notificationService.getPreferences());
       setPermissionStatus(notificationService.getNotificationPermission());
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   const handleUpdateNotifPref = (key, value) => {
@@ -188,7 +200,7 @@ export function AccountModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in overflow-y-auto" role="dialog" aria-modal="true">
-      <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden my-8">
+      <div className="relative w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden my-8">
         {/* Header */}
         <div className="p-5 sm:p-6 border-b border-slate-800 flex items-center justify-between bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-purple-600/10">
           <div className="flex items-center gap-3">
@@ -241,83 +253,35 @@ export function AccountModal({
         </div>
 
 
-        {/* Tab Navigation */}
-        <div className="flex border-b border-slate-800 bg-slate-950/50 px-3 sm:px-6 overflow-x-auto no-scrollbar text-xs font-bold">
-          <button
-            onClick={() => setActiveTab('profile')}
-            className={`flex items-center gap-2 py-3 px-3 border-b-2 transition-all cursor-pointer whitespace-nowrap min-h-[44px] ${
-              activeTab === 'profile'
-                ? 'border-blue-500 text-blue-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <User className="w-4 h-4" />
-            <span>{language === 'he' ? 'פרופיל וחשבון' : 'Profile & Account'}</span>
-          </button>
+        {/* Section list (left) + content (right) — no sliding, just a swap */}
+        <div className="flex flex-col sm:flex-row">
+          <nav className="sm:w-52 shrink-0 border-b sm:border-b-0 sm:border-e border-slate-800 bg-slate-950/50 p-2 sm:p-3 flex sm:flex-col gap-1 overflow-x-auto sm:overflow-visible no-scrollbar">
+            {ACCOUNT_SECTIONS.map((section) => {
+              const Icon = section.icon;
+              const isActive = activeTab === section.id;
+              return (
+                <button
+                  key={section.id}
+                  onClick={() => setActiveTab(section.id)}
+                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer whitespace-nowrap min-h-[44px] text-start ${
+                    isActive
+                      ? section.danger
+                        ? 'bg-rose-500/10 text-rose-300'
+                        : 'bg-blue-500/10 text-blue-300'
+                      : section.danger
+                        ? 'text-slate-400 hover:bg-slate-800/60 hover:text-rose-400'
+                        : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+                  }`}
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  <span>{language === 'he' ? section.label.he : section.label.en}</span>
+                </button>
+              );
+            })}
+          </nav>
 
-          <button
-            onClick={() => setActiveTab('notifications')}
-            className={`flex items-center gap-2 py-3 px-3 border-b-2 transition-all cursor-pointer whitespace-nowrap min-h-[44px] ${
-              activeTab === 'notifications'
-                ? 'border-blue-500 text-blue-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Bell className="w-4 h-4" />
-            <span>{language === 'he' ? 'התראות' : 'Notifications'}</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('preferences')}
-            className={`flex items-center gap-2 py-3 px-3 border-b-2 transition-all cursor-pointer whitespace-nowrap min-h-[44px] ${
-              activeTab === 'preferences'
-                ? 'border-blue-500 text-blue-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Settings className="w-4 h-4" />
-            <span>{language === 'he' ? 'העדפות אישיות' : 'Preferences'}</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('data')}
-            className={`flex items-center gap-2 py-3 px-3 border-b-2 transition-all cursor-pointer whitespace-nowrap min-h-[44px] ${
-              activeTab === 'data'
-                ? 'border-blue-500 text-blue-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Database className="w-4 h-4" />
-            <span>{language === 'he' ? 'נתונים וגיבוי' : 'Data & Backup'}</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('danger')}
-            className={`flex items-center gap-2 py-3 px-3 border-b-2 transition-all cursor-pointer whitespace-nowrap min-h-[44px] ${
-              activeTab === 'danger'
-                ? 'border-rose-500 text-rose-400'
-                : 'border-transparent text-slate-400 hover:text-rose-400'
-            }`}
-          >
-            <ShieldAlert className="w-4 h-4" />
-            <span>{language === 'he' ? 'מחיקת חשבון (GDPR)' : 'Danger Zone'}</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('about')}
-            className={`flex items-center gap-2 py-3 px-3 border-b-2 transition-all cursor-pointer whitespace-nowrap min-h-[44px] ${
-              activeTab === 'about'
-                ? 'border-blue-500 text-blue-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Info className="w-4 h-4" />
-            <span>{language === 'he' ? 'אודות ומידע' : 'About & Info'}</span>
-          </button>
-        </div>
-
-        {/* Tab Content */}
-        <div className="p-5 sm:p-6 text-xs text-slate-200 max-h-[60vh] overflow-y-auto">
+          {/* Section Content */}
+          <div className="flex-1 min-w-0 p-5 sm:p-6 text-xs text-slate-200 max-h-[60vh] overflow-y-auto">
           {/* TAB 1: PROFILE & ACCOUNT */}
           {activeTab === 'profile' && (
             <div className="space-y-4 animate-fade-in">
@@ -803,6 +767,7 @@ export function AccountModal({
               </div>
             </div>
           )}
+          </div>
         </div>
 
         {/* Footer */}

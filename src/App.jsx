@@ -133,6 +133,7 @@ function DashboardContent() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState('signin');
   const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const [accountInitialTab, setAccountInitialTab] = useState('profile');
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [isAdminFeedbackOpen, setIsAdminFeedbackOpen] = useState(false);
@@ -548,6 +549,16 @@ function DashboardContent() {
         onOpenConnectModal={() => setIsConnectModalOpen(true)}
         onOpenAuth={() => {
           if (user) {
+            setAccountInitialTab('profile');
+            setIsAccountOpen(true);
+          } else {
+            setAuthInitialMode('signin');
+            setIsAuthOpen(true);
+          }
+        }}
+        onOpenSettings={() => {
+          if (user) {
+            setAccountInitialTab('preferences');
             setIsAccountOpen(true);
           } else {
             setAuthInitialMode('signin');
@@ -840,6 +851,7 @@ function DashboardContent() {
         <AccountModal
           isOpen={isAccountOpen}
           onClose={() => setIsAccountOpen(false)}
+          initialTab={accountInitialTab}
           packages={packages}
           onExportData={handleExportData}
           onOpenExport={() => setIsExportOpen(true)}

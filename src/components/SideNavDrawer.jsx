@@ -1,8 +1,9 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import {
   Package, Sparkles, Link2, BarChart3, MessageSquare,
-  ShieldCheck, Info, Download, RotateCcw, Sun, Moon,
-  User, X, MapPin
+  ShieldCheck, Info, Download, Upload, RotateCcw, Sun, Moon,
+  User, Settings, X, MapPin
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
@@ -14,6 +15,7 @@ export function SideNavDrawer({
   isDemoMode,
   onClose,
   onOpenAuth,
+  onOpenSettings,
   onOpenSmartImport,
   onOpenConnectModal,
   onOpenAnalytics,
@@ -22,15 +24,50 @@ export function SideNavDrawer({
   onOpenAbout,
   onOpenExport,
   onOpenLockerMap,
-  onResetData
+  onImportData,
+  onResetData,
+  onShowToast
 }) {
   const { language, toggleLanguage, isRTL, t } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
 
+  const handleFileInput = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      if (onShowToast) {
+        onShowToast(
+          language === 'he'
+            ? 'קובץ הגיבוי גדול מדי (מקסימום 2MB)'
+            : 'Backup file exceeds maximum limit of 2MB',
+          'error'
+        );
+      }
+      e.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result;
+      if (typeof content === 'string' && onImportData) {
+        onImportData(content);
+      }
+    };
+    reader.onerror = () => {
+      if (onShowToast) {
+        onShowToast(language === 'he' ? 'שגיאה בקריאת הקובץ' : 'Failed to read file', 'error');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true">
       {/* Backdrop */}
       <div
@@ -102,6 +139,21 @@ export function SideNavDrawer({
             </div>
           </button>
 
+          {/* Settings — moved out of the Account modal so it's reachable in one tap */}
+          <button
+            onClick={() => {
+              onClose();
+              if (onOpenSettings) onOpenSettings();
+              else onOpenAuth();
+            }}
+            className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-800 text-slate-200 text-start cursor-pointer transition-colors min-h-[48px]"
+          >
+            <Settings className="w-4 h-4 text-slate-400 shrink-0" />
+            <span className="font-semibold">{language === 'he' ? 'הגדרות' : 'Settings'}</span>
+          </button>
+
+          <div className="pt-1 pb-2 border-t border-slate-800" />
+
           {(user || isDemoMode) && (
             <>
               {/* Smart Clipboard Ingestion */}
@@ -151,6 +203,13 @@ export function SideNavDrawer({
                 <Download className="w-4 h-4 text-blue-400 shrink-0" />
                 <span className="font-semibold">{language === 'he' ? 'מרכז ייצוא ודוחות (CSV/JSON/PDF)' : 'Export Center (CSV/JSON/PDF)'}</span>
               </button>
+
+              {/* Import Backup */}
+              <label className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-800 text-slate-200 text-start cursor-pointer transition-colors min-h-[48px]">
+                <Upload className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span className="font-semibold">{t('backup.importData')}</span>
+                <input type="file" accept=".json" onChange={handleFileInput} className="hidden" />
+              </label>
 
               {/* Locker Map */}
               {onOpenLockerMap && (
@@ -255,6 +314,7 @@ export function SideNavDrawer({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
