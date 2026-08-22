@@ -148,6 +148,7 @@ function DashboardContent() {
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authInitialMode, setAuthInitialMode] = useState('signin');
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
@@ -523,7 +524,7 @@ function DashboardContent() {
           <PlayCircle className="w-4 h-4 text-indigo-400 shrink-0" />
           <span>{isRTL ? 'אתה צופה בגרסת הדגמה חיה (?demo=true)' : 'You are viewing the Interactive Demo (?demo=true)'}</span>
           <button 
-            onClick={() => setIsAuthOpen(true)}
+            onClick={() => { setAuthInitialMode('signin'); setIsAuthOpen(true); }}
             className="underline ms-2 text-white hover:text-blue-300 cursor-pointer font-bold"
           >
             {isRTL ? 'התחבר לחשבון אמיתי' : 'Sign in to use real tracking'}
@@ -546,6 +547,7 @@ function DashboardContent() {
           if (user) {
             setIsAccountOpen(true);
           } else {
+            setAuthInitialMode('signin');
             setIsAuthOpen(true);
           }
         }}
@@ -605,14 +607,14 @@ function DashboardContent() {
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 max-w-md mx-auto mb-4">
               <button
-                onClick={() => setIsAuthOpen(true)}
+                onClick={() => { setAuthInitialMode('signin'); setIsAuthOpen(true); }}
                 className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[48px]"
               >
                 <LogIn className="w-4 h-4" />
                 <span>{isRTL ? 'התחבר לחשבון שלך' : 'Sign In to Your Account'}</span>
               </button>
               <button
-                onClick={() => setIsAuthOpen(true)}
+                onClick={() => { setAuthInitialMode('register'); setIsAuthOpen(true); }}
                 className="w-full py-3.5 px-6 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs sm:text-sm border border-slate-700 transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[48px]"
               >
                 <UserPlus className="w-4 h-4 text-blue-400" />
@@ -824,6 +826,7 @@ function DashboardContent() {
       <ErrorBoundary compact componentName="AuthModal" onReset={() => setIsAuthOpen(false)}>
         <AuthModal
           isOpen={isAuthOpen}
+          initialMode={authInitialMode}
           onClose={() => setIsAuthOpen(false)}
           onShowToast={showToast}
         />

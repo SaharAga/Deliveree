@@ -13,9 +13,14 @@ import { getFirestore } from 'firebase/firestore';
  * Firebase Client Configuration
  * Standard authDomain matching Google OAuth Redirect URI
  */
+const defaultAuthDomain =
+  typeof window !== 'undefined' && window.location.hostname && (window.location.hostname.endsWith('web.app') || window.location.hostname.endsWith('firebaseapp.com'))
+    ? window.location.hostname
+    : (import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'deliveree-app-2a938.firebaseapp.com');
+
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDxg_M7gp0eIGASw9yr6-zvFzSBwI_0EyA',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'deliveree-app-2a938.firebaseapp.com',
+  authDomain: defaultAuthDomain,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'deliveree-app-2a938',
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'deliveree-app-2a938.firebasestorage.app',
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '350721106692',

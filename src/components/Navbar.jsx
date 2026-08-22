@@ -93,7 +93,7 @@ export function Navbar({
                 {t('appTitle')}
               </span>
               <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono font-bold tracking-wider">
-                v0.6.2.15
+                v0.6.2.16
               </span>
             </div>
             <span className="hidden sm:block text-[10px] text-slate-400 font-medium -mt-0.5 truncate">

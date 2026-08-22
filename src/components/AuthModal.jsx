@@ -86,6 +86,7 @@ export function calculatePasswordStrength(password) {
 
 export function AuthModal({
   isOpen,
+  initialMode = 'signin',
   onClose,
   onShowToast
 }) {
@@ -101,7 +102,15 @@ export function AuthModal({
   
   const { language, isRTL } = useLanguage();
 
-  const [activeTab, setActiveTab] = useState('signin'); // 'signin' | 'register' | 'forgot'
+  const [activeTab, setActiveTab] = useState(initialMode || 'signin'); // 'signin' | 'register' | 'forgot'
+
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab(initialMode || 'signin');
+      setFormError('');
+      setFormSuccess('');
+    }
+  }, [isOpen, initialMode]);
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
@@ -262,7 +271,7 @@ export function AuthModal({
             <div>
               <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
                 <span>{language === 'he' ? 'חשבון וסנכרון ענן' : 'Account & Cloud Sync'}</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">v0.6.2.15</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">v0.6.2.16</span>
               </h2>
               <p className="text-xs text-slate-400">
                 {language === 'he' ? 'סנכרון החבילות שלך מכל מכשיר' : 'Access your packages from any device'}
