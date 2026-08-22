@@ -694,11 +694,7 @@ function DashboardContent() {
                     {t('filters.clearFilters')}
                   </button>
                   <button
-                    onClick={() => {
-                      setEditPackage(null);
-                      setSmartPrefill(null);
-                      setIsAddModalOpen(true);
-                    }}
+                    onClick={() => setIsSmartImportOpen(true)}
                     className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md shadow-blue-500/20 cursor-pointer min-h-[44px]"
                   >
                     <Plus className="w-4 h-4" />

@@ -3,6 +3,8 @@ import { cloudAdapter } from './cloudStorageAdapter';
 import { deliveryService } from './deliveryService';
 
 export const QUEUE_STORAGE_KEY = 'deliveree_offline_sync_queue';
+export const DEAD_LETTER_STORAGE_KEY = 'deliveree_offline_sync_dead_letter';
+export const MAX_RETRY_COUNT = 5;
 export const MUTATION_TYPES = Object.freeze({
   ADD: 'ADD',
   UPDATE: 'UPDATE',
@@ -147,6 +149,96 @@ export class SyncQueueService {
   }
 
   /**
+   * Retrieves all mutations that exhausted their retry budget.
+   * @returns {Array<object>}
+   */
+  getDeadLetterQueue() {
+    try {
+      if (typeof localStorage === 'undefined' || !localStorage) return [];
+      const stored = localStorage.getItem(DEAD_LETTER_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (err) {
+      console.warn('[SyncQueueService] Failed to read dead-letter queue:', err);
+    }
+    return [];
+  }
+
+  /**
+   * Saves the dead-letter queue to storage.
+   * @param {Array<object>} deadLetterQueue
+   */
+  saveDeadLetterQueue(deadLetterQueue) {
+    try {
+      if (typeof localStorage === 'undefined' || !localStorage) return;
+      localStorage.setItem(DEAD_LETTER_STORAGE_KEY, JSON.stringify(deadLetterQueue));
+      this.notifyListeners({
+        isOnline: this.isOnline,
+        queueSize: this.getQueue().length,
+        deadLetterSize: deadLetterQueue.length
+      });
+    } catch (err) {
+      console.warn('[SyncQueueService] Failed to persist dead-letter queue:', err);
+    }
+  }
+
+  /**
+   * Moves a mutation that exhausted its retry budget into the dead-letter queue.
+   * @param {object} mutation
+   * @param {unknown} err
+   */
+  moveToDeadLetter(mutation, err) {
+    const deadLetterQueue = this.getDeadLetterQueue();
+    deadLetterQueue.push({
+      ...mutation,
+      failedAt: new Date().toISOString(),
+      lastError: err instanceof Error ? err.message : String(err)
+    });
+    this.saveDeadLetterQueue(deadLetterQueue);
+  }
+
+  /**
+   * Clears the dead-letter queue.
+   */
+  clearDeadLetterQueue() {
+    try {
+      if (typeof localStorage !== 'undefined' && localStorage) {
+        localStorage.removeItem(DEAD_LETTER_STORAGE_KEY);
+      }
+      this.notifyListeners({ isOnline: this.isOnline, queueSize: this.getQueue().length, deadLetterSize: 0 });
+    } catch {}
+  }
+
+  /**
+   * Re-queues a dead-lettered mutation for another replay attempt, resetting its retry count.
+   * @param {string} mutationId
+   * @returns {object|null} The re-queued mutation, or null if not found
+   */
+  retryDeadLetterMutation(mutationId) {
+    const deadLetterQueue = this.getDeadLetterQueue();
+    const index = deadLetterQueue.findIndex((m) => m.id === mutationId);
+    if (index === -1) return null;
+
+    const [mutation] = deadLetterQueue.splice(index, 1);
+    this.saveDeadLetterQueue(deadLetterQueue);
+
+    const { failedAt: _failedAt, lastError: _lastError, ...requeued } = mutation;
+    requeued.retryCount = 0;
+
+    const currentQueue = this.getQueue();
+    currentQueue.push(requeued);
+    this.saveQueue(currentQueue);
+
+    if (this.isOnline && !this.isReplaying) {
+      this.replayQueue();
+    }
+
+    return requeued;
+  }
+
+  /**
    * Replays pending mutations sequentially against local & cloud adapters.
    * @returns {Promise<{ processed: number, failed: number, remaining: number }>}
    */
@@ -197,8 +289,10 @@ export class SyncQueueService {
       } catch (err) {
         console.warn(`[SyncQueueService] Failed to replay mutation ${mutation.id}:`, err);
         mutation.retryCount = (mutation.retryCount || 0) + 1;
-        if (mutation.retryCount < 5) {
+        if (mutation.retryCount < MAX_RETRY_COUNT) {
           remainingQueue.push(mutation);
+        } else {
+          this.moveToDeadLetter(mutation, err);
         }
         failed++;
       }

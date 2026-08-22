@@ -36,6 +36,7 @@ export function Navbar({
   };
 
   return (
+    <>
     <header className="sticky top-0 z-40 w-full border-b border-slate-800/80 bg-slate-950/90 backdrop-blur-2xl transition-all duration-300 pt-[env(safe-area-inset-top,0px)]">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2">
         {/* Leading edge: menu + brand together, the way Gmail/WhatsApp anchor their drawer trigger */}
@@ -170,6 +171,7 @@ export function Navbar({
           )}
         </div>
       </div>
+    </header>
 
       {/* SMART '+' INGESTION ACTION SHEET (Mobile / Touch Ergonomic Bottom Sheet) */}
       {isAddActionSheetOpen && (
@@ -255,6 +257,6 @@ export function Navbar({
         onResetData={onResetData}
         onShowToast={onShowToast}
       />
-    </header>
+    </>
   );
 }
