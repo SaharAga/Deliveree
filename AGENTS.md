@@ -21,10 +21,11 @@ To maintain clean separation of concerns:
 1. **Strict Orchestrator Hands-Off Rule**:
    - The Lead Orchestrator is **STRICTLY FORBIDDEN** from directly modifying project source code (`src/**`, `scripts/**`) for multi-domain features or refactors.
    - The Orchestrator's sole authority is: (1) Architecture/Task decomposition, (2) Subagent dispatching, and (3) Gate sign-off arbitration.
-2. **Distinct Verification Gates**:
+2. **Distinct Verification Gates & Branch Isolation**:
+   - Feature development subagents run in isolated branch workspaces (`Workspace: 'branch'`).
    - Code Review, Security Audit, and QA Verification **MUST ALWAYS** be executed by distinct subagents. Self-review by the Orchestrator or authoring subagent is strictly forbidden.
-3. **Standard Capped Pipeline**:
-   - Routine development flows through the standard 4 gates (**Developer → Code Reviewer → Security Auditor → QA Verifier → Done**).
+3. **Optimized Concurrent Pipeline**:
+   - Routine development flows through the concurrent pipeline (**Gate 1 Developer → [Gate 2 Code Reviewer + Gate 3 Security Auditor in Parallel] → Gate 4 QA Verifier → Done**).
    - Extra adversarial swarms (challengers/forensic auditors) are reserved strictly for meta-layer framework restructures, not routine application features.
 
 ---
@@ -33,9 +34,10 @@ To maintain clean separation of concerns:
 
 ```mermaid
 flowchart LR
-    G1["Gate 1: Implementation\n(Developer)"] --> G2["Gate 2: Code Review & Scope Challenge\n(Code Reviewer)"]
-    G2 --> G3["Gate 3: Security Baseline\n(Security Auditor)"]
-    G3 --> G4["Gate 4: QA & Build Verification\n(QA Verifier)"]
+    G1["Gate 1: Implementation\n(Developer, Branch WS)"] --> G2["Gate 2: Code Review\n(Code Reviewer)"]
+    G1 --> G3["Gate 3: Security Baseline\n(Security Auditor)"]
+    G2 --> G4["Gate 4: QA & Build\n(QA Verifier)"]
+    G3 --> G4
     G4 --> Done["Production Ready"]
 ```
 

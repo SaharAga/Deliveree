@@ -10,7 +10,7 @@ export const TELEGRAM_FEEDBACK_BOT_TOKEN = (typeof process !== 'undefined' && pr
 
 export const TELEGRAM_FEEDBACK_CHAT_ID = (typeof process !== 'undefined' && process.env?.TELEGRAM_FEEDBACK_CHAT_ID)
   || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TELEGRAM_FEEDBACK_CHAT_ID)
-  || '726522010';
+  || '';
 
 
 /**

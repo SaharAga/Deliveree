@@ -60,31 +60,14 @@ function DashboardContent() {
     }
   }, [user?.id]);
 
-  // Reload packages and auto-migrate guest shipments when logging in
+  // Load packages scoped by user or guest; guest-to-user migration is handled by AuthContext
   useEffect(() => {
     if (isDemoMode) {
       setPackages(INITIAL_PACKAGES);
     } else if (user?.id) {
-      const guestPkgs = deliveryService.getPackages(null);
-      const userPkgs = deliveryService.getPackages(user.id);
-      if (guestPkgs.length > 0) {
-        const existingIds = new Set(userPkgs.map(p => p.id || p.trackingNumber));
-        const toMerge = guestPkgs
-          .filter(p => !existingIds.has(p.id || p.trackingNumber))
-          .map(p => ({ ...p, userId: user.id }));
-        const merged = [...toMerge, ...userPkgs];
-        deliveryService.savePackages(merged, user.id);
-        deliveryService.savePackages([], null); // Clear guest storage after merge
-        setPackages(merged);
-        if (cloudAdapter.isFirestoreActive()) {
-          cloudAdapter.savePackages(merged);
-        }
-      } else {
-        setPackages(userPkgs);
-      }
+      setPackages(deliveryService.getPackages(user.id));
     } else {
-      const guestPkgs = deliveryService.getPackages(null);
-      setPackages(guestPkgs);
+      setPackages(deliveryService.getPackages(null));
     }
   }, [user?.id, isDemoMode]);
 
@@ -259,12 +242,31 @@ function DashboardContent() {
     };
   }, []);
 
-  // Sync with LocalStorage & Cloud
+  // Sync with LocalStorage & Cloud (bulk — use for batch operations only)
   const updatePackagesState = (newPackages) => {
     setPackages(newPackages);
     deliveryService.savePackages(newPackages, user?.id || null);
     if (user?.id && cloudAdapter.isFirestoreActive?.()) {
       cloudAdapter.savePackages(newPackages);
+    }
+    triggerCloudSync();
+  };
+
+  // Single-package mutation: writes one Firestore doc instead of batch-writing the full list (quota-efficient)
+  const upsertSinglePackage = (updatedPackages, changedPkg) => {
+    setPackages(updatedPackages);
+    deliveryService.savePackages(updatedPackages, user?.id || null);
+    if (user?.id && cloudAdapter.isFirestoreActive?.()) {
+      cloudAdapter.upsertPackage(changedPkg);
+    }
+    triggerCloudSync();
+  };
+
+  const removeSinglePackage = (updatedPackages, packageId) => {
+    setPackages(updatedPackages);
+    deliveryService.savePackages(updatedPackages, user?.id || null);
+    if (user?.id && cloudAdapter.isFirestoreActive?.()) {
+      cloudAdapter.deletePackage(packageId);
     }
     triggerCloudSync();
   };
@@ -294,7 +296,8 @@ function DashboardContent() {
       updated = [newPkgWithUser, ...packages];
       showToast(language === 'he' ? 'החבילה נוספה למעקב!' : 'New package added to tracking!', 'success');
     }
-    updatePackagesState(updated);
+    const changedPkg = updated.find(p => p.id === pkgData.id) || (user?.id ? { ...pkgData, userId: user.id } : pkgData);
+    upsertSinglePackage(updated, changedPkg);
     if (selectedDetailPackage?.id === pkgData.id) {
       setSelectedDetailPackage(pkgData);
     }
@@ -304,10 +307,7 @@ function DashboardContent() {
 
   const handleDeletePackage = (id) => {
     const updated = packages.filter(p => p.id !== id);
-    updatePackagesState(updated);
-    if (user?.id && cloudAdapter.isFirestoreActive?.()) {
-      cloudAdapter.deletePackage(id);
-    }
+    removeSinglePackage(updated, id);
     if (selectedDetailPackage?.id === id) {
       setSelectedDetailPackage(null);
     }
@@ -321,7 +321,8 @@ function DashboardContent() {
       }
       return p;
     });
-    updatePackagesState(updated);
+    const changedPkg = updated.find(p => p.id === id);
+    if (changedPkg) upsertSinglePackage(updated, changedPkg);
   };
 
   const handleToggleArchive = (id) => {
@@ -338,7 +339,8 @@ function DashboardContent() {
       }
       return p;
     });
-    updatePackagesState(updated);
+    const changedPkg = updated.find(p => p.id === id);
+    if (changedPkg) upsertSinglePackage(updated, changedPkg);
   };
 
   const handleStatusChange = (id, newStatus) => {
@@ -361,7 +363,8 @@ function DashboardContent() {
       }
       return p;
     });
-    updatePackagesState(updated);
+    const changedPkg = updated.find(p => p.id === id);
+    if (changedPkg) upsertSinglePackage(updated, changedPkg);
     if (selectedDetailPackage?.id === id) {
       setSelectedDetailPackage(prev => ({ ...prev, status: newStatus, updatedAt: new Date().toISOString() }));
     }
@@ -371,7 +374,7 @@ function DashboardContent() {
     const res = await deliveryService.refreshPackageTracking(pkg, user?.id || null);
     if (res.success && res.updatedPackage) {
       const updatedList = packages.map(p => (p.id === pkg.id ? res.updatedPackage : p));
-      updatePackagesState(updatedList);
+      upsertSinglePackage(updatedList, res.updatedPackage);
       if (selectedDetailPackage?.id === pkg.id) {
         setSelectedDetailPackage(res.updatedPackage);
       }

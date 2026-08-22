@@ -5,7 +5,8 @@ import { validateAndSanitizeFeedback } from '../services/feedbackService';
 describe('Feedback & Telegram Relay Logic', () => {
   it('does not leak hardcoded secret bot tokens into client bundle', () => {
     expect(TELEGRAM_FEEDBACK_BOT_TOKEN === '' || typeof TELEGRAM_FEEDBACK_BOT_TOKEN === 'string').toBe(true);
-    expect(TELEGRAM_FEEDBACK_CHAT_ID).toBe('726522010');
+    // Chat ID must never be hardcoded in the client bundle — defaults to empty unless set via env
+    expect(TELEGRAM_FEEDBACK_CHAT_ID).toBe('');
   });
 
   it('correctly constructs Telegram HTML notification text with 100% complete anonymity', () => {
