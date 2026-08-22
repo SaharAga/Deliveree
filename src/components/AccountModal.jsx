@@ -13,25 +13,26 @@ import { APP_VERSION, RELEASE_DATE, BUILD_CHANNEL } from '../constants/version';
 import { notificationService } from '../services/notificationService';
 
 const ACCOUNT_SECTIONS = [
-  { id: 'profile', icon: User, label: { en: 'Profile & Account', he: 'פרופיל וחשבון' } },
+  { id: 'preferences', icon: Settings, label: { en: 'Appearance & Language', he: 'תצוגה ושפה' } },
   { id: 'notifications', icon: Bell, label: { en: 'Notifications', he: 'התראות' } },
-  { id: 'preferences', icon: Settings, label: { en: 'Preferences', he: 'העדפות אישיות' } },
-  { id: 'data', icon: Database, label: { en: 'Data & Backup', he: 'נתונים וגיבוי' } },
+  { id: 'profile', icon: User, label: { en: 'Profile & Account', he: 'פרופיל וחשבון' }, requiresAuth: true },
+  { id: 'data', icon: Database, label: { en: 'Data & Backup', he: 'נתונים וגיבוי' }, requiresAuth: true },
   { id: 'about', icon: Info, label: { en: 'About & Info', he: 'אודות ומידע' } },
-  { id: 'danger', icon: ShieldAlert, label: { en: 'Danger Zone', he: 'מחיקת חשבון (GDPR)' }, danger: true }
+  { id: 'danger', icon: ShieldAlert, label: { en: 'Danger Zone', he: 'מחיקת חשבון (GDPR)' }, danger: true, requiresAuth: true }
 ];
 
 export function AccountModal({
   isOpen,
   onClose,
-  initialTab = 'profile',
+  initialTab = 'preferences',
   packages = [],
   onExportData,
   onOpenExport,
+  onOpenAuth,
   onShowToast
 }) {
   const { language, setLanguage, t } = useLanguage();
-  const { isDark, toggleTheme } = useTheme();
+  const { isDark, theme, setTheme } = useTheme();
   const { user, updateUserPreferences, deleteUserAccountAndData, syncStatus, lastSyncTime, logout } = useAuth();
 
   const [activeTab, setActiveTab] = useState(initialTab); // one of ACCOUNT_SECTIONS ids
@@ -101,9 +102,9 @@ export function AccountModal({
     }
   };
 
-  if (!isOpen || !user) return null;
+  if (!isOpen) return null;
 
-  const currentPrefs = user.preferences || {
+  const currentPrefs = user?.preferences || {
     defaultCarrier: 'all',
     language: language || 'he',
     theme: isDark ? 'dark' : 'light',
@@ -111,6 +112,7 @@ export function AccountModal({
   };
 
   const handleCarrierChange = (e) => {
+    if (!user) return;
     updateUserPreferences({
       ...currentPrefs,
       defaultCarrier: e.target.value
@@ -122,16 +124,19 @@ export function AccountModal({
 
   const handleLanguagePreferenceChange = (newLang) => {
     setLanguage(newLang);
-    updateUserPreferences({
-      ...currentPrefs,
-      language: newLang
-    });
+    if (user) {
+      updateUserPreferences({
+        ...currentPrefs,
+        language: newLang
+      });
+    }
     if (onShowToast) {
       onShowToast(newLang === 'he' ? 'שפת הממשק שונתה לעברית' : 'Language changed to English', 'success');
     }
   };
 
   const handleDateFormatChange = (e) => {
+    if (!user) return;
     updateUserPreferences({
       ...currentPrefs,
       dateFormat: e.target.value
@@ -205,41 +210,62 @@ export function AccountModal({
         <div className="p-5 sm:p-6 border-b border-slate-800 flex items-center justify-between bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-purple-600/10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl relative shrink-0 overflow-hidden bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-base shadow-md border border-blue-500/30">
-              <span>{user.name?.charAt(0) || 'U'}</span>
-              {user.avatar && (
-                <img
-                  src={user.avatar}
-                  alt={user.name}
-                  className="absolute inset-0 w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                />
+              {user ? (
+                <>
+                  <span>{user.name?.charAt(0) || 'U'}</span>
+                  {user.avatar && (
+                    <img
+                      src={user.avatar}
+                      alt={user.name}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  )}
+                </>
+              ) : (
+                <Settings className="w-5 h-5" />
               )}
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-slate-100 flex items-center gap-2">
-                <span>{user.name}</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-semibold border border-blue-500/30">
-                  {user.plan || 'Personal'}
-                </span>
+                <span>{user ? user.name : (language === 'he' ? 'הגדרות' : 'Settings')}</span>
+                {user && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-semibold border border-blue-500/30">
+                    {user.plan || 'Personal'}
+                  </span>
+                )}
               </h2>
-              <p className="text-xs text-slate-400">{user.email}</p>
+              <p className="text-xs text-slate-400">
+                {user ? user.email : (language === 'he' ? 'תצוגה, שפה והתראות זמינים ללא התחברות' : 'Appearance, language & notifications work without signing in')}
+              </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                logout();
-                if (onShowToast) onShowToast(language === 'he' ? 'התנתקת מהחשבון' : 'Logged out', 'info');
-                onClose();
-              }}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 font-semibold text-xs transition-colors cursor-pointer min-h-[40px]"
-              title={language === 'he' ? 'התנתקות מהחשבון' : 'Sign Out'}
-              id="account-modal-signout-btn"
-            >
-              <span>{language === 'he' ? 'התנתקות' : 'Sign Out'}</span>
-            </button>
+            {user ? (
+              <button
+                onClick={() => {
+                  logout();
+                  if (onShowToast) onShowToast(language === 'he' ? 'התנתקת מהחשבון' : 'Logged out', 'info');
+                  onClose();
+                }}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 font-semibold text-xs transition-colors cursor-pointer min-h-[40px]"
+                title={language === 'he' ? 'התנתקות מהחשבון' : 'Sign Out'}
+                id="account-modal-signout-btn"
+              >
+                <span>{language === 'he' ? 'התנתקות' : 'Sign Out'}</span>
+              </button>
+            ) : (
+              onOpenAuth && (
+                <button
+                  onClick={() => { onClose(); onOpenAuth(); }}
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/30 text-blue-300 font-semibold text-xs transition-colors cursor-pointer min-h-[40px]"
+                >
+                  <span>{language === 'he' ? 'התחברות' : 'Sign In'}</span>
+                </button>
+              )
+            )}
 
 
             <button
@@ -282,6 +308,30 @@ export function AccountModal({
 
           {/* Section Content */}
           <div className="flex-1 min-w-0 p-5 sm:p-6 text-xs text-slate-200 max-h-[60vh] overflow-y-auto">
+          {ACCOUNT_SECTIONS.find((s) => s.id === activeTab)?.requiresAuth && !user ? (
+            <div className="flex flex-col items-center justify-center text-center gap-3 py-10 animate-fade-in">
+              <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                <User className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="font-bold text-slate-200 text-sm">
+                  {language === 'he' ? 'נדרשת התחברות' : 'Sign in required'}
+                </p>
+                <p className="text-slate-400 text-xs mt-1 max-w-xs">
+                  {language === 'he' ? 'סעיף זה קשור לחשבון האישי שלך — התחברו כדי לגשת אליו.' : 'This section is tied to your personal account — sign in to access it.'}
+                </p>
+              </div>
+              {onOpenAuth && (
+                <button
+                  onClick={() => { onClose(); onOpenAuth(); }}
+                  className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-all cursor-pointer min-h-[44px]"
+                >
+                  {language === 'he' ? 'התחברות / הרשמה' : 'Sign In / Register'}
+                </button>
+              )}
+            </div>
+          ) : (
+          <>
           {/* TAB 1: PROFILE & ACCOUNT */}
           {activeTab === 'profile' && (
             <div className="space-y-4 animate-fade-in">
@@ -503,7 +553,7 @@ export function AccountModal({
           {/* TAB 2: PERSONAL PREFERENCES */}
           {activeTab === 'preferences' && (
             <div className="space-y-4 animate-fade-in">
-              {/* Default Carrier Pre-Selection */}
+              {/* Default Carrier Pre-Selection — account-scoped, needs a signed-in user */}
               <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-2">
                 <label className="text-xs font-bold text-slate-200 flex items-center gap-2">
                   <Truck className="w-4 h-4 text-blue-400" />
@@ -512,7 +562,8 @@ export function AccountModal({
                 <select
                   value={currentPrefs.defaultCarrier}
                   onChange={handleCarrierChange}
-                  className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-base sm:text-sm rounded-xl p-2.5 focus:border-blue-500 focus:outline-none cursor-pointer min-h-[44px]"
+                  disabled={!user}
+                  className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-base sm:text-sm rounded-xl p-2.5 focus:border-blue-500 focus:outline-none cursor-pointer min-h-[44px] disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <option value="all">{language === 'he' ? 'זיהוי אוטומטי (ללא קיבוע)' : 'Auto-detect (No default)'}</option>
                   {Object.entries(CARRIERS).map(([key, carrier]) => (
@@ -521,6 +572,11 @@ export function AccountModal({
                     </option>
                   ))}
                 </select>
+                {!user && (
+                  <p className="text-[10px] text-slate-500">
+                    {language === 'he' ? 'התחברו כדי לשמור העדפה זו לחשבונכם' : 'Sign in to save this to your account'}
+                  </p>
+                )}
               </div>
 
               {/* Language Selection */}
@@ -563,16 +619,29 @@ export function AccountModal({
                 <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-2">
                   <label className="text-xs font-bold text-slate-200 flex items-center gap-2">
                     {isDark ? <Moon className="w-4 h-4 text-purple-400" /> : <Sun className="w-4 h-4 text-amber-400" />}
-                    <span>{language === 'he' ? 'ערכת נושא' : 'Theme Mode'}</span>
+                    <span>{language === 'he' ? 'ערכת נושא' : 'Theme'}</span>
                   </label>
-                  <button
-                    type="button"
-                    onClick={toggleTheme}
-                    className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 font-semibold text-xs transition-colors flex items-center justify-between cursor-pointer min-h-[44px]"
-                  >
-                    <span>{isDark ? (language === 'he' ? 'מצב כהה (Dark)' : 'Dark Slate') : (language === 'he' ? 'מצב בהיר (Light)' : 'Clean Light')}</span>
-                    <span className="text-[10px] text-blue-400 underline">{language === 'he' ? 'החלף' : 'Switch'}</span>
-                  </button>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[
+                      { value: 'light', label: { en: 'Light', he: 'בהיר' }, Icon: Sun },
+                      { value: 'dark', label: { en: 'Dark', he: 'כהה' }, Icon: Moon },
+                      { value: 'system', label: { en: 'System', he: 'מערכת' }, Icon: Settings }
+                    ].map(({ value, label, Icon }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setTheme(value)}
+                        className={`py-2.5 px-2 rounded-xl border text-[11px] font-bold transition-all flex flex-col items-center justify-center gap-1 cursor-pointer min-h-[44px] ${
+                          theme === value
+                            ? 'bg-blue-600/20 border-blue-500 text-blue-300'
+                            : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                        <span>{language === 'he' ? label.he : label.en}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-2">
@@ -583,12 +652,18 @@ export function AccountModal({
                   <select
                     value={currentPrefs.dateFormat}
                     onChange={handleDateFormatChange}
-                    className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-base sm:text-sm rounded-xl p-2.5 focus:border-blue-500 focus:outline-none cursor-pointer min-h-[44px]"
+                    disabled={!user}
+                    className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-base sm:text-sm rounded-xl p-2.5 focus:border-blue-500 focus:outline-none cursor-pointer min-h-[44px] disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <option value="DD/MM/YYYY">DD/MM/YYYY (19/08/2026)</option>
                     <option value="MM/DD/YYYY">MM/DD/YYYY (08/19/2026)</option>
                     <option value="YYYY-MM-DD">YYYY-MM-DD (2026-08-19)</option>
                   </select>
+                  {!user && (
+                    <p className="text-[10px] text-slate-500">
+                      {language === 'he' ? 'התחברו כדי לשמור העדפה זו לחשבונכם' : 'Sign in to save this to your account'}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -766,6 +841,8 @@ export function AccountModal({
                 </div>
               </div>
             </div>
+          )}
+          </>
           )}
           </div>
         </div>
