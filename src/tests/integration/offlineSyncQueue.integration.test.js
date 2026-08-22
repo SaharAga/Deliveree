@@ -1,11 +1,12 @@
-import { describe, it, expect, beforeEach, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach, beforeAll, vi } from 'vitest';
 import { SyncQueueService, MUTATION_TYPES } from '../../services/syncQueueService';
-import { IDBStorageAdapter } from '../../services/idbStorageAdapter';
+import { cloudAdapter } from '../../services/cloudStorageAdapter';
+import { deliveryService } from '../../services/deliveryService';
 
-describe('Integration Testbench: Offline Sync Queue (Offline mutation -> syncQueueService -> online replay -> IDB/Storage)', () => {
+describe('Integration Testbench: Offline Sync Queue (Offline mutation -> syncQueueService -> online replay -> Firestore)', () => {
   let syncQueue;
-  let adapter;
   let mockLocalStorage = {};
+  let upsertSpy;
 
   beforeAll(() => {
     globalThis.localStorage = {
@@ -20,8 +21,7 @@ describe('Integration Testbench: Offline Sync Queue (Offline mutation -> syncQue
     mockLocalStorage = {};
     syncQueue = new SyncQueueService();
     syncQueue.clearQueue();
-    adapter = new IDBStorageAdapter({ userId: 'offline-user-99' });
-    adapter.clearMemoryCache();
+    upsertSpy = vi.spyOn(cloudAdapter, 'upsertPackageRemote').mockResolvedValue(undefined);
   });
 
   it('accumulates multiple offline mutations and reliably executes replay upon reconnection', async () => {
@@ -44,6 +44,11 @@ describe('Integration Testbench: Offline Sync Queue (Offline mutation -> syncQue
       status: 'shipped'
     };
 
+    // Local persistence (deliveryService/localStorage) already happened synchronously at the
+    // App.jsx call site before enqueue() is ever invoked — seed it here to match that reality,
+    // since replayQueue()'s STATUS_CHANGE branch validates transitions against local state.
+    deliveryService.savePackages([pkg1, pkg2], 'offline-user-99');
+
     // 2. Queue mutations offline
     syncQueue.enqueue(MUTATION_TYPES.ADD, pkg1, 'offline-user-99');
     syncQueue.enqueue(MUTATION_TYPES.ADD, pkg2, 'offline-user-99');
@@ -62,17 +67,12 @@ describe('Integration Testbench: Offline Sync Queue (Offline mutation -> syncQue
     expect(replayResult.failed).toBe(0);
     expect(replayResult.remaining).toBe(0);
 
-    // 5. Verify IDB state after replay
-    adapter.setUserId('offline-user-99');
-    const finalPackages = await adapter.getPackages();
-    expect(finalPackages.length).toBe(2);
-
-    const tent = finalPackages.find(p => p.id === 'pkg-mut-1');
-    expect(tent).toBeDefined();
-    expect(tent.status).toBe('in_transit');
-
-    const charger = finalPackages.find(p => p.id === 'pkg-mut-2');
-    expect(charger).toBeDefined();
-    expect(charger.carrier).toBe('ups');
+    // 5. Verify each mutation reached the Firestore remote-write path with the right payload
+    expect(upsertSpy).toHaveBeenCalledWith(pkg1, 'offline-user-99');
+    expect(upsertSpy).toHaveBeenCalledWith(pkg2, 'offline-user-99');
+    expect(upsertSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'pkg-mut-1', status: 'in_transit' }),
+      'offline-user-99'
+    );
   });
 });

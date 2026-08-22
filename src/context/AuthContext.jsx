@@ -87,6 +87,11 @@ export async function migrateGuestDataToUser(targetUserId) {
     const merged = [...packagesToAdd, ...userPackages];
     deliveryService.savePackages(merged, targetUserId);
 
+    // Bulk migration write — deliberately uses cloudAdapter's own batched Firestore write
+    // rather than syncQueueService (see App.jsx's updatePackagesState for why: enqueueing N
+    // items in a tight synchronous loop only replays the first one). A failed migration write
+    // here still leaves data safe locally (deliveryService.savePackages above already ran);
+    // it just means the cloud copy lags until the next successful sync trigger.
     if (cloudAdapter) {
       cloudAdapter.setUserId(targetUserId);
       if (cloudAdapter.isFirestoreActive?.()) {

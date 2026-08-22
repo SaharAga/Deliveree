@@ -1,4 +1,3 @@
-import { idbStorageAdapter } from './idbStorageAdapter';
 import { cloudAdapter } from './cloudStorageAdapter';
 import { deliveryService } from './deliveryService';
 
@@ -250,27 +249,24 @@ export class SyncQueueService {
     this.isReplaying = true;
     let processed = 0;
     let failed = 0;
-    const remainingQueue = [];
+    // Track outcomes by mutation id rather than building `remainingQueue` positionally — a
+    // mutation can be enqueue()'d by another caller while this loop is mid-flight (awaiting a
+    // network call), landing in storage after our `queue` snapshot was taken. Reconciling by id
+    // against the *live* queue at save time (below) means that mutation survives instead of being
+    // silently wiped out by an unconditional overwrite built only from the stale snapshot.
+    const settledIds = new Set();
+    const retriedMutations = new Map();
 
     for (const mutation of queue) {
       try {
         const { type, payload, userId } = mutation;
 
         if (type === MUTATION_TYPES.ADD || type === MUTATION_TYPES.UPDATE) {
-          idbStorageAdapter.setUserId(userId);
-          await idbStorageAdapter.upsertPackage(payload);
-          if (cloudAdapter.isFirestoreActive()) {
-            await cloudAdapter.upsertPackage(payload);
-          }
+          await cloudAdapter.upsertPackageRemote(payload, userId);
         } else if (type === MUTATION_TYPES.DELETE) {
-          idbStorageAdapter.setUserId(userId);
-          await idbStorageAdapter.deletePackage(payload.id || payload);
-          if (cloudAdapter.isFirestoreActive()) {
-            await cloudAdapter.deletePackage(payload.id || payload);
-          }
+          await cloudAdapter.deletePackageRemote(payload.id || payload, userId);
         } else if (type === MUTATION_TYPES.STATUS_CHANGE) {
-          idbStorageAdapter.setUserId(userId);
-          const pkgs = await idbStorageAdapter.getPackages();
+          const pkgs = deliveryService.getPackages(userId);
           const target = pkgs.find(p => p.id === payload.packageId);
           if (target && deliveryService.canTransition(target.status, payload.newStatus)) {
             const updated = {
@@ -278,25 +274,30 @@ export class SyncQueueService {
               status: payload.newStatus,
               updatedAt: new Date().toISOString()
             };
-            await idbStorageAdapter.upsertPackage(updated);
-            if (cloudAdapter.isFirestoreActive()) {
-              await cloudAdapter.upsertPackage(updated);
-            }
+            const updatedList = pkgs.map((p) => (p.id === updated.id ? updated : p));
+            deliveryService.savePackages(updatedList, userId);
+            await cloudAdapter.upsertPackageRemote(updated, userId);
           }
         }
 
         processed++;
+        settledIds.add(mutation.id);
       } catch (err) {
         console.warn(`[SyncQueueService] Failed to replay mutation ${mutation.id}:`, err);
         mutation.retryCount = (mutation.retryCount || 0) + 1;
         if (mutation.retryCount < MAX_RETRY_COUNT) {
-          remainingQueue.push(mutation);
+          retriedMutations.set(mutation.id, mutation);
         } else {
           this.moveToDeadLetter(mutation, err);
+          settledIds.add(mutation.id);
         }
         failed++;
       }
     }
+
+    const remainingQueue = this.getQueue()
+      .filter((m) => !settledIds.has(m.id))
+      .map((m) => retriedMutations.get(m.id) || m);
 
     this.saveQueue(remainingQueue);
     this.isReplaying = false;

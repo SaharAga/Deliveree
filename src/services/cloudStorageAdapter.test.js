@@ -60,4 +60,15 @@ describe('CloudStorageAdapter', () => {
     const remaining = await adapter.deletePackage('pkg-delete-123');
     expect(remaining.some(p => p.id === 'pkg-delete-123')).toBe(false);
   });
+
+  describe('upsertPackageRemote / deletePackageRemote (SYNC-08 replay path)', () => {
+    it('throws rather than silently no-op-ing when userId is missing, so a caller (e.g. the sync queue replay loop) sees a real failure instead of a false success', async () => {
+      await expect(adapter.upsertPackageRemote({ id: 'pkg-1', title: 'X', trackingNumber: 'T1' }, undefined))
+        .rejects.toThrow(/userId/i);
+      await expect(adapter.deletePackageRemote('pkg-1', undefined))
+        .rejects.toThrow(/userId/i);
+      await expect(adapter.upsertPackageRemote({ id: 'pkg-1', title: 'X', trackingNumber: 'T1' }, ''))
+        .rejects.toThrow(/userId/i);
+    });
+  });
 });
