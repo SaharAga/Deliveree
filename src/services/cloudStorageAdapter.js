@@ -269,7 +269,8 @@ export class CloudStorageAdapter {
    * place in a queue replay loop).
    */
   async upsertPackageRemote(pkg, userId) {
-    if (!isFirebaseConfigured || !db || !userId) return;
+    if (!userId) throw new Error('upsertPackageRemote requires a userId');
+    if (!isFirebaseConfigured || !db) throw new Error('Firestore is not configured');
     const validatedPkg = strictlyValidatePackage(pkg);
     if (!validatedPkg) throw new Error('Invalid package payload');
     const docRef = doc(db, 'users', userId, 'packages', validatedPkg.id);
@@ -281,7 +282,8 @@ export class CloudStorageAdapter {
    * on the explicit `userId` parameter.
    */
   async deletePackageRemote(packageId, userId) {
-    if (!isFirebaseConfigured || !db || !userId) return;
+    if (!userId) throw new Error('deletePackageRemote requires a userId');
+    if (!isFirebaseConfigured || !db) throw new Error('Firestore is not configured');
     const docRef = doc(db, 'users', userId, 'packages', packageId);
     await deleteDoc(docRef);
   }

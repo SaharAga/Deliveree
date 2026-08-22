@@ -249,7 +249,13 @@ export class SyncQueueService {
     this.isReplaying = true;
     let processed = 0;
     let failed = 0;
-    const remainingQueue = [];
+    // Track outcomes by mutation id rather than building `remainingQueue` positionally — a
+    // mutation can be enqueue()'d by another caller while this loop is mid-flight (awaiting a
+    // network call), landing in storage after our `queue` snapshot was taken. Reconciling by id
+    // against the *live* queue at save time (below) means that mutation survives instead of being
+    // silently wiped out by an unconditional overwrite built only from the stale snapshot.
+    const settledIds = new Set();
+    const retriedMutations = new Map();
 
     for (const mutation of queue) {
       try {
@@ -268,22 +274,30 @@ export class SyncQueueService {
               status: payload.newStatus,
               updatedAt: new Date().toISOString()
             };
+            const updatedList = pkgs.map((p) => (p.id === updated.id ? updated : p));
+            deliveryService.savePackages(updatedList, userId);
             await cloudAdapter.upsertPackageRemote(updated, userId);
           }
         }
 
         processed++;
+        settledIds.add(mutation.id);
       } catch (err) {
         console.warn(`[SyncQueueService] Failed to replay mutation ${mutation.id}:`, err);
         mutation.retryCount = (mutation.retryCount || 0) + 1;
         if (mutation.retryCount < MAX_RETRY_COUNT) {
-          remainingQueue.push(mutation);
+          retriedMutations.set(mutation.id, mutation);
         } else {
           this.moveToDeadLetter(mutation, err);
+          settledIds.add(mutation.id);
         }
         failed++;
       }
     }
+
+    const remainingQueue = this.getQueue()
+      .filter((m) => !settledIds.has(m.id))
+      .map((m) => retriedMutations.get(m.id) || m);
 
     this.saveQueue(remainingQueue);
     this.isReplaying = false;
