@@ -525,13 +525,14 @@ export function AuthProvider({ children }) {
         migrateGuestDataToUser(firebaseUser.uid);
         setUser(cleanUser);
       } else {
-        // Authoritative unauthenticated state from Firebase
-        setUser(null);
-        cloudAdapter.setUserId(null);
-        try {
-          localStorage.removeItem(STORAGE_AUTH_KEY);
-        } catch {
-          // Ignore
+        if (isExplicitLogoutRef.current) {
+          setUser(null);
+          cloudAdapter.setUserId(null);
+          try {
+            localStorage.removeItem(STORAGE_AUTH_KEY);
+          } catch {
+            // Ignore
+          }
         }
       }
       setLoading(false);

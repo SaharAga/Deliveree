@@ -232,8 +232,11 @@ export function AuthModal({
     setIsGoogleLoading(true);
     setFormError('');
     try {
-      await loginWithGoogle();
-      onClose();
+      const u = await loginWithGoogle();
+      if (u) {
+        if (onShowToast) onShowToast(language === 'he' ? 'התחברת בהצלחה!' : 'Logged in successfully!', 'success');
+        onClose();
+      }
     } catch (err) {
       if (err && err.message) {
         setFormError(err.message);
@@ -271,7 +274,7 @@ export function AuthModal({
             <div>
               <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
                 <span>{language === 'he' ? 'חשבון וסנכרון ענן' : 'Account & Cloud Sync'}</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">v0.6.2.16</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">v0.6.2.17</span>
               </h2>
               <p className="text-xs text-slate-400">
                 {language === 'he' ? 'סנכרון החבילות שלך מכל מכשיר' : 'Access your packages from any device'}
