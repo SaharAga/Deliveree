@@ -557,13 +557,8 @@ function DashboardContent() {
           }
         }}
         onOpenSettings={() => {
-          if (user) {
-            setAccountInitialTab('preferences');
-            setIsAccountOpen(true);
-          } else {
-            setAuthInitialMode('signin');
-            setIsAuthOpen(true);
-          }
+          setAccountInitialTab('preferences');
+          setIsAccountOpen(true);
         }}
         onOpenAbout={() => setIsAboutOpen(true)}
         onOpenFeedback={() => setIsFeedbackOpen(true)}
@@ -855,6 +850,10 @@ function DashboardContent() {
           packages={packages}
           onExportData={handleExportData}
           onOpenExport={() => setIsExportOpen(true)}
+          onOpenAuth={() => {
+            setAuthInitialMode('signin');
+            setIsAuthOpen(true);
+          }}
           onShowToast={showToast}
         />
       </ErrorBoundary>

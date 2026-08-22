@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0" />
@@ -9,6 +9,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="Deliveree - Modern, smart parcel and shipment tracking dashboard with auto carrier detection and live timelines." />
     
+    <!-- Apply the right theme before first paint — defaults to the OS/browser preference, not a hardcoded value -->
+    <script>
+      (function() {
+        try {
+          var stored = localStorage.getItem('deliveree_theme') || 'system';
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var isDark = stored === 'system' ? prefersDark : stored === 'dark';
+          document.documentElement.classList.add(isDark ? 'dark' : 'light');
+        } catch {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
+
     <!-- Instant Hard Cache Purge & Service Worker Reset -->
     <script>
       (function() {
