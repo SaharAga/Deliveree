@@ -61,13 +61,11 @@ describe('AccountModal Component Logic & Schema', () => {
   it('verifies notification toggle updates structure matching schema', () => {
     const updated = {
       ...DEFAULT_NOTIFICATION_PREFS,
-      telegramEnabled: true,
-      telegramChatId: '987654321',
+      pushEnabled: true,
       notifyOnException: false
     };
 
-    expect(updated.telegramEnabled).toBe(true);
-    expect(updated.telegramChatId).toBe('987654321');
+    expect(updated.pushEnabled).toBe(true);
     expect(updated.notifyOnException).toBe(false);
     expect(updated.notifyOnStatusChange).toBe(true);
   });

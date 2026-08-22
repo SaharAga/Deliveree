@@ -236,7 +236,7 @@ export function SideNavDrawer({
             className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-800 text-emerald-300 text-start cursor-pointer transition-colors min-h-[48px]"
           >
             <MessageSquare className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span className="font-semibold">{language === 'he' ? 'משוב ודיווח באגים (טלגרם)' : 'Alpha Feedback (Telegram)'}</span>
+            <span className="font-semibold">{language === 'he' ? 'משוב ודיווח באגים' : 'Alpha Feedback'}</span>
           </button>
 
           {/* Admin Feedback Inspector */}

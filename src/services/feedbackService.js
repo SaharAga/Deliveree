@@ -1,7 +1,6 @@
 import { sanitizeString } from '../utils/packageValidator';
 import { sanitizeForTelemetry, redactPII } from '../utils/privacySanitizer';
 import { APP_VERSION, BUILD_CHANNEL } from '../constants/version';
-import { sendTelegramFeedbackRelay } from '../constants/telegram';
 import { db, isFirebaseConfigured } from './firebase';
 
 export const OFFLINE_FEEDBACK_QUEUE_KEY = 'deliveree_offline_feedback_queue';
@@ -221,7 +220,7 @@ export async function uploadToFirestore(payload) {
 }
 
 /**
- * Flushes all pending offline feedback items to Cloud Firestore & Telegram.
+ * Flushes all pending offline feedback items to Cloud Firestore.
  * @returns {Promise<{ flushed: number, remaining: number }>}
  */
 export async function flushOfflineFeedbackQueue() {
@@ -242,8 +241,6 @@ export async function flushOfflineFeedbackQueue() {
       }
 
       const firestoreSuccess = await uploadToFirestore(item);
-      // Try sending telegram relay if not previously confirmed
-      sendTelegramFeedbackRelay(item).catch(() => {});
 
       if (firestoreSuccess || !isFirebaseConfigured) {
         flushedCount += 1;
@@ -286,7 +283,7 @@ if (typeof window !== 'undefined') {
 
 /**
  * Main ingestion entry point: validates, sanitizes, and dispatches feedback.
- * Dual dispatches to Firestore and Telegram, falling back to offline queue if offline or unconfigured.
+ * Dispatches to Firestore, falling back to offline queue if offline or unconfigured.
  * 
  * @param {unknown} rawFeedback
  * @returns {Promise<{ success: boolean, syncedToCloud: boolean, feedback: FeedbackPayload }>}
@@ -301,10 +298,6 @@ export async function submitFeedback(rawFeedback) {
   let firestoreSuccess = false;
   if (isOnline) {
     firestoreSuccess = await uploadToFirestore(payload);
-    // Fire-and-forget Telegram notification relay
-    sendTelegramFeedbackRelay(payload).catch(err => {
-      console.warn('[FeedbackService] Telegram relay warning:', err);
-    });
   }
 
   const finalPayload = {

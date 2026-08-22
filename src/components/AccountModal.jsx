@@ -3,7 +3,7 @@ import {
   X, User, Settings, ShieldAlert, Database,
   Download, Trash2, CheckCircle2, Moon, Sun, Globe,
   Truck, Calendar, Mail, Check, AlertTriangle, Cloud,
-  Info, Sparkles, Package, ShieldCheck, Bell, Send
+  Info, Sparkles, Package, ShieldCheck, Bell
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
@@ -40,7 +40,6 @@ export function AccountModal({
   const [isDeleting, setIsDeleting] = useState(false);
   const [notificationPrefs, setNotificationPrefs] = useState(() => notificationService.getPreferences());
   const [permissionStatus, setPermissionStatus] = useState(() => notificationService.getNotificationPermission());
-  const [isSendingTest, setIsSendingTest] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -67,38 +66,6 @@ export function AccountModal({
       if (onShowToast) onShowToast(language === 'he' ? 'הרשאת התראות הופעלה בהצלחה!' : 'Notification permission granted!', 'success');
     } else if (perm === 'denied') {
       if (onShowToast) onShowToast(language === 'he' ? 'הרשאת התראות נדחתה בדפדפן' : 'Notification permission denied', 'error');
-    }
-  };
-
-  const handleSendTestTelegram = async () => {
-    if (!notificationPrefs.telegramChatId) {
-      if (onShowToast) onShowToast(language === 'he' ? 'נא להזין Chat ID תחילה' : 'Please enter Telegram Chat ID first', 'error');
-      return;
-    }
-
-    setIsSendingTest(true);
-    const mockPkg = packages[0] || {
-      id: 'test-1',
-      title: 'Deliveree Test Shipment',
-      titleHe: 'משלוח בדיקה Deliveree',
-      trackingNumber: 'IL999888777TEST',
-      carrier: 'israel_post',
-      status: 'out_for_delivery',
-      expectedDeliveryDate: new Date().toISOString().slice(0, 10),
-      destination: 'Tel Aviv'
-    };
-
-    const success = await notificationService.sendTelegramPackageAlert(notificationPrefs.telegramChatId, mockPkg, {
-      fromStatus: 'in_transit',
-      toStatus: 'out_for_delivery',
-      message: language === 'he' ? 'זוהי התראת בדיקה של Deliveree!' : 'This is a Deliveree test alert!'
-    });
-
-    setIsSendingTest(false);
-    if (success) {
-      if (onShowToast) onShowToast(t('notifications.testSentSuccess') || 'Test notification sent!', 'success');
-    } else {
-      if (onShowToast) onShowToast(t('notifications.testSentFailed') || 'Failed to send test notification', 'error');
     }
   };
 
@@ -437,58 +404,6 @@ export function AccountModal({
                     <span>{t('notifications.permissionGranted')}</span>
                   </div>
                 )}
-              </div>
-
-              {/* Telegram Alerts Section */}
-              <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <span className="text-xs font-bold text-slate-200 flex items-center gap-2">
-                      <Send className="w-4 h-4 text-sky-400" />
-                      <span>{t('notifications.telegramAlerts')}</span>
-                    </span>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">
-                      {t('notifications.telegramAlertsDesc')}
-                    </p>
-                  </div>
-
-                  <label className="relative inline-flex items-center cursor-pointer min-h-[44px] shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={notificationPrefs.telegramEnabled}
-                      onChange={(e) => handleUpdateNotifPref('telegramEnabled', e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[12px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600"></div>
-                  </label>
-                </div>
-
-                <div className="space-y-2 pt-2 border-t border-slate-800/80">
-                  <label className="text-[11px] font-bold text-slate-300 block">
-                    {t('notifications.telegramChatId')}
-                  </label>
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                    <input
-                      type="text"
-                      value={notificationPrefs.telegramChatId}
-                      onChange={(e) => handleUpdateNotifPref('telegramChatId', e.target.value.trim())}
-                      placeholder={t('notifications.telegramChatIdPlaceholder')}
-                      className="flex-1 bg-slate-900 border border-slate-700 text-slate-100 text-base sm:text-sm rounded-xl p-2.5 focus:border-sky-500 focus:outline-none font-mono min-h-[44px]"
-                    />
-                    <button
-                      type="button"
-                      disabled={isSendingTest || !notificationPrefs.telegramChatId}
-                      onClick={handleSendTestTelegram}
-                      className="px-3.5 py-2 rounded-xl bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border border-sky-500/30 font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 min-h-[44px]"
-                    >
-                      <Send className={`w-3.5 h-3.5 ${isSendingTest ? 'animate-spin' : ''}`} />
-                      <span>{isSendingTest ? (language === 'he' ? 'שולח...' : 'Sending...') : t('notifications.sendTestNotification')}</span>
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-slate-500">
-                    ℹ️ {t('notifications.telegramHelp')}
-                  </p>
-                </div>
               </div>
 
               {/* Notification Events Filter Settings */}

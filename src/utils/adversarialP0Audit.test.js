@@ -190,14 +190,7 @@ describe('Adversarial P0 Red Team Audit & Chaos Testbench (ASVS L3)', () => {
   });
 
   describe('3. Secrets & Credential Disclosure Audit', () => {
-    it('verifies telegram bot tokens and api keys are never exposed directly in module exports', async () => {
-      const telegramModule = await import('../constants/telegram');
-      expect(typeof telegramModule.TELEGRAM_FEEDBACK_BOT_TOKEN).toBe('string');
-      // In clean test/client environment, bot token must default to empty string unless explicitly in process.env
-      if (!process.env.TELEGRAM_FEEDBACK_BOT_TOKEN) {
-        expect(telegramModule.TELEGRAM_FEEDBACK_BOT_TOKEN).toBe('');
-      }
-
+    it('verifies api keys are never exposed directly in module exports', async () => {
       const firebaseModule = await import('../services/firebase');
       expect(firebaseModule).toBeDefined();
       expect(typeof firebaseModule.isFirebaseConfigured).toBe('boolean');

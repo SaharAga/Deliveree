@@ -1,6 +1,3 @@
-import { TELEGRAM_FEEDBACK_BOT_TOKEN } from '../constants/telegram';
-import { CARRIERS } from '../types/carriers';
-
 export const NOTIFICATION_PREFS_KEY = 'deliveree_notification_prefs';
 export const PUSH_SUBSCRIPTION_KEY = 'deliveree_push_subscription';
 
@@ -9,8 +6,6 @@ export const PUSH_SUBSCRIPTION_KEY = 'deliveree_push_subscription';
  */
 export const DEFAULT_NOTIFICATION_PREFS = Object.freeze({
   pushEnabled: false,
-  telegramEnabled: false,
-  telegramChatId: '',
   notifyOnStatusChange: true,
   notifyOnException: true,
   notifyOnDelivered: true,
@@ -262,100 +257,35 @@ export const notificationService = {
   },
 
   /**
-   * Dispatches a Telegram package alert using Markdown formatting
-   * @param {string} chatId - Target Telegram chat or user ID
-   * @param {import('../types/deliveree').Package} pkg - Package object
-   * @param {{ fromStatus?: string, toStatus: string, message?: string }} [statusChange] - Status change details
-   * @returns {Promise<boolean>}
-   */
-  sendTelegramPackageAlert: async (chatId, pkg, statusChange) => {
-    if (!chatId || !pkg) return false;
-
-    const botToken = TELEGRAM_FEEDBACK_BOT_TOKEN
-      || (typeof process !== 'undefined' && process.env?.TELEGRAM_FEEDBACK_BOT_TOKEN)
-      || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TELEGRAM_FEEDBACK_BOT_TOKEN)
-      || '';
-
-    if (!botToken) {
-      // Direct client Telegram dispatch is disabled when no token is provided.
-      // Notification relays are delegated to server/daemon or Firestore listeners.
-      return false;
-    }
-
-    const toStatus = statusChange?.toStatus || pkg.status || 'in_transit';
-    const statusMeta = STATUS_NOTIFICATION_INFO[toStatus] || {
-      emoji: '📦',
-      he: toStatus,
-      en: toStatus
-    };
-
-    const carrierObj = CARRIERS[pkg.carrier];
-    const carrierName = carrierObj ? `${carrierObj.name} (${carrierObj.hebrewName || ''})` : (pkg.carrier || 'Unknown');
-    const pkgTitle = pkg.title || pkg.titleHe || 'Package';
-    const trackingNum = pkg.trackingNumber || 'N/A';
-
-    const text = [
-      `${statusMeta.emoji} *Deliveree Status Update* | עדכון משלוח`,
-      `━━━━━━━━━━━━━━━━━━`,
-      `📦 *Item:* ${pkgTitle}`,
-      `🏷️ *Status:* ${statusMeta.en} | ${statusMeta.he}`,
-      `🚚 *Carrier:* ${carrierName}`,
-      `🔍 *Tracking:* \`${trackingNum}\``,
-      pkg.expectedDeliveryDate ? `📅 *Expected Delivery:* ${pkg.expectedDeliveryDate}` : '',
-      pkg.destination ? `📍 *Destination:* ${pkg.destination}` : '',
-      statusChange?.message ? `\n💬 *Note:* ${statusChange.message}` : ''
-    ].filter(Boolean).join('\n');
-
-    try {
-      const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text,
-          parse_mode: 'Markdown'
-        })
-      });
-
-      return response.ok;
-    } catch (err) {
-      console.warn('[NotificationService] Failed to send Telegram package alert:', err);
-      return false;
-    }
-  },
-
-  /**
    * Triggers notifications across configured channels based on user preferences and status change
    * @param {import('../types/deliveree').Package} pkg
    * @param {string} previousStatus
    * @param {string} newStatus
    * @param {string} [language='he']
-   * @returns {Promise<{ pushSent: boolean, telegramSent: boolean }>}
+   * @returns {Promise<{ pushSent: boolean }>}
    */
   notifyStatusChange: async (pkg, previousStatus, newStatus, language = 'he') => {
     if (!pkg || !newStatus || previousStatus === newStatus) {
-      return { pushSent: false, telegramSent: false };
+      return { pushSent: false };
     }
 
     const prefs = notificationService.getPreferences();
 
     // Check if notification is enabled for this type of event
     if (!prefs.notifyOnStatusChange) {
-      return { pushSent: false, telegramSent: false };
+      return { pushSent: false };
     }
 
     if (newStatus === 'exception' && prefs.notifyOnException === false) {
-      return { pushSent: false, telegramSent: false };
+      return { pushSent: false };
     }
 
     if (newStatus === 'delivered' && prefs.notifyOnDelivered === false) {
-      return { pushSent: false, telegramSent: false };
+      return { pushSent: false };
     }
 
     if (newStatus === 'customs' && prefs.notifyOnCustoms === false) {
-      return { pushSent: false, telegramSent: false };
+      return { pushSent: false };
     }
 
     const meta = STATUS_NOTIFICATION_INFO[newStatus] || {
@@ -376,7 +306,6 @@ export const notificationService = {
       : `Your package (${pkg.trackingNumber || ''}) is now: ${meta.en}`;
 
     let pushSent = false;
-    let telegramSent = false;
 
     // Send Browser Web Notification
     if (prefs.pushEnabled && notificationService.getNotificationPermission() === 'granted') {
@@ -388,14 +317,6 @@ export const notificationService = {
       pushSent = !!notif;
     }
 
-    // Send Telegram Notification
-    if (prefs.telegramEnabled && prefs.telegramChatId) {
-      telegramSent = await notificationService.sendTelegramPackageAlert(prefs.telegramChatId, pkg, {
-        fromStatus: previousStatus,
-        toStatus: newStatus
-      });
-    }
-
-    return { pushSent, telegramSent };
+    return { pushSent };
   }
 };
