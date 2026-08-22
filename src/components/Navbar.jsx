@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
-import { 
-  Package, Plus, Sparkles, Globe, Sun, Moon, Download, Upload, RotateCcw, 
-  BarChart3, ChevronDown, Link2, Menu, X, LogIn, Info, MessageSquare, 
-  ClipboardCheck, Edit3, MapPin
+import {
+  Package, Plus, Sparkles, Menu, X, LogIn,
+  ClipboardCheck, Edit3
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
-import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { SideNavDrawer } from './SideNavDrawer';
 
@@ -21,54 +19,16 @@ export function Navbar({
   onOpenAdminFeedback,
   onOpenExport,
   onOpenLockerMap,
-  onExportData,
   onImportData,
   onResetData,
+  onOpenSettings,
   onShowToast
 }) {
-  const { language, toggleLanguage, isRTL, t } = useLanguage();
-  const { isDark, toggleTheme } = useTheme();
+  const { language, t } = useLanguage();
   const { user } = useAuth();
 
-  const [backupMenuOpen, setBackupMenuOpen] = useState(false);
   const [isSideDrawerOpen, setIsSideDrawerOpen] = useState(false);
   const [isAddActionSheetOpen, setIsAddActionSheetOpen] = useState(false);
-
-  const handleFileInput = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        if (onShowToast) {
-          onShowToast(
-            language === 'he'
-              ? 'קובץ הגיבוי גדול מדי (מקסימום 2MB)'
-              : 'Backup file exceeds maximum limit of 2MB',
-            'error'
-          );
-        }
-        e.target.value = '';
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const content = event.target?.result;
-        if (typeof content === 'string') {
-          onImportData(content);
-        }
-      };
-      reader.onerror = () => {
-        if (onShowToast) {
-          onShowToast(
-            language === 'he' ? 'שגיאה בקריאת הקובץ' : 'Failed to read file',
-            'error'
-          );
-        }
-      };
-      reader.readAsText(file);
-      e.target.value = '';
-    }
-  };
 
   const handleQuickClipboardPaste = async () => {
     setIsAddActionSheetOpen(false);
@@ -102,170 +62,8 @@ export function Navbar({
           </div>
         </div>
 
-        {/* Desktop Toolbar (Hidden on Mobile) */}
+        {/* Desktop Toolbar (Hidden on Mobile) — kept deliberately minimal; everything else lives in the nav drawer */}
         <div className="hidden lg:flex items-center gap-2 sm:gap-2.5">
-          {(user || isDemoMode) && (
-            <>
-              {/* 1-Click Ingestion Guide */}
-              <button
-                onClick={onOpenConnectModal}
-                title={language === 'he' ? 'מדריך קליטת חבילות אוטומטית' : 'Automatic Ingestion Guide'}
-                className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-blue-400 transition-colors flex items-center gap-1.5 text-xs font-semibold cursor-pointer min-h-[48px]"
-              >
-                <Link2 className="w-4 h-4 text-blue-400" />
-                <span>{language === 'he' ? 'קליטה אוטומטית' : 'Auto Ingestion'}</span>
-              </button>
-
-              {/* Locker & Pickup Point Map */}
-              <button
-                onClick={onOpenLockerMap}
-                title={language === 'he' ? 'איתור נקודת איסוף ולוקרים' : 'Locker & Pickup Points'}
-                className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-blue-400 transition-colors cursor-pointer min-h-[48px] min-w-[48px] flex items-center justify-center"
-              >
-                <MapPin className="w-4 h-4" />
-              </button>
-
-              {/* Analytics Button */}
-              <button
-                onClick={onOpenAnalytics}
-                title={t('insights.title')}
-                className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer min-h-[48px] min-w-[48px] flex items-center justify-center"
-              >
-                <BarChart3 className="w-4 h-4" />
-              </button>
-            </>
-          )}
-
-          {/* Feedback Button */}
-          <button
-            onClick={onOpenFeedback}
-            title={language === 'he' ? 'שלח משוב אלפא' : 'Send Alpha Feedback'}
-            className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-emerald-400 transition-colors cursor-pointer min-h-[48px] min-w-[48px] flex items-center justify-center"
-          >
-            <MessageSquare className="w-4 h-4" />
-          </button>
-
-          {(user || isDemoMode) && (
-            <>
-              {/* Export Center Button */}
-              <button
-                onClick={() => {
-                  if (onOpenExport) onOpenExport();
-                  else if (onExportData) onExportData();
-                }}
-                title={language === 'he' ? 'מרכז ייצוא ודוחות' : 'Export Center & Reports'}
-                className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-blue-400 transition-colors flex items-center gap-1.5 text-xs font-semibold cursor-pointer min-h-[48px]"
-              >
-                <Download className="w-4 h-4 text-blue-400" />
-                <span>{language === 'he' ? 'ייצוא' : 'Export'}</span>
-              </button>
-            </>
-          )}
-
-          {/* Info / About Button */}
-          <button
-            onClick={onOpenAbout}
-            title={language === 'he' ? 'אודות ופרטי מערכת' : 'About & System Info'}
-            className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-blue-400 transition-colors cursor-pointer min-h-[48px] min-w-[48px] flex items-center justify-center"
-            aria-label={language === 'he' ? 'אודות ופרטי מערכת' : 'About & System Info'}
-          >
-            <Info className="w-4 h-4" />
-          </button>
-
-          {(user || isDemoMode) && (
-            /* Backup / Data Management Menu */
-            <div className="relative">
-              <button
-                onClick={() => setBackupMenuOpen(!backupMenuOpen)}
-                className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-1 cursor-pointer min-h-[48px]"
-                title="Data & Backup"
-              >
-                <Download className="w-4 h-4" />
-                <ChevronDown className="w-3 h-3 text-slate-500" />
-              </button>
-
-              {backupMenuOpen && (
-                <>
-                  <div className="fixed inset-0 z-30" onClick={() => setBackupMenuOpen(false)} />
-                  <div className={`absolute z-40 top-full mt-2 w-48 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl py-1.5 backdrop-blur-2xl text-xs ${isRTL ? 'left-0' : 'right-0'}`}>
-                    <button
-                      onClick={() => {
-                        setBackupMenuOpen(false);
-                        if (onOpenExport) onOpenExport();
-                        else onExportData();
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer min-h-[44px]"
-                    >
-                      <Download className="w-4 h-4 text-blue-400" />
-                      <span>{t('backup.exportData')}</span>
-                    </button>
-
-                    <label className="w-full flex items-center gap-2.5 px-3.5 py-2 text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer min-h-[44px]">
-                      <Upload className="w-4 h-4 text-emerald-400" />
-                      <span>{t('backup.importData')}</span>
-                      <input
-                        type="file"
-                        accept=".json"
-                        onChange={(e) => {
-                          setBackupMenuOpen(false);
-                          handleFileInput(e);
-                        }}
-                        className="hidden"
-                      />
-                    </label>
-
-                    <div className="my-1 border-t border-slate-800" />
-
-                    {isDemoMode ? (
-                      <button
-                        onClick={() => {
-                          setBackupMenuOpen(false);
-                          onResetData();
-                        }}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 cursor-pointer min-h-[44px]"
-                      >
-                        <RotateCcw className="w-4 h-4 text-amber-400" />
-                        <span>{t('backup.resetData')}</span>
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setBackupMenuOpen(false);
-                          onResetData();
-                        }}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 cursor-pointer min-h-[44px]"
-                      >
-                        <RotateCcw className="w-4 h-4 text-rose-400" />
-                        <span>{t('backup.clearAllDeliveries')}</span>
-                      </button>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          <div className="h-4 w-px bg-slate-800 mx-1" />
-
-          {/* Theme Toggle */}
-          <button
-            onClick={toggleTheme}
-            className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-amber-400 transition-colors cursor-pointer min-h-[48px] min-w-[48px] flex items-center justify-center"
-            title={isDark ? (language === 'he' ? 'מצב יום' : 'Light Mode') : (language === 'he' ? 'מצב לילה' : 'Dark Mode')}
-          >
-            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
-
-          {/* Language Toggle */}
-          <button
-            onClick={toggleLanguage}
-            className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer min-h-[48px]"
-            title="Toggle Hebrew / English"
-          >
-            <Globe className="w-3.5 h-3.5 text-blue-400" />
-            <span>{language === 'he' ? 'EN' : 'עב'}</span>
-          </button>
-
           {/* User Account / Profile */}
           <button
             onClick={onOpenAuth}
@@ -317,6 +115,16 @@ export function Navbar({
               </button>
             </>
           )}
+
+          {/* Nav Drawer Toggle — analytics, export, settings, locker map, feedback, about all live here now */}
+          <button
+            onClick={() => setIsSideDrawerOpen(true)}
+            className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition-colors cursor-pointer min-h-[48px] min-w-[48px] flex items-center justify-center"
+            aria-label="Open Navigation Menu"
+            title={language === 'he' ? 'תפריט' : 'Menu'}
+          >
+            <Menu className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Mobile / Tablet Compact Action Bar */}
@@ -442,6 +250,7 @@ export function Navbar({
         isDemoMode={isDemoMode}
         onClose={() => setIsSideDrawerOpen(false)}
         onOpenAuth={onOpenAuth}
+        onOpenSettings={onOpenSettings}
         onOpenSmartImport={onOpenSmartImport}
         onOpenConnectModal={onOpenConnectModal}
         onOpenAnalytics={onOpenAnalytics}
@@ -450,7 +259,9 @@ export function Navbar({
         onOpenAbout={onOpenAbout}
         onOpenExport={onOpenExport}
         onOpenLockerMap={onOpenLockerMap}
+        onImportData={onImportData}
         onResetData={onResetData}
+        onShowToast={onShowToast}
       />
     </header>
   );
