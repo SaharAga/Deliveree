@@ -81,7 +81,10 @@ jobs:
     name: Deploy to Firebase Hosting (production)
     runs-on: ubuntu-latest
     needs: [build]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Skips cleanly (instead of failing CI) until FIREBASE_SERVICE_ACCOUNT_DELIVEREE is added as a repo secret.
+    if: |
+      github.event_name == 'push' && github.ref == 'refs/heads/main' &&
+      vars.FIREBASE_HOSTING_ENABLED == 'true'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
