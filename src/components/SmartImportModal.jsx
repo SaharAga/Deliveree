@@ -11,6 +11,7 @@ export function SmartImportModal({
   isOpen,
   onClose,
   onParsedResult,
+  onSwitchToManual,
   initialText = ''
 }) {
   const { t, language, isRTL } = useLanguage();
@@ -169,6 +170,16 @@ export function SmartImportModal({
 
         {/* Body */}
         <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+          {onSwitchToManual && (
+            <button
+              type="button"
+              onClick={() => onSwitchToManual(rawText)}
+              className="text-[11px] font-semibold text-slate-400 hover:text-blue-400 underline underline-offset-2 transition-colors cursor-pointer"
+            >
+              {language === 'he' ? 'להזין ידנית במקום זאת' : 'Enter details manually instead'}
+            </button>
+          )}
+
           {/* Quick Paste Button */}
           <div className="flex items-center justify-between p-3.5 bg-blue-950/40 border border-blue-500/30 rounded-2xl">
             <div className="flex items-center gap-2.5">
@@ -283,9 +294,20 @@ export function SmartImportModal({
                   </div>
                 </div>
               ) : (
-                <div className="p-4 rounded-2xl bg-rose-950/40 border border-rose-500/30 flex items-center gap-3 text-rose-300 text-xs">
-                  <AlertCircle className="w-5 h-5 shrink-0 text-rose-400" />
-                  <span>{t('smartModal.noMatchAlert')}</span>
+                <div className="p-4 rounded-2xl bg-rose-950/40 border border-rose-500/30 space-y-3">
+                  <div className="flex items-center gap-3 text-rose-300 text-xs">
+                    <AlertCircle className="w-5 h-5 shrink-0 text-rose-400" />
+                    <span>{t('smartModal.noMatchAlert')}</span>
+                  </div>
+                  {onSwitchToManual && (
+                    <button
+                      type="button"
+                      onClick={() => onSwitchToManual(rawText)}
+                      className="w-full px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all cursor-pointer min-h-[44px]"
+                    >
+                      {language === 'he' ? 'הזן פרטים ידנית' : 'Enter Details Manually'}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
