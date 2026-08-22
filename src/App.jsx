@@ -674,7 +674,7 @@ function DashboardContent() {
                 <p className="text-xs text-slate-400 max-w-sm mb-6">
                   {searchQuery || selectedCarrier !== 'all' || activeTab !== 'all'
                     ? (language === 'he' ? 'נסה לשנות את הסינון או מונחי החיפוש' : 'Try adjusting your search or active filters')
-                    : (language === 'he' ? 'אין עדיין חבילות במעקד. הוסף חבילה ראשונה!' : 'No packages tracked yet. Add your first delivery!')}
+                    : (language === 'he' ? 'אין עדיין חבילות במעקב. הוסף חבילה ראשונה!' : 'No packages tracked yet. Add your first delivery!')}
                 </p>
                 <div className="flex flex-wrap items-center justify-center gap-3">
                   <button
