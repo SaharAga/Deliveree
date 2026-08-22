@@ -4,7 +4,6 @@ import {
   Bug, Lightbulb, Heart 
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
-import { TELEGRAM_FEEDBACK_CHAT_ID } from '../constants/telegram';
 
 export function AdminFeedbackModal({
   isOpen,
@@ -41,14 +40,11 @@ export function AdminFeedbackModal({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-slate-100 flex items-center gap-2">
-                <span>{language === 'he' ? 'יומן משובי אלפא (טלגרם & מקומי)' : 'Alpha Feedback Inspector'}</span>
+                <span>{language === 'he' ? 'יומן משובי אלפא' : 'Alpha Feedback Inspector'}</span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30">
                   {feedbacks.length}
                 </span>
               </h2>
-              <p className="text-xs text-slate-400">
-                {language === 'he' ? `משלוח ישיר מנותב לטלגרם צ'אט: ${TELEGRAM_FEEDBACK_CHAT_ID}` : `Direct relay routed to Telegram Chat: ${TELEGRAM_FEEDBACK_CHAT_ID}`}
-              </p>
             </div>
           </div>
 
@@ -70,7 +66,7 @@ export function AdminFeedbackModal({
                 {language === 'he' ? 'אין משובים מקומיים כרגע' : 'No local feedback submissions yet'}
               </p>
               <p className="text-[11px] text-slate-500">
-                {language === 'he' ? 'כל משוב שיישלח דרך האפליקציה ייקלט כאן ובטלגרם בזמן אמת.' : 'Every feedback submitted will be recorded here and alerted via Telegram.'}
+                {language === 'he' ? 'כל משוב שיישלח דרך האפליקציה ייקלט כאן.' : 'Every feedback submitted will be recorded here.'}
               </p>
             </div>
           ) : (

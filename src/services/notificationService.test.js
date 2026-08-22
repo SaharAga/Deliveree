@@ -12,7 +12,6 @@ describe('notificationService', () => {
   let mockStore = {};
 
   beforeAll(() => {
-    process.env.TELEGRAM_FEEDBACK_BOT_TOKEN = '123456:mock_bot_token';
     globalThis.localStorage = {
       getItem: (key) => mockStore[key] || null,
       setItem: (key, value) => { mockStore[key] = String(value); },
@@ -38,17 +37,13 @@ describe('notificationService', () => {
 
     it('saves and retrieves updated preferences', () => {
       const updated = notificationService.savePreferences({
-        pushEnabled: true,
-        telegramEnabled: true,
-        telegramChatId: '123456789'
+        pushEnabled: true
       });
 
       expect(updated.pushEnabled).toBe(true);
-      expect(updated.telegramEnabled).toBe(true);
-      expect(updated.telegramChatId).toBe('123456789');
 
       const retrieved = notificationService.getPreferences();
-      expect(retrieved.telegramChatId).toBe('123456789');
+      expect(retrieved.pushEnabled).toBe(true);
       expect(retrieved.notifyOnStatusChange).toBe(true);
     });
 
@@ -202,53 +197,6 @@ describe('notificationService', () => {
     });
   });
 
-  describe('Telegram Alert Dispatch', () => {
-    it('formats and sends payload to Telegram bot API', async () => {
-      const fetchMock = vi.fn().mockResolvedValue({ ok: true });
-      globalThis.fetch = fetchMock;
-
-      const mockPkg = {
-        id: 'pkg-1',
-        title: 'Keychron Keyboard',
-        trackingNumber: 'IL123456789',
-        carrier: 'israel_post',
-        status: 'out_for_delivery',
-        expectedDeliveryDate: '2026-08-25',
-        destination: 'Tel Aviv'
-      };
-
-      const result = await notificationService.sendTelegramPackageAlert('726522010', mockPkg, {
-        fromStatus: 'in_transit',
-        toStatus: 'out_for_delivery'
-      });
-
-      expect(result).toBe(true);
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-
-      const [url, options] = fetchMock.mock.calls[0];
-      expect(url).toContain('https://api.telegram.org/bot');
-      const body = JSON.parse(options.body);
-      expect(body.chat_id).toBe('726522010');
-      expect(body.parse_mode).toBe('Markdown');
-      expect(body.text).toContain('Keychron Keyboard');
-      expect(body.text).toContain('IL123456789');
-      expect(body.text).toContain('Out for Delivery');
-    });
-
-    it('handles network error during Telegram alert gracefully', async () => {
-      globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
-
-      const mockPkg = { id: '1', trackingNumber: 'TEST1234' };
-      const result = await notificationService.sendTelegramPackageAlert('123', mockPkg);
-      expect(result).toBe(false);
-    });
-
-    it('returns false if chatId or pkg is missing', async () => {
-      expect(await notificationService.sendTelegramPackageAlert('', { id: '1' })).toBe(false);
-      expect(await notificationService.sendTelegramPackageAlert('123', null)).toBe(false);
-    });
-  });
-
   describe('notifyStatusChange Orchestrator', () => {
     it('skips dispatch if previous and new status are the same', async () => {
       const result = await notificationService.notifyStatusChange(
@@ -256,14 +204,12 @@ describe('notificationService', () => {
         'in_transit',
         'in_transit'
       );
-      expect(result).toEqual({ pushSent: false, telegramSent: false });
+      expect(result).toEqual({ pushSent: false });
     });
 
     it('dispatches to enabled channels when status changes', async () => {
       notificationService.savePreferences({
         pushEnabled: true,
-        telegramEnabled: true,
-        telegramChatId: '726522010',
         notifyOnStatusChange: true
       });
 
@@ -271,9 +217,6 @@ describe('notificationService', () => {
       globalThis.Notification = Object.assign(notificationConstructor, {
         permission: 'granted'
       });
-
-      const fetchMock = vi.fn().mockResolvedValue({ ok: true });
-      globalThis.fetch = fetchMock;
 
       const mockPkg = {
         id: 'pkg-1',
@@ -284,9 +227,7 @@ describe('notificationService', () => {
 
       const res = await notificationService.notifyStatusChange(mockPkg, 'in_transit', 'delivered', 'he');
       expect(res.pushSent).toBe(true);
-      expect(res.telegramSent).toBe(true);
       expect(notificationConstructor).toHaveBeenCalled();
-      expect(fetchMock).toHaveBeenCalled();
     });
 
     it('respects notifyOnException preference toggle', async () => {

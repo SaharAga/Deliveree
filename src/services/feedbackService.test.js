@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import * as feedbackService from './feedbackService';
-import * as telegramConstants from '../constants/telegram';
 
 const {
   validateAndSanitizeFeedback,
@@ -87,7 +86,6 @@ describe('FeedbackService Unit & Resilience Test Suite', () => {
 
   describe('submitFeedback & Offline Queueing', () => {
     it('successfully queues and records offline feedback when Firestore is offline', async () => {
-      vi.spyOn(telegramConstants, 'sendTelegramFeedbackRelay').mockResolvedValue(true);
       vi.stubGlobal('navigator', { onLine: false });
 
       const submission = await submitFeedback({
