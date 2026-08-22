@@ -23,6 +23,7 @@ import { Toast } from './components/Toast';
 import { InstallPwaBanner } from './components/InstallPwaBanner';
 import { deliveryService } from './services/deliveryService';
 import { cloudAdapter } from './services/cloudStorageAdapter';
+import { syncQueueService, MUTATION_TYPES } from './services/syncQueueService';
 import { notificationService } from './services/notificationService';
 import { INITIAL_PACKAGES } from './data/initialMockData';
 import { useLanguage, LanguageProvider } from './context/LanguageContext';
@@ -243,7 +244,11 @@ function DashboardContent() {
     };
   }, []);
 
-  // Sync with LocalStorage & Cloud (bulk — use for batch operations only)
+  // Sync with LocalStorage & Cloud (bulk — use for batch operations only, e.g. import/batch-refresh).
+  // Deliberately NOT routed through syncQueueService: enqueue() auto-triggers a replay per call, and
+  // a tight synchronous loop of N enqueue() calls only picks up the first item's replay pass (the
+  // queue snapshot is captured before the loop's later calls land) — bulk writes go straight to
+  // cloudAdapter's own batched Firestore write instead, which handles the whole list atomically.
   const updatePackagesState = (newPackages) => {
     setPackages(newPackages);
     deliveryService.savePackages(newPackages, user?.id || null);
@@ -253,12 +258,15 @@ function DashboardContent() {
     triggerCloudSync();
   };
 
-  // Single-package mutation: writes one Firestore doc instead of batch-writing the full list (quota-efficient)
+  // Single-package mutation: writes one Firestore doc instead of batch-writing the full list (quota-efficient).
+  // The cloud write goes through syncQueueService instead of calling cloudAdapter directly, so a failed
+  // or offline write is retried with backoff and dead-lettered (not silently dropped) instead of just
+  // logging a console.warn.
   const upsertSinglePackage = (updatedPackages, changedPkg) => {
     setPackages(updatedPackages);
     deliveryService.savePackages(updatedPackages, user?.id || null);
     if (user?.id && cloudAdapter.isFirestoreActive?.()) {
-      cloudAdapter.upsertPackage(changedPkg);
+      syncQueueService.enqueue(MUTATION_TYPES.UPDATE, changedPkg, user.id);
     }
     triggerCloudSync();
   };
@@ -267,7 +275,7 @@ function DashboardContent() {
     setPackages(updatedPackages);
     deliveryService.savePackages(updatedPackages, user?.id || null);
     if (user?.id && cloudAdapter.isFirestoreActive?.()) {
-      cloudAdapter.deletePackage(packageId);
+      syncQueueService.enqueue(MUTATION_TYPES.DELETE, { id: packageId }, user.id);
     }
     triggerCloudSync();
   };

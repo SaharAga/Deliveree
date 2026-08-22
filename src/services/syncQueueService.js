@@ -1,4 +1,3 @@
-import { idbStorageAdapter } from './idbStorageAdapter';
 import { cloudAdapter } from './cloudStorageAdapter';
 import { deliveryService } from './deliveryService';
 
@@ -257,20 +256,11 @@ export class SyncQueueService {
         const { type, payload, userId } = mutation;
 
         if (type === MUTATION_TYPES.ADD || type === MUTATION_TYPES.UPDATE) {
-          idbStorageAdapter.setUserId(userId);
-          await idbStorageAdapter.upsertPackage(payload);
-          if (cloudAdapter.isFirestoreActive()) {
-            await cloudAdapter.upsertPackage(payload);
-          }
+          await cloudAdapter.upsertPackageRemote(payload, userId);
         } else if (type === MUTATION_TYPES.DELETE) {
-          idbStorageAdapter.setUserId(userId);
-          await idbStorageAdapter.deletePackage(payload.id || payload);
-          if (cloudAdapter.isFirestoreActive()) {
-            await cloudAdapter.deletePackage(payload.id || payload);
-          }
+          await cloudAdapter.deletePackageRemote(payload.id || payload, userId);
         } else if (type === MUTATION_TYPES.STATUS_CHANGE) {
-          idbStorageAdapter.setUserId(userId);
-          const pkgs = await idbStorageAdapter.getPackages();
+          const pkgs = deliveryService.getPackages(userId);
           const target = pkgs.find(p => p.id === payload.packageId);
           if (target && deliveryService.canTransition(target.status, payload.newStatus)) {
             const updated = {
@@ -278,10 +268,7 @@ export class SyncQueueService {
               status: payload.newStatus,
               updatedAt: new Date().toISOString()
             };
-            await idbStorageAdapter.upsertPackage(updated);
-            if (cloudAdapter.isFirestoreActive()) {
-              await cloudAdapter.upsertPackage(updated);
-            }
+            await cloudAdapter.upsertPackageRemote(updated, userId);
           }
         }
 

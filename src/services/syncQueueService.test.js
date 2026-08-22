@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, beforeAll, afterEach, vi } from 'vitest';
 import { SyncQueueService, MUTATION_TYPES, MAX_RETRY_COUNT } from './syncQueueService';
-import { idbStorageAdapter } from './idbStorageAdapter';
+import { cloudAdapter } from './cloudStorageAdapter';
 
 describe('SyncQueueService Unit Tests', () => {
   let syncQueue;
@@ -30,6 +30,7 @@ describe('SyncQueueService Unit Tests', () => {
       status: 'ordered'
     };
 
+    syncQueue.isOnline = false;
     const mutation = syncQueue.enqueue(MUTATION_TYPES.ADD, pkg, 'user-123');
     expect(mutation.id).toBeDefined();
     expect(mutation.type).toBe('ADD');
@@ -41,6 +42,8 @@ describe('SyncQueueService Unit Tests', () => {
   });
 
   it('replays pending mutations and empties queue upon successful execution', async () => {
+    const upsertSpy = vi.spyOn(cloudAdapter, 'upsertPackageRemote').mockResolvedValue(undefined);
+
     const pkg = {
       id: 'pkg-replay-1',
       title: 'Replayed Item',
@@ -59,6 +62,9 @@ describe('SyncQueueService Unit Tests', () => {
     expect(res.processed).toBe(1);
     expect(res.failed).toBe(0);
     expect(syncQueue.getQueue().length).toBe(0);
+    expect(upsertSpy).toHaveBeenCalledWith(pkg, 'user-abc');
+
+    upsertSpy.mockRestore();
   });
 
   it('deduplicates identical unplayed mutations for same package', () => {
@@ -74,7 +80,7 @@ describe('SyncQueueService Unit Tests', () => {
     let upsertSpy;
 
     beforeEach(() => {
-      upsertSpy = vi.spyOn(idbStorageAdapter, 'upsertPackage').mockRejectedValue(new Error('IndexedDB quota exceeded'));
+      upsertSpy = vi.spyOn(cloudAdapter, 'upsertPackageRemote').mockRejectedValue(new Error('Firestore quota exceeded'));
     });
 
     afterEach(() => {
@@ -103,7 +109,7 @@ describe('SyncQueueService Unit Tests', () => {
       expect(deadLetterQueue.length).toBe(1);
       expect(deadLetterQueue[0].id).toBe(mutation.id);
       expect(deadLetterQueue[0].retryCount).toBe(MAX_RETRY_COUNT);
-      expect(deadLetterQueue[0].lastError).toBe('IndexedDB quota exceeded');
+      expect(deadLetterQueue[0].lastError).toBe('Firestore quota exceeded');
       expect(deadLetterQueue[0].failedAt).toBeDefined();
     });
 

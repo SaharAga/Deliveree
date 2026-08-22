@@ -257,6 +257,36 @@ export class CloudStorageAdapter {
   }
 
   /**
+   * Writes a single package to Firestore only, with no local write and no internal
+   * error swallowing — errors propagate to the caller. Used by the offline sync queue's
+   * replay path, where local persistence has already happened separately and the queue
+   * needs to know whether the remote write actually succeeded so it can retry.
+   *
+   * Takes `userId` explicitly rather than relying on `this.userId` — the replay path may
+   * run for a different user than whichever one this singleton's live listener is currently
+   * attached to, and this method must not touch that listener state (setUserId() has side
+   * effects — tearing down and re-establishing a real Firestore subscription — that have no
+   * place in a queue replay loop).
+   */
+  async upsertPackageRemote(pkg, userId) {
+    if (!isFirebaseConfigured || !db || !userId) return;
+    const validatedPkg = strictlyValidatePackage(pkg);
+    if (!validatedPkg) throw new Error('Invalid package payload');
+    const docRef = doc(db, 'users', userId, 'packages', validatedPkg.id);
+    await setDoc(docRef, { ...validatedPkg, userId }, { merge: true });
+  }
+
+  /**
+   * Deletes a single package from Firestore only. See upsertPackageRemote for rationale
+   * on the explicit `userId` parameter.
+   */
+  async deletePackageRemote(packageId, userId) {
+    if (!isFirebaseConfigured || !db || !userId) return;
+    const docRef = doc(db, 'users', userId, 'packages', packageId);
+    await deleteDoc(docRef);
+  }
+
+  /**
    * Subscribes to real-time updates
    */
   subscribe(callback) {
