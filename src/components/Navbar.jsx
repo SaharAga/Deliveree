@@ -38,8 +38,18 @@ export function Navbar({
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-800/80 bg-slate-950/90 backdrop-blur-2xl transition-all duration-300 pt-[env(safe-area-inset-top,0px)]">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2">
-        {/* Brand Logo & Title */}
-        <div className="flex items-center gap-2.5 min-w-0">
+        {/* Leading edge: menu + brand together, the way Gmail/WhatsApp anchor their drawer trigger */}
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <button
+            onClick={() => setIsSideDrawerOpen(true)}
+            className="shrink-0 p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
+            aria-label="Open Navigation Menu"
+            title={language === 'he' ? 'תפריט' : 'Menu'}
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+
+          <div className="flex items-center gap-2.5 min-w-0">
           <div className="relative group shrink-0">
             <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 opacity-70 blur-sm group-hover:opacity-100 transition duration-500 animate-pulse-subtle" />
             <div className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-900 border border-slate-700/80 flex items-center justify-center text-blue-400 shadow-md">
@@ -59,6 +69,7 @@ export function Navbar({
             <span className="hidden sm:block text-[10px] text-slate-400 font-medium -mt-0.5 truncate">
               {t('appTagline')}
             </span>
+          </div>
           </div>
         </div>
 
@@ -115,16 +126,6 @@ export function Navbar({
               </button>
             </>
           )}
-
-          {/* Nav Drawer Toggle — analytics, export, settings, locker map, feedback, about all live here now */}
-          <button
-            onClick={() => setIsSideDrawerOpen(true)}
-            className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition-colors cursor-pointer min-h-[48px] min-w-[48px] flex items-center justify-center"
-            aria-label="Open Navigation Menu"
-            title={language === 'he' ? 'תפריט' : 'Menu'}
-          >
-            <Menu className="w-5 h-5" />
-          </button>
         </div>
 
         {/* Mobile / Tablet Compact Action Bar */}
@@ -167,15 +168,6 @@ export function Navbar({
               <span className="hidden sm:inline">{t('addPackage')}</span>
             </button>
           )}
-
-          {/* Mobile Side Drawer Toggle */}
-          <button
-            onClick={() => setIsSideDrawerOpen(true)}
-            className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 cursor-pointer min-h-[48px] min-w-[48px] flex items-center justify-center"
-            aria-label="Toggle Side Navigation Drawer"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
         </div>
       </div>
 
